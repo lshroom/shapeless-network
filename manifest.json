@@ -4,8 +4,8 @@
   "description": "A human mycelium network — imagine, build, and gather around a shared future.",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#05080A",
-  "theme_color": "#05080A",
+  "background_color": "#070C09",
+  "theme_color": "#070C09",
   "orientation": "portrait",
   "icons": [
     { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },

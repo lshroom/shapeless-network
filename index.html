@@ -1,38 +1,45 @@
 <title>Shapeless</title>
-<meta name="theme-color" content="#05080A">
+<meta name="theme-color" content="#070C09">
 <link rel="manifest" href="manifest.json">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
   :root{
-    --bg:#05080A; --surface:#0F1419; --surface-2:#161C23; --surface-3:#1F2830;
-    --text:#E8F4F6; --muted:#87999E; --dim:#4E5D62;
-    --accent:#3FE8FF; --accent-dim:#155A66; --accent-2:#FF4FD8;
-    --line:#212C33; --line-soft:#161E24;
+    --bg:#070C09; --surface:#0F1712; --surface-2:#16211A; --surface-3:#1F2E24;
+    --text:#E9F6EC; --muted:#8AA394; --dim:#526355;
+    --accent:#7CFFB2; --accent-dim:#1F4A34; --accent-2:#FF4FD8;
+    --line:#1D2B22; --line-soft:#141F18;
     --danger:#FF5C6E;
     --font-display:'Fraunces',serif; --font-body:'Inter',system-ui,sans-serif; --font-mono:'JetBrains Mono',monospace;
   }
   @media (prefers-color-scheme: light){
     :root:not([data-theme="dark"]){
-      --bg:#EEF3F4; --surface:#FFFFFF; --surface-2:#E2EAEC; --surface-3:#D3DFE2;
-      --text:#0A1417; --muted:#4B6067; --dim:#88999D;
-      --accent:#0092A8; --accent-dim:#BCE8EF; --accent-2:#C4179E;
-      --line:#CEDCE0; --line-soft:#E1EBED;
+      --bg:#EEF4EF; --surface:#FFFFFF; --surface-2:#E3ECE4; --surface-3:#D2E2D5;
+      --text:#0B170F; --muted:#4C654F; --dim:#89998B;
+      --accent:#1B8A57; --accent-dim:#C9EEDA; --accent-2:#C4179E;
+      --line:#CFE0D1; --line-soft:#E3ECE4;
       --danger:#C43D4E;
     }
   }
   :root[data-theme="light"]{
-    --bg:#EEF3F4; --surface:#FFFFFF; --surface-2:#E2EAEC; --surface-3:#D3DFE2;
-    --text:#0A1417; --muted:#4B6067; --dim:#88999D;
-    --accent:#0092A8; --accent-dim:#BCE8EF; --accent-2:#C4179E;
-    --line:#CEDCE0; --line-soft:#E1EBED;
+    --bg:#EEF4EF; --surface:#FFFFFF; --surface-2:#E3ECE4; --surface-3:#D2E2D5;
+    --text:#0B170F; --muted:#4C654F; --dim:#89998B;
+    --accent:#1B8A57; --accent-dim:#C9EEDA; --accent-2:#C4179E;
+    --line:#CFE0D1; --line-soft:#E3ECE4;
     --danger:#C43D4E;
   }
 
   *{box-sizing:border-box;}
   button, .cal-day, .theme-bar-row, .agenda-row, .door, .channel-chip, .tab-btn, .theme-btn{ -webkit-tap-highlight-color:transparent; }
+  html{ background:var(--bg); }
   body{
-    background:var(--bg); color:var(--text); font-family:var(--font-body);
+    background:
+      radial-gradient(ellipse 900px 620px at 12% -8%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 60%),
+      radial-gradient(ellipse 760px 560px at 100% 15%, color-mix(in srgb, var(--accent-dim) 55%, transparent), transparent 55%),
+      radial-gradient(ellipse 820px 640px at 8% 100%, color-mix(in srgb, var(--accent-dim) 40%, transparent), transparent 60%),
+      var(--bg);
+    background-attachment:fixed;
+    color:var(--text); font-family:var(--font-body);
     min-height:100dvh; overflow-x:hidden;
   }
   h1,h2,h3,.display{ font-family:var(--font-display); font-weight:500; text-wrap:balance; letter-spacing:-0.01em; }
@@ -417,6 +424,7 @@
     .tab-btn span{ font-size:13px; }
 
     .asks-grid{ grid-template-columns:repeat(3,1fr); }
+    .about-arsenal{ grid-template-columns:repeat(2,1fr) !important; }
     .door-grid{ grid-template-columns:repeat(3,1fr); }
     .voyage-cards{ grid-template-columns:repeat(2,1fr); }
     .theme-bars{ grid-template-columns:repeat(2,1fr); gap:6px 24px; }
@@ -674,6 +682,55 @@
     </div>
   </section>
 
+  <!-- ABOUT -->
+  <section class="view" data-view="about">
+    <p class="eyebrow">the wider picture</p>
+    <h1 class="section-title" style="font-size:clamp(28px,6vw,44px); margin-bottom:10px;" data-ck="aboutHeadline">The world<br>in your hands.</h1>
+    <p class="section-sub" style="font-size:15px; max-width:560px;" data-ck="aboutTagline">A platform for human creativity, collaboration, and the global revolution that follows. Shapeless the movement — everything on the other tabs — is the first thing built on it.</p>
+
+    <div class="manifesto-card" style="margin-top:6px;">
+      <p data-ck="aboutForEveryone1">Ghost is your creative partner and your builder. It learns what you're making, grows with you, and finds the people you need to bring it to life — collaborators, contributors, co-creators — anywhere on Earth, matched by energy, skill, and creative intent.</p>
+      <p data-ck="aboutForEveryone2">Not an algorithm. Not a feed. The connection that actually changes what you make.</p>
+    </div>
+
+    <div class="stat-row" style="margin-top:18px;">
+      <div class="stat"><b data-ck="aboutStat1Val">ALL</b><span data-ck="aboutStat1Label">industries to disrupt</span></div>
+      <div class="stat"><b data-ck="aboutStat2Val">0%</b><span data-ck="aboutStat2Label">middleman cut</span></div>
+      <div class="stat"><b data-ck="aboutStat3Val">NONE</b><span data-ck="aboutStat3Label">permission needed</span></div>
+    </div>
+
+    <p class="eyebrow" style="margin-top:22px">your arsenal</p>
+    <div class="asks-grid about-arsenal">
+      <div class="ask-card"><div class="icon">♫</div><div><h4>The Kitchen</h4><p>A full DAW in your browser — multi-track recording, drum pads, synths, mixing, effects. Any device, no install.</p></div></div>
+      <div class="ask-card"><div class="icon">▶</div><div><h4>Creator Studio</h4><p>Publish video, audio, film, text, or AI-generated promos. Your content, your terms, distributed to your audience.</p></div></div>
+      <div class="ask-card"><div class="icon">⛵</div><div><h4>Ships &amp; Crews</h4><p>Real-time collaboration rooms for any creative — producers, vocalists, engineers, visual artists — anywhere, in sync.</p></div></div>
+      <div class="ask-card"><div class="icon">◈</div><div><h4>On-Chain Wallet</h4><p>Smart contract royalty splits. Zero middlemen, zero cuts, zero permission needed from anyone.</p></div></div>
+      <div class="ask-card"><div class="icon">◉</div><div><h4>The Signal</h4><p>Ghost AI matches you with the right collaborators worldwide — by energy, skill, genre, and creative intent.</p></div></div>
+      <div class="ask-card"><div class="icon">⚓</div><div><h4>The Harbour</h4><p>Brand campaigns, affiliate ships, sail scores — a marketplace where creators and captains find each other.</p></div></div>
+      <div class="ask-card"><div class="icon">◎</div><div><h4>The Commons</h4><p>Shared infrastructure for communities: food networks, housing, energy, legal aid, microcredit, coordinated at scale.</p></div></div>
+      <div class="ask-card"><div class="icon">✦</div><div><h4>Peace Tools</h4><p>Crisis coordination, mutual aid networks, protest documentation, and movement building — for when it matters most.</p></div></div>
+    </div>
+
+    <div class="manifesto-card" style="margin-top:22px;">
+      <p style="font-family:var(--font-mono); font-size:11.5px; letter-spacing:.06em; color:var(--muted); text-transform:uppercase;" data-ck="aboutProtocolLabel">The protocol</p>
+      <p data-ck="aboutProtocol1">Ghost is the front door. Behind it: a full DAW, a creator studio, on-chain royalty splits, agent swarm unions for better deals, distributed compute, and a global network of artists and activists.</p>
+      <p data-ck="aboutProtocol2">You keep everything you earn. There is no cut. Everything is free — we are just the pipe.</p>
+    </div>
+
+    <div class="manifesto-card" style="margin-top:14px;">
+      <p style="font-family:var(--font-mono); font-size:11.5px; letter-spacing:.05em; color:var(--muted);" data-ck="aboutManifestoEyebrow">Every creative industry has gatekeepers who built nothing — people in the middle deciding who gets heard, who gets paid, who gets a shot.</p>
+      <p style="font-size:19px; font-weight:600; font-family:var(--font-display); color:var(--text);" data-ck="aboutManifestoMain">Shapeless is the infrastructure that makes them unnecessary.</p>
+      <p data-ck="aboutManifestoSub">Talent over connections, always. Shapeless is the fence coming down — free, forever, powered by each other. No cut, no middleman, no permission needed. No ads, no tracking, we don't sell your data, ever. Just the work — and Ghost.</p>
+      <div class="signoff" data-ck="aboutManifestoSignoff">— the same house, the same founder, one wider platform underneath it all</div>
+    </div>
+
+    <div class="manifesto-card" style="margin-top:14px; text-align:center;">
+      <h4 style="margin:0 0 6px;" data-ck="aboutCtaTitle">Board the ship</h4>
+      <p style="margin-bottom:14px;" data-ck="aboutCtaBody">The full platform — Kitchen, Creator Studio, wallet and all — lives at shapelessworld.org. Request access, it's free.</p>
+      <a class="btn btn-primary" href="https://shapelessworld.org" target="_blank" rel="noopener" style="text-decoration:none; display:inline-flex;">Visit shapelessworld.org →</a>
+    </div>
+  </section>
+
   <div class="tabbar">
     <div class="tabbar-inner">
       <button class="tab-btn" data-tab="home" data-active="true" onclick="app.goto('home')">
@@ -695,6 +752,10 @@
       <button class="tab-btn" data-tab="join" onclick="app.goto('join')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8.5" r="3.2"/><path d="M5 20c0-3.6 3.1-6.2 7-6.2s7 2.6 7 6.2"/></svg>
         <span data-ck="navJoin">Join</span>
+      </button>
+      <button class="tab-btn" data-tab="about" onclick="app.goto('about')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.5v.01"/></svg>
+        <span data-ck="navAbout">About</span>
       </button>
     </div>
   </div>
@@ -1040,7 +1101,7 @@
 
     // pulsing core at the center
     const coreGeo = new THREE.IcosahedronGeometry(1, 2);
-    const accentColor = (getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()) || '#3FE8FF';
+    const accentColor = (getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()) || '#7CFFB2';
     const coreMat = new THREE.MeshBasicMaterial({ color:accentColor, transparent:true, opacity:0.92 });
     const core = new THREE.Mesh(coreGeo, coreMat);
     group.add(core);

@@ -1,4 +1,4 @@
-const CACHE = 'shapeless-shell-v5';
+const CACHE = 'shapeless-shell-v6';
 const SHELL = ['./', './index.html', './manifest.json', './icon.svg', './data.js', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 
 self.addEventListener('install', (event) => {
