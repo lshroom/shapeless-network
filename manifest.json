@@ -1,0 +1,16 @@
+{
+  "name": "Shapeless",
+  "short_name": "Shapeless",
+  "description": "A human mycelium network — imagine, build, and gather around a shared future.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#05080A",
+  "theme_color": "#05080A",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

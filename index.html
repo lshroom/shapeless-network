@@ -1,0 +1,2265 @@
+<title>Shapeless</title>
+<meta name="theme-color" content="#05080A">
+<link rel="manifest" href="manifest.json">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root{
+    --bg:#05080A; --surface:#0F1419; --surface-2:#161C23; --surface-3:#1F2830;
+    --text:#E8F4F6; --muted:#87999E; --dim:#4E5D62;
+    --accent:#3FE8FF; --accent-dim:#155A66; --accent-2:#FF4FD8;
+    --line:#212C33; --line-soft:#161E24;
+    --danger:#FF5C6E;
+    --font-display:'Fraunces',serif; --font-body:'Inter',system-ui,sans-serif; --font-mono:'JetBrains Mono',monospace;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#EEF3F4; --surface:#FFFFFF; --surface-2:#E2EAEC; --surface-3:#D3DFE2;
+      --text:#0A1417; --muted:#4B6067; --dim:#88999D;
+      --accent:#0092A8; --accent-dim:#BCE8EF; --accent-2:#C4179E;
+      --line:#CEDCE0; --line-soft:#E1EBED;
+      --danger:#C43D4E;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#EEF3F4; --surface:#FFFFFF; --surface-2:#E2EAEC; --surface-3:#D3DFE2;
+    --text:#0A1417; --muted:#4B6067; --dim:#88999D;
+    --accent:#0092A8; --accent-dim:#BCE8EF; --accent-2:#C4179E;
+    --line:#CEDCE0; --line-soft:#E1EBED;
+    --danger:#C43D4E;
+  }
+
+  *{box-sizing:border-box;}
+  button, .cal-day, .theme-bar-row, .agenda-row, .door, .channel-chip, .tab-btn, .theme-btn{ -webkit-tap-highlight-color:transparent; }
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--font-body);
+    min-height:100dvh; overflow-x:hidden;
+  }
+  h1,h2,h3,.display{ font-family:var(--font-display); font-weight:500; text-wrap:balance; letter-spacing:-0.01em; }
+  .mono{ font-family:var(--font-mono); }
+  a{ color:inherit; }
+  button{ font-family:inherit; }
+
+  #app{ max-width:520px; margin:0 auto; min-height:100dvh; display:flex; flex-direction:column; position:relative; }
+
+  /* ---- Top bar ---- */
+  .topbar{
+    position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 18px; background:color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter:blur(10px); border-bottom:1px solid var(--line-soft);
+  }
+  .wordmark{ display:flex; align-items:center; gap:8px; font-family:var(--font-display); font-size:19px; }
+  .wordmark .mark{ width:32px; height:32px; border-radius:50%; overflow:hidden; flex:none; }
+  .wordmark .mark video{ width:100%; height:100%; object-fit:cover; transform:scale(2.35); mix-blend-mode:screen; filter:saturate(1.15) brightness(1.1); }
+  @keyframes pulse{ 0%,100%{ opacity:1; transform:scale(1);} 50%{ opacity:.55; transform:scale(0.8);} }
+  .status-pill{ font-family:var(--font-mono); font-size:10.5px; color:var(--muted); background:var(--surface-2); border:1px solid var(--line); padding:5px 9px; border-radius:99px; letter-spacing:.02em; }
+  .topbar-actions{ display:flex; align-items:center; gap:8px; }
+  .edit-toggle{ width:30px; height:30px; border-radius:9px; border:1px solid var(--line); background:var(--surface-2); color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer; flex:none; }
+  .edit-toggle svg{ width:15px; height:15px; }
+  .edit-toggle[data-active="true"]{ background:var(--accent); color:#04181B; border-color:transparent; }
+
+  body[data-editing="true"] [data-ck]{ outline:1.5px dashed var(--accent-dim); outline-offset:3px; border-radius:4px; cursor:text; }
+  body[data-editing="true"] [data-ck]:hover{ outline-color:var(--accent); background:color-mix(in srgb, var(--accent) 8%, transparent); }
+  body[data-editing="true"] [data-ck]:focus{ outline:1.5px solid var(--accent); background:color-mix(in srgb, var(--accent) 10%, transparent); }
+
+  .edit-bar{ position:fixed; left:0; right:0; bottom:0; z-index:80; justify-content:center;
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px)); background:var(--surface-3); border-top:1px solid var(--accent-dim); }
+  .edit-bar[hidden]{ display:none; }
+  .edit-bar:not([hidden]){ display:flex; }
+  .edit-bar-inner{ width:100%; max-width:520px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .edit-bar span{ font-size:12px; color:var(--muted); }
+
+  .ck-color-popover{
+    position:fixed; z-index:90; align-items:center; gap:6px;
+    background:var(--surface-3); border:1px solid var(--accent-dim); border-radius:11px;
+    padding:6px; box-shadow:0 10px 26px rgba(0,0,0,.4);
+  }
+  .ck-color-popover[hidden]{ display:none; }
+  .ck-color-popover:not([hidden]){ display:flex; }
+  .ck-color-popover input[type="color"]{ width:30px; height:30px; padding:0; border:none; border-radius:7px; background:none; cursor:pointer; }
+  .ck-pop-btn{ font-size:11.5px; font-weight:600; padding:6px 9px; border-radius:7px; border:1px solid var(--line); background:var(--surface-2); color:var(--text); cursor:pointer; }
+  .ck-pop-btn:hover{ background:var(--surface); }
+
+  /* ---- Views ---- */
+  .view{ flex:1; padding:18px 18px 100px; display:none; }
+  .view.active{ display:block; animation:fadein .25s ease both; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+  .eyebrow{ font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); margin:0 0 8px; }
+  .section-title{ font-size:22px; margin:0 0 6px; }
+  .section-sub{ color:var(--muted); font-size:14px; line-height:1.5; margin:0 0 18px; }
+
+  /* ---- Home ---- */
+  .hero{ position:relative; padding:26px 20px 24px; margin:0 -18px 22px; border-radius:0 0 26px 26px; overflow:hidden; isolation:isolate; }
+  .hero-bg{ position:absolute; inset:0; z-index:-2; background:#000; }
+  .hero-bg video{ width:100%; height:100%; object-fit:cover; filter:brightness(0.735) saturate(1.3) contrast(1.08); }
+  .hero-bg::after{ content:''; position:absolute; inset:0; background:
+      radial-gradient(ellipse at 50% 40%, transparent 30%, var(--bg) 92%),
+      linear-gradient(to bottom, color-mix(in srgb, var(--bg) 25%, transparent) 0%, var(--bg) 88%); }
+  .hero h1{ font-size:32px; line-height:1.08; margin:0 0 14px; color:#fff; }
+  .hero h1 em{ font-style:normal; color:var(--accent); }
+  .hero p{ color:#C7D6DA; font-size:15px; line-height:1.6; margin:0 0 20px; max-width:44ch; }
+  .hero .eyebrow{ color:var(--accent); }
+  .cta-row{ display:flex; gap:10px; flex-wrap:wrap; }
+  .btn{ appearance:none; border:none; cursor:pointer; border-radius:11px; padding:12px 18px; font-size:14px; font-weight:600; display:inline-flex; align-items:center; gap:7px; transition:transform .15s ease, filter .15s ease; }
+  .btn:active{ transform:scale(0.97); }
+  .btn-primary{ background:var(--accent); color:#08150F; }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  .btn-ghost{ background:var(--surface-2); color:var(--text); border:1px solid var(--line); }
+  .btn-ghost:hover{ background:var(--surface-3); }
+  .btn-sm{ padding:8px 13px; font-size:12.5px; border-radius:9px; }
+
+  .stat-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:20px 0; }
+  .stat{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 10px; text-align:center; }
+  .stat b{ display:block; font-family:var(--font-mono); font-size:19px; color:var(--accent); font-variant-numeric:tabular-nums; }
+  .stat span{ font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+
+  .manifesto-card{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:18px; margin-top:8px; }
+  .manifesto-card p{ font-size:14.5px; line-height:1.7; color:var(--text); margin:0 0 10px; }
+  .manifesto-card p:last-of-type{ margin-bottom:0; }
+  .manifesto-card .signoff{ margin-top:14px; padding-top:12px; border-top:1px dashed var(--line); color:var(--muted); font-size:12.5px; font-family:var(--font-mono); }
+
+  .asks-grid{ display:grid; gap:10px; margin-top:10px; }
+  .ask-card{ display:flex; gap:12px; align-items:flex-start; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px; }
+  .ask-card .icon{ width:34px; height:34px; flex:none; border-radius:9px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; color:var(--accent); }
+  .ask-card h4{ margin:0 0 3px; font-size:14.5px; font-family:var(--font-body); font-weight:600; }
+  .ask-card p{ margin:0; font-size:12.5px; color:var(--muted); line-height:1.5; }
+
+  /* ---- Imagine ---- */
+  .theme-bars{ display:grid; gap:5px; margin-bottom:14px; }
+  .theme-bar-row{ display:grid; grid-template-columns:80px 1fr 30px; align-items:center; gap:9px; cursor:pointer; padding:5px 7px; border-radius:9px; border:1px solid transparent; }
+  .theme-bar-row[data-active="true"]{ background:var(--surface-2); border-color:var(--line); }
+  .theme-bar-label{ font-size:11.5px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .theme-bar-track{ height:7px; border-radius:99px; background:var(--surface-2); overflow:hidden; }
+  .theme-bar-fill{ height:100%; border-radius:99px; transition:width .5s cubic-bezier(.2,.8,.2,1); }
+  .theme-bar-value{ font-family:var(--font-mono); font-size:10.5px; color:var(--dim); text-align:right; }
+
+  .imagine-wrap{ position:relative; border:1px solid var(--line); border-radius:18px; overflow:hidden; background:radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--accent) 7%, var(--surface)), var(--surface) 60%); }
+  canvas#web{ display:block; width:100%; height:460px; touch-action:none; cursor:grab; }
+  canvas#web:active{ cursor:grabbing; }
+  .imagine-hint{ position:absolute; bottom:10px; left:12px; right:12px; font-size:10.5px; color:var(--dim); font-family:var(--font-mono); pointer-events:none; text-shadow:0 0 6px var(--bg); }
+  .fly-controls{ position:absolute; top:10px; right:10px; display:flex; flex-direction:column; gap:6px; z-index:2; }
+  .fly-btn{ width:34px; height:34px; border-radius:50%; border:1px solid var(--line); background:color-mix(in srgb, var(--surface) 70%, transparent); color:var(--text); font-size:15px; display:flex; align-items:center; justify-content:center; cursor:pointer; backdrop-filter:blur(4px); user-select:none; touch-action:none; }
+  .fly-btn:active{ background:var(--accent); color:var(--bg); border-color:var(--accent); }
+  .fly-btn.reset{ font-size:12px; }
+
+  .seed-form{ margin-top:14px; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px; }
+  .seed-form textarea{ width:100%; resize:none; background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:10px 12px; font-family:var(--font-body); font-size:14px; min-height:56px; }
+  .seed-form input[type="text"]{ width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:9px 12px; font-family:var(--font-body); font-size:12.5px; margin-top:8px; }
+  .seed-form textarea:focus, .seed-form input:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+
+  .threshold-row{ margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); }
+  .threshold-row label{ display:block; font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:6px; }
+  .threshold-input-wrap{ display:flex; align-items:center; gap:8px; }
+  .threshold-input-wrap input[type="number"]{ width:110px; background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:9px 12px; font-family:var(--font-mono); font-size:13.5px; margin-top:0; }
+  .threshold-input-wrap .unit{ color:var(--accent); font-family:var(--font-mono); font-size:13px; }
+  .threshold-hint{ margin:7px 0 0; font-size:11px; color:var(--dim); line-height:1.5; }
+
+  .theme-voyages{ margin-bottom:14px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px 14px; }
+  .theme-voyages h5{ margin:0 0 10px; font-size:12px; text-transform:uppercase; letter-spacing:.04em; font-family:var(--font-mono); color:var(--muted); font-weight:500; }
+  .tv-card{ display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--surface-2); border:1px solid var(--line-soft); border-radius:10px; padding:9px 11px; margin-bottom:7px; cursor:pointer; }
+  .tv-card:last-child{ margin-bottom:0; }
+  .tv-card:hover{ border-color:var(--accent-dim); }
+  .tv-card .tv-name{ font-size:12.5px; font-weight:600; }
+  .tv-card .tv-meta{ font-size:10.5px; color:var(--muted); margin-top:1px; }
+  .tv-empty{ font-size:12px; color:var(--muted); line-height:1.5; margin:0; }
+  .theme-picker{ display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 12px; }
+  .theme-btn{ border:1px solid var(--line); background:var(--surface-2); color:var(--muted); border-radius:99px; padding:6px 11px; font-size:12px; cursor:pointer; }
+  .theme-btn[data-active="true"]{ background:var(--theme-color, var(--accent)); color:#08150F; border-color:transparent; font-weight:600; }
+  .seed-footer{ display:flex; justify-content:space-between; align-items:center; }
+  .char-count{ font-family:var(--font-mono); font-size:11px; color:var(--dim); }
+
+  .recent-seeds{ margin-top:16px; display:grid; gap:10px; }
+  .seed-card{ background:var(--surface); border:1px solid var(--line-soft); border-radius:14px; padding:12px 13px; }
+  .seed-card[data-promoted="true"]{ border-color:var(--accent-dim); }
+  .seed-top{ display:flex; gap:9px; align-items:flex-start; }
+  .seed-top .swatch{ width:8px; height:8px; border-radius:50%; flex:none; margin-top:6px; }
+  .seed-top p{ margin:0; font-size:13px; flex:1; line-height:1.4; }
+  .seed-top .energy{ font-family:var(--font-mono); font-size:11px; color:var(--muted); white-space:nowrap; }
+  .seed-step{ display:flex; gap:6px; margin:9px 0 0 17px; font-size:12px; color:var(--muted); line-height:1.4; background:var(--surface-2); border-radius:9px; padding:7px 10px; }
+  .seed-step .step-label{ font-family:var(--font-mono); font-size:9px; text-transform:uppercase; letter-spacing:.04em; color:var(--accent); flex:none; padding-top:1px; }
+  .seed-actions{ display:flex; gap:8px; margin:10px 0 0 17px; flex-wrap:wrap; }
+  .promoted-badge{ font-family:var(--font-mono); font-size:10.5px; color:var(--accent); background:color-mix(in srgb, var(--accent) 16%, transparent); border-radius:99px; padding:6px 11px; display:inline-flex; align-items:center; }
+  .from-seed-tag{ font-family:var(--font-mono); font-size:9.5px; color:var(--accent); background:color-mix(in srgb, var(--accent) 14%, transparent); border-radius:5px; padding:2px 6px; margin-left:6px; white-space:nowrap; display:inline-block; }
+
+  /* ---- Build ---- */
+  .tabpills{ display:flex; gap:6px; margin-bottom:16px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:4px; }
+  .tabpill{ flex:1; text-align:center; padding:8px 4px; border-radius:9px; font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer; }
+  .tabpill[data-active="true"]{ background:var(--surface-3); color:var(--text); }
+
+  .roadmap-cols{ display:grid; grid-template-columns:1fr; gap:14px; }
+  .rm-col-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .rm-col-head h4{ margin:0; font-size:13px; text-transform:uppercase; letter-spacing:.05em; font-family:var(--font-mono); color:var(--muted); }
+  .rm-count{ font-family:var(--font-mono); font-size:11px; background:var(--surface-2); border:1px solid var(--line); border-radius:99px; padding:2px 8px; color:var(--muted); }
+  .rm-cards{ display:grid; gap:8px; margin-bottom:6px; }
+  .rm-card{ background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--col-color, var(--accent)); border-radius:10px; padding:11px 12px; }
+  .rm-card h5{ margin:0 0 4px; font-size:13.5px; font-weight:600; }
+  .rm-card p{ margin:0; font-size:11.5px; color:var(--muted); line-height:1.4; }
+  .rm-tags{ display:flex; gap:5px; margin-top:7px; flex-wrap:wrap; }
+  .rm-tag{ font-family:var(--font-mono); font-size:9.5px; color:var(--dim); background:var(--surface-2); border-radius:5px; padding:2px 6px; }
+
+  /* ---- Voyages ---- */
+  .scale-filter{ display:flex; gap:6px; margin-bottom:14px; }
+  .scale-chip{ flex:1; text-align:center; padding:9px 4px; border-radius:10px; font-size:12.5px; font-weight:600; color:var(--muted); background:var(--surface); border:1px solid var(--line); cursor:pointer; }
+  .scale-chip[data-active="true"]{ background:var(--surface-3); color:var(--text); border-color:var(--accent-dim); }
+
+  .voyage-cards{ display:grid; gap:12px; }
+  .voyage-card{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px; cursor:pointer; }
+  .voyage-card:hover{ border-color:var(--accent-dim); }
+  .voyage-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:6px; }
+  .voyage-top h4{ margin:0; font-size:15.5px; }
+  .scale-badge{ font-family:var(--font-mono); font-size:9px; text-transform:uppercase; letter-spacing:.03em; padding:3px 8px; border-radius:99px; white-space:nowrap; }
+  .scale-badge.hub{ background:color-mix(in srgb, var(--accent) 20%, transparent); color:var(--accent); }
+  .scale-badge.humanity{ background:color-mix(in srgb, var(--accent-2) 24%, transparent); color:var(--accent-2); }
+  .voyage-captain{ display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--muted); margin-bottom:9px; }
+  .voyage-captain svg{ width:13px; height:13px; color:var(--accent-2); flex:none; }
+  .voyage-card p.desc{ font-size:13px; color:var(--muted); line-height:1.5; margin:0 0 11px; }
+  .role-needed{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  .role-chip{ font-size:11px; background:var(--surface-2); border:1px solid var(--line); border-radius:99px; padding:4px 10px; color:var(--text); display:inline-flex; align-items:center; gap:5px; }
+  .role-chip .fill{ font-family:var(--font-mono); font-size:9.5px; color:var(--dim); }
+  .voyage-foot{ display:flex; justify-content:space-between; align-items:center; }
+  .contrib-avatars{ font-family:var(--font-mono); font-size:11px; color:var(--muted); }
+
+  /* ---- Overlays (voyage detail / create) ---- */
+  .overlay{ position:fixed; inset:0; z-index:70; background:var(--bg); overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .overlay-header{ position:sticky; top:0; padding-top:env(safe-area-inset-top,0px); z-index:2; display:flex; align-items:center; justify-content:space-between; padding-left:18px; padding-right:18px; padding-bottom:14px; background:color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter:blur(10px); border-bottom:1px solid var(--line-soft); }
+  .overlay-header .ov-top-row{ display:flex; align-items:center; justify-content:space-between; width:100%; padding-top:14px; }
+  .ov-back{ background:none; border:none; color:var(--text); font-size:13.5px; font-weight:600; cursor:pointer; padding:4px 0; -webkit-tap-highlight-color:transparent; }
+  .overlay-body{ max-width:520px; margin:0 auto; padding:18px 18px calc(50px + env(safe-area-inset-bottom,0px)); }
+  .overlay-body h2{ font-size:21px; margin:0 0 6px; }
+  .overlay-section{ margin-top:22px; }
+  .overlay-section-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .overlay-section-head h3{ margin:0; font-size:13px; text-transform:uppercase; letter-spacing:.05em; font-family:var(--font-mono); color:var(--muted); font-weight:500; }
+
+  .role-block{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:13px 14px; margin-bottom:10px; }
+  .role-block-top{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; }
+  .role-block-top b{ font-size:13.5px; }
+  .role-mode-badge{ font-family:var(--font-mono); font-size:9px; text-transform:uppercase; padding:2px 7px; border-radius:99px; background:var(--surface-2); color:var(--muted); border:1px solid var(--line); }
+  .role-mode-badge.approval{ color:var(--accent-2); }
+  .crew-list{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:9px; }
+  .crew-chip{ font-size:11px; padding:4px 9px; border-radius:99px; background:var(--surface-2); color:var(--text); border:1px solid var(--line); }
+  .crew-chip.pending{ color:var(--accent-2); border-color:var(--accent-dim); }
+  .pending-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--surface-2); border-radius:9px; padding:6px 9px; margin-bottom:6px; font-size:12px; }
+  .pending-row .mini-actions{ display:flex; gap:5px; }
+  .mini-btn{ font-size:10.5px; font-weight:600; padding:4px 8px; border-radius:7px; border:1px solid var(--line); background:var(--surface-3); color:var(--text); cursor:pointer; }
+  .mini-btn.approve{ color:var(--accent); border-color:var(--accent-dim); }
+  .mini-btn.decline{ color:var(--danger); }
+
+  .tl-item{ display:flex; gap:11px; align-items:flex-start; margin-bottom:12px; }
+  .tl-dot{ width:11px; height:11px; border-radius:50%; margin-top:3px; flex:none; border:2px solid var(--line); }
+  .tl-dot.done{ background:var(--accent); border-color:var(--accent); }
+  .tl-body b{ display:block; font-size:13.5px; }
+  .tl-body span{ font-size:11px; color:var(--dim); font-family:var(--font-mono); }
+  .tl-add{ display:flex; gap:6px; margin-top:6px; }
+  .tl-add input{ background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:9px; padding:8px 10px; font-size:12.5px; font-family:var(--font-body); }
+  .tl-add input.date{ width:110px; flex:none; }
+  .tl-add input.label{ flex:1; }
+
+  .comment-item{ margin-bottom:12px; }
+  .comment-item .who{ font-size:12.5px; font-weight:600; margin-bottom:2px; }
+  .comment-item .who span{ font-weight:400; color:var(--dim); font-family:var(--font-mono); font-size:10px; margin-left:6px; }
+  .comment-item p{ margin:0; font-size:13px; color:var(--text); line-height:1.5; }
+  .comment-add{ display:flex; gap:8px; margin-top:12px; }
+  .comment-add input{ flex:1; background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:10px 12px; font-family:var(--font-body); font-size:13px; }
+
+  .captain-panel{ background:var(--surface-2); border:1px solid var(--accent-dim); border-radius:14px; padding:14px; }
+  .captain-panel .note{ font-size:11px; color:var(--dim); margin:0 0 10px; line-height:1.5; }
+  .captain-panel select{ width:100%; background:var(--surface); border:1px solid var(--line); color:var(--text); border-radius:9px; padding:9px 10px; font-family:var(--font-body); font-size:13px; margin-bottom:9px; }
+  .captain-panel .btn-row{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  .form-field{ margin-bottom:12px; }
+  .form-field label{ display:block; font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:5px; }
+  .form-field input[type="text"], .form-field textarea{ width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:10px 12px; font-family:var(--font-body); font-size:13.5px; }
+  .form-field textarea{ resize:none; min-height:64px; }
+  .scale-toggle{ display:flex; gap:8px; }
+  .scale-toggle button{ flex:1; padding:9px; border-radius:10px; border:1px solid var(--line); background:var(--surface-2); color:var(--muted); font-weight:600; font-size:12.5px; cursor:pointer; }
+  .scale-toggle button[data-active="true"]{ background:var(--surface-3); color:var(--text); border-color:var(--accent-dim); }
+  .role-draft-row{ display:flex; flex-direction:column; gap:7px; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:8px; }
+  .role-draft-row .rdr-top{ display:flex; gap:6px; align-items:center; }
+  .role-draft-row .rdr-top input[type="text"]{ flex:1; background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:7px; padding:7px 8px; font-size:12.5px; }
+  .role-draft-remove{ background:none; border:none; color:var(--danger); font-size:18px; cursor:pointer; padding:0 4px; line-height:1; }
+  .rdr-bottom{ display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+  .rdr-slots{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); }
+  .rdr-slots input[type="number"]{ width:48px; background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:7px; padding:6px; font-size:12.5px; }
+  .mode-toggle{ display:flex; gap:3px; }
+  .mode-btn{ font-size:10px; padding:6px 8px; border-radius:6px; border:1px solid var(--line); background:var(--surface-2); color:var(--dim); cursor:pointer; }
+  .mode-btn[data-active="true"]{ background:var(--accent-dim); color:var(--text); }
+
+  .channel-picker{ display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin-bottom:12px; }
+  .channel-chip{ flex:none; font-size:12.5px; font-weight:600; padding:8px 13px; border-radius:99px; background:var(--surface); border:1px solid var(--line); color:var(--muted); cursor:pointer; display:flex; align-items:center; gap:6px; }
+  .channel-chip[data-active="true"]{ background:var(--surface-3); color:var(--text); border-color:var(--accent-dim); }
+  .channel-chip .hash{ color:var(--accent); font-family:var(--font-mono); }
+  .channel-feed{ display:grid; gap:10px; margin-bottom:12px; min-height:80px; }
+  .msg{ display:flex; gap:10px; align-items:flex-start; }
+  .msg .avatar{ width:30px; height:30px; border-radius:9px; background:var(--surface-2); border:1px solid var(--line); flex:none; display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:11px; color:var(--muted); }
+  .msg .bubble{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:9px 12px; flex:1; }
+  .msg .who{ display:flex; justify-content:space-between; gap:8px; margin-bottom:2px; }
+  .msg .who b{ font-size:12.5px; }
+  .msg .who span{ font-family:var(--font-mono); font-size:10px; color:var(--dim); }
+  .msg p{ margin:0; font-size:13.5px; line-height:1.45; }
+  .composer{ display:flex; gap:8px; }
+  .composer input{ flex:1; background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:10px 12px; font-family:var(--font-body); font-size:13.5px; }
+  .composer input:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .channel-note{ font-size:11px; color:var(--dim); margin:10px 0 0; line-height:1.5; }
+
+  .gh-card{ display:flex; align-items:center; gap:12px; background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:14px; margin-top:16px; }
+  .gh-card .icon{ width:38px; height:38px; border-radius:10px; background:var(--surface-3); display:flex; align-items:center; justify-content:center; flex:none; }
+  .gh-card h5{ margin:0 0 2px; font-size:14px; }
+  .gh-card p{ margin:0; font-size:12px; color:var(--muted); }
+
+  /* ---- Retreats ---- */
+  .weekly-card{ display:flex; align-items:center; gap:12px; background:var(--surface-2); border:1px solid var(--accent-dim); border-radius:14px; padding:13px 14px; margin-bottom:16px; }
+  .weekly-badge{ font-family:var(--font-mono); font-size:9px; text-transform:uppercase; letter-spacing:.05em; background:var(--accent); color:#08150F; padding:4px 8px; border-radius:99px; flex:none; font-weight:600; }
+  .weekly-card h4{ margin:0 0 2px; font-size:14px; }
+  .weekly-card p{ margin:0; font-size:11.5px; color:var(--muted); }
+  .weekly-card button{ margin-left:auto; flex:none; }
+
+  .calendar-card{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px; margin-bottom:16px; }
+  .cal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .cal-head h4{ margin:0; font-size:14px; font-family:var(--font-mono); font-weight:500; }
+  .cal-nav{ width:30px; height:30px; border-radius:9px; border:1px solid var(--line); background:var(--surface-2); color:var(--text); font-size:16px; cursor:pointer; line-height:1; }
+  .cal-weekdays{ display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-family:var(--font-mono); font-size:10px; color:var(--dim); margin-bottom:6px; }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+  .cal-day{ aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:9px; font-size:12.5px; color:var(--dim); }
+  .cal-day.outside{ opacity:0.3; }
+  .cal-day.has-retreat{ background:var(--surface-2); color:var(--text); font-weight:600; cursor:pointer; }
+  .cal-day.has-retreat:hover{ background:var(--surface-3); }
+  .cal-day.today{ box-shadow:inset 0 0 0 1.5px var(--accent-dim); color:var(--text); }
+  .cal-day.selected{ background:var(--accent); color:#08150F; }
+
+  .agenda-row{ display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--line-soft); border-radius:12px; padding:9px 12px; margin-bottom:8px; cursor:pointer; }
+  .agenda-row:hover{ background:var(--surface-2); }
+  .agenda-row .date-block{ width:42px; height:42px; }
+  .agenda-row .date-block .num{ font-size:14px; }
+  .agenda-row .date-block .mo{ font-size:8px; }
+  .agenda-row b{ font-size:13px; }
+  .agenda-row .sub{ font-size:11px; color:var(--muted); margin-top:1px; }
+
+  .retreat-card{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:14px; }
+  .retreat-date{ display:flex; gap:12px; align-items:center; margin-bottom:10px; }
+  .date-block{ width:52px; height:52px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line); display:flex; flex-direction:column; align-items:center; justify-content:center; flex:none; }
+  .date-block .num{ font-family:var(--font-mono); font-size:18px; font-weight:600; line-height:1; }
+  .date-block .mo{ font-family:var(--font-mono); font-size:9.5px; color:var(--muted); text-transform:uppercase; }
+  .retreat-card h4{ margin:0 0 3px; font-size:15px; }
+  .retreat-card .loc{ font-size:12px; color:var(--muted); }
+  .retreat-card .desc{ font-size:13px; color:var(--muted); line-height:1.5; margin:10px 0 12px; }
+  .rsvp-row{ display:flex; justify-content:space-between; align-items:center; }
+  .avatars{ display:flex; }
+  .avatars span{ width:24px; height:24px; border-radius:50%; background:var(--surface-3); border:2px solid var(--surface); margin-left:-8px; display:flex; align-items:center; justify-content:center; font-size:10px; font-family:var(--font-mono); color:var(--muted); }
+  .avatars span:first-child{ margin-left:0; }
+  .rsvp-count{ font-size:11.5px; color:var(--muted); margin-left:8px; font-family:var(--font-mono); }
+
+  /* ---- Join ---- */
+  .door-grid{ display:grid; gap:12px; margin-bottom:20px; }
+  .door{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px; cursor:pointer; transition:border-color .15s ease; }
+  .door[data-open="true"]{ border-color:var(--accent); }
+  .door-head{ display:flex; align-items:center; gap:12px; }
+  .door .icon{ width:40px; height:40px; border-radius:11px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; flex:none; color:var(--accent); }
+  .door h4{ margin:0 0 2px; font-size:15.5px; }
+  .door p.tag{ margin:0; font-size:12px; color:var(--muted); }
+  .door .chev{ margin-left:auto; color:var(--dim); transition:transform .15s ease; }
+  .door[data-open="true"] .chev{ transform:rotate(90deg); }
+  .door-form{ display:none; padding-top:14px; margin-top:14px; border-top:1px solid var(--line-soft); }
+  .door[data-open="true"] .door-form{ display:block; }
+  .door-form input, .door-form textarea{ width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:10px 12px; font-family:var(--font-body); font-size:13.5px; margin-bottom:9px; }
+  .door-form textarea{ resize:none; min-height:56px; }
+  .door-form input:focus, .door-form textarea:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+
+  .zoom-card{ background:linear-gradient(135deg, var(--surface-2), var(--surface)); border:1px solid var(--line); border-radius:16px; padding:18px; text-align:center; }
+  .zoom-card h4{ margin:0 0 6px; font-size:16px; }
+  .zoom-card p{ margin:0 0 14px; font-size:12.5px; color:var(--muted); }
+
+  .toast{ position:fixed; left:50%; bottom:calc(90px + env(safe-area-inset-bottom,0px)); transform:translate(-50%, 20px); background:var(--surface-3); border:1px solid var(--line); color:var(--text); padding:11px 16px; border-radius:11px; font-size:13px; box-shadow:0 10px 30px rgba(0,0,0,.4); opacity:0; pointer-events:none; transition:all .25s ease; z-index:50; max-width:80%; text-align:center; }
+  .toast.show{ opacity:1; transform:translate(-50%, 0); }
+
+  /* ---- Bottom nav ---- */
+  .tabbar{
+    position:fixed; left:0; right:0; bottom:0; z-index:30;
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));
+    background:color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter:blur(10px);
+    border-top:1px solid var(--line-soft);
+    display:flex; justify-content:center;
+    transition:bottom .15s ease;
+  }
+  /* the edit-bar sits at the very bottom while editing, so push the nav bar up
+     above it — otherwise the edit-bar covers the nav labels entirely and they
+     become unreachable to tap-and-edit. */
+  body[data-editing="true"] .tabbar{ bottom:var(--edit-bar-h, 64px); }
+  .tabbar-inner{ display:flex; gap:2px; width:100%; max-width:520px; }
+  .tab-btn{ flex:1; background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 2px; color:var(--dim); cursor:pointer; border-radius:10px; }
+  .tab-btn svg{ width:20px; height:20px; }
+  .tab-btn span{ font-size:9.5px; font-weight:600; letter-spacing:.01em; }
+  .tab-btn[data-active="true"]{ color:var(--accent); }
+
+  @media (min-width:521px){ .roadmap-cols{ grid-template-columns:repeat(3,1fr); } }
+
+  /* ---- Desktop / wide screens: this is a phone-shaped app below 900px on purpose
+     (it's a PWA meant to be installed on a phone) but on a real desktop it should
+     feel like a proper site: wider canvas, a top nav instead of a thumb-reach bottom
+     bar, and content that uses the room instead of a narrow centered phone column. ---- */
+  @media (min-width:900px){
+    #app{ max-width:1180px; }
+    .topbar{ padding:16px 32px; }
+    .view{ padding:22px 32px 56px; order:3; }
+
+    .topbar{ order:1; }
+    .tabbar{
+      order:2; position:static; justify-content:flex-start;
+      padding:2px 32px 16px; background:none; backdrop-filter:none;
+      border-top:none; border-bottom:1px solid var(--line-soft);
+    }
+    .tabbar-inner{ max-width:none; gap:4px; }
+    .tab-btn{ flex:none; flex-direction:row; gap:7px; padding:9px 16px; border-radius:10px; }
+    .tab-btn:hover{ background:var(--surface-2); color:var(--text); }
+    .tab-btn[data-active="true"]{ background:var(--surface-2); }
+    .tab-btn svg{ width:17px; height:17px; }
+    .tab-btn span{ font-size:13px; }
+
+    .asks-grid{ grid-template-columns:repeat(3,1fr); }
+    .door-grid{ grid-template-columns:repeat(3,1fr); }
+    .voyage-cards{ grid-template-columns:repeat(2,1fr); }
+    .theme-bars{ grid-template-columns:repeat(2,1fr); gap:6px 24px; }
+
+    .imagine-grid{ display:grid; grid-template-columns:1.05fr 1fr; gap:26px; align-items:start; }
+    .imagine-action .seed-form{ margin-top:0; }
+    canvas#web{ height:600px; }
+
+    .retreats-grid{ display:grid; grid-template-columns:1.1fr 1fr; gap:26px; align-items:start; }
+    .retreats-side .eyebrow{ margin-top:0 !important; }
+
+    .overlay-body{ max-width:760px; }
+    #build-community{ max-width:680px; }
+  }
+</style>
+<script src="three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="data.js"></script>
+
+<div id="app" data-theme-root>
+
+  <script type="application/json" id="content-data">
+  {
+    "heroBody": "Shapeless is a human mycelium network — people who've decided the future isn't something politicians deliver, it's something we build, in the open, together. Code, music, and gatherings, starting from one house.",
+    "manifestoP1": "The world runs on outdated ideas that happen to still be standing. Governments, monopolies and billionaires manage a system that grows inequality every year — the way to beat an idea whose time has passed isn't to argue with it, it's to build a better one and ship the update.",
+    "manifestoP2": "That happens by working together, in the open. A platform that gives people tools to imagine a shared future, and makes it easy for anyone to contribute time or resources to building it — no left, no right, no sides. Just the side of humanity.",
+    "manifestoSignoff": "— the founder, opening his house as HQ #1",
+    "askCoders": "Help build the platform itself — it's open source from day one.",
+    "askMusicians": "Retreats to write protest music — originals or covers — for the channel.",
+    "askExperts": "Filmed podcasts on tech, economy, security, ecology, bridge-building.",
+    "imagineSub": "A future without a first step is just a wish. Every seed here pairs one with the other — back the ones you believe in, commit to a step yourself, or turn a well-backed idea into a real project below.",
+    "buildSub": "The roadmap and the projects are public. Pick a card, pick a role, ship something.",
+    "voyagesSub": "Every voyage is a different size — the person who charts it decides what it needs, and that can change as it grows. They're its Captain until they hand off the wheel.",
+    "retreatsSub": "The founder's home, open as a live-in creative HQ. Come for a weekend, work on code, music, or content, in person.",
+    "joinSub": "Three doors below, but don't let them be the limit — if what you do isn't listed, the call is still for you.",
+    "ctaJoinCall": "Join a call →",
+    "ctaSeeNetwork": "See the network",
+    "askCodersTitle": "Coders",
+    "askMusiciansTitle": "Musicians",
+    "askExpertsTitle": "Experts & panelists",
+    "imagineTitle": "Imagine, together",
+    "buildTitle": "Build",
+    "retreatsTitle": "Retreats",
+    "joinTitle": "Join Shapeless",
+    "btnGrowIt": "Grow it →",
+    "btnChartVoyage": "Chart a new voyage →",
+    "btnPost": "Post",
+    "btnWeeklyJoin": "Join →",
+    "btnZoomJoin": "Join this week's call →",
+    "navHome": "Home",
+    "navImagine": "Imagine",
+    "navBuild": "Build",
+    "navRetreats": "Retreats",
+    "navJoin": "Join"
+  }
+  </script>
+  <script type="application/json" id="color-data">{}</script>
+  <script type="application/json" id="size-data">{}</script>
+
+  <div class="topbar">
+    <div class="wordmark">
+      <span class="mark"><video src="logo-mark.mp4" autoplay muted loop playsinline></video></span>
+      Shapeless
+    </div>
+    <div class="topbar-actions">
+      <div class="status-pill" id="live-pill">early adopters: <span id="pill-count">—</span></div>
+      <button class="btn btn-ghost" id="auth-btn" style="padding:7px 12px;font-size:12.5px;display:flex;align-items:center;gap:7px;" onclick="app.authAction()">
+        <img id="auth-avatar" src="" alt="" hidden style="width:20px;height:20px;border-radius:50%;">
+        <span id="auth-label">Sign in with Google</span>
+      </button>
+      <button class="edit-toggle" id="edit-toggle-btn" onclick="app.toggleEditMode()" aria-label="Edit text" title="Edit the text on this page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h4L18.5 9.5a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4 15.5V20z"/><path d="M13 6l3.5 3.5"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <section class="view active" data-view="home">
+    <div class="hero">
+      <div class="hero-bg"><video src="hero-loop.mp4" autoplay muted loop playsinline></video></div>
+      <p class="eyebrow">humanity / decentralized / now</p>
+      <h1 data-ck="heroTitle">We're not waiting<br>for a knight on a<br><em>white horse.</em></h1>
+      <p data-ck="heroBody">Shapeless is a human mycelium network — people who've decided the future isn't something politicians deliver, it's something we build, in the open, together. Code, music, and gatherings, starting from one house.</p>
+      <div class="cta-row">
+        <button class="btn btn-primary" data-ck="ctaJoinCall" onclick="app.goto('join')">Join a call →</button>
+        <button class="btn btn-ghost" data-ck="ctaSeeNetwork" onclick="app.goto('imagine')">See the network</button>
+      </div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat"><b id="stat-seeds">0</b><span>ideas planted</span></div>
+      <div class="stat"><b id="stat-projects">0</b><span>voyages sailing</span></div>
+      <div class="stat"><b id="stat-retreats">0</b><span>retreat dates</span></div>
+    </div>
+
+    <p class="eyebrow">the ask, in short</p>
+    <div class="manifesto-card">
+      <p data-ck="manifestoP1">The world runs on outdated ideas that happen to still be standing. Governments, monopolies and billionaires manage a system that grows inequality every year — the way to beat an idea whose time has passed isn't to argue with it, it's to build a better one and ship the update.</p>
+      <p data-ck="manifestoP2">That happens by working together, in the open. A platform that gives people tools to imagine a shared future, and makes it easy for anyone to contribute time or resources to building it — no left, no right, no sides. Just the side of humanity.</p>
+      <div class="signoff" data-ck="manifestoSignoff">— the founder, opening his house as HQ #1</div>
+    </div>
+
+    <p class="eyebrow" style="margin-top:22px">what's being asked for</p>
+    <div class="asks-grid">
+      <div class="ask-card">
+        <div class="icon">{ }</div>
+        <div><h4 data-ck="askCodersTitle">Coders</h4><p data-ck="askCoders">Help build the platform itself — it's open source from day one.</p></div>
+      </div>
+      <div class="ask-card">
+        <div class="icon">♪</div>
+        <div><h4 data-ck="askMusiciansTitle">Musicians</h4><p data-ck="askMusicians">Retreats to write protest music — originals or covers — for the channel.</p></div>
+      </div>
+      <div class="ask-card">
+        <div class="icon">◎</div>
+        <div><h4 data-ck="askExpertsTitle">Experts &amp; panelists</h4><p data-ck="askExperts">Filmed podcasts on tech, economy, security, ecology, bridge-building.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- IMAGINE -->
+  <section class="view" data-view="imagine">
+    <p class="eyebrow">the collective future</p>
+    <h2 class="section-title" data-ck="imagineTitle">Imagine, together</h2>
+    <p class="section-sub" data-ck="imagineSub">A future without a first step is just a wish. Every seed here pairs one with the other — back the ones you believe in, commit to a step yourself, or turn a well-backed idea into a real project below.</p>
+
+    <div class="imagine-grid">
+      <div class="imagine-action">
+        <div class="seed-form">
+          <p class="eyebrow" style="margin-bottom:8px">plant a seed</p>
+          <textarea id="seed-input" maxlength="90" placeholder="In this future, healthcare is a mesh network, not a bill..."></textarea>
+          <input type="text" id="step-input" maxlength="70" placeholder="One concrete first step toward it (optional, but this is what makes it real)">
+          <div class="theme-picker" id="theme-picker"></div>
+          <div class="threshold-row">
+            <label for="threshold-input">Backing needed to become a project</label>
+            <div class="threshold-input-wrap">
+              <input type="number" id="threshold-input" min="3" max="500000" step="1" placeholder="8">
+              <span class="unit">✦</span>
+            </div>
+            <p class="threshold-hint">You planted it — you know how big a lift this is. A pothole fix might need 6; something worldwide might need 500 or more.</p>
+          </div>
+          <div class="seed-footer">
+            <span class="char-count"><span id="char-count">0</span>/90</span>
+            <button class="btn btn-primary btn-sm" data-ck="btnGrowIt" onclick="app.plantSeed()">Grow it →</button>
+          </div>
+        </div>
+
+        <p class="eyebrow" style="margin-top:20px" id="seed-list-label">From idea to action</p>
+        <div class="recent-seeds" id="recent-seeds"></div>
+      </div>
+
+      <div class="imagine-visual">
+        <p class="eyebrow" style="margin-bottom:8px">theme chart &amp; network — visual aid, tap a theme for its projects</p>
+        <div class="theme-bars" id="theme-bars"></div>
+        <div class="theme-voyages" id="theme-voyages" hidden></div>
+
+        <div class="imagine-wrap">
+          <canvas id="web"></canvas>
+          <div class="fly-controls">
+            <div class="fly-btn" id="fly-fwd" title="Fly forward">▲</div>
+            <div class="fly-btn" id="fly-back" title="Fly backward">▼</div>
+            <div class="fly-btn reset" id="fly-reset" title="Reset view">⟲</div>
+          </div>
+          <div class="imagine-hint">drag to look around · scroll / pinch / arrows to fly in · tap a seed to back it</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUILD -->
+  <section class="view" data-view="build">
+    <p class="eyebrow">infrastructure</p>
+    <h2 class="section-title" data-ck="buildTitle">Build</h2>
+    <p class="section-sub" data-ck="buildSub">The roadmap and the projects are public. Pick a card, pick a role, ship something.</p>
+
+    <div class="tabpills">
+      <div class="tabpill" data-active="true" data-build-tab="roadmap" onclick="app.buildTab('roadmap')">Roadmap</div>
+      <div class="tabpill" data-build-tab="projects" onclick="app.buildTab('projects')">Voyages</div>
+      <div class="tabpill" data-build-tab="community" onclick="app.buildTab('community')">Community</div>
+    </div>
+
+    <div id="build-roadmap">
+      <div class="roadmap-cols" id="roadmap-cols"></div>
+    </div>
+
+    <div id="build-projects" style="display:none">
+      <p class="section-sub" style="margin-bottom:12px" data-ck="voyagesSub">Every voyage is a different size — the person who charts it decides what it needs, and that can change as it grows. They're its Captain until they hand off the wheel.</p>
+      <div class="scale-filter" id="scale-filter"></div>
+      <div class="voyage-cards" id="voyage-cards"></div>
+      <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:4px;" data-ck="btnChartVoyage" onclick="app.openVoyageCreate()">Chart a new voyage →</button>
+    </div>
+
+    <div id="build-community" style="display:none">
+      <div class="channel-picker" id="channel-picker"></div>
+      <div class="channel-feed" id="channel-feed"></div>
+      <div class="composer">
+        <input type="text" id="composer-input" placeholder="Post to this channel...">
+        <button class="btn btn-primary btn-sm" data-ck="btnPost" onclick="app.postMessage()">Post</button>
+      </div>
+      <p class="channel-note">Prototype feed — posts live in this browser only. Real-time sync across everyone's phones comes with the Supabase backend.</p>
+    </div>
+
+    <a class="gh-card" href="https://github.com/lshroom/shapeless-network" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;">
+      <div class="icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.5v-1.94c-2.78.62-3.37-1.36-3.37-1.36-.46-1.2-1.12-1.52-1.12-1.52-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.36 1.12 2.94.86.09-.66.35-1.12.64-1.38-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.72 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.9-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.8-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .28.18.6.69.5A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>
+      </div>
+      <div><h5>shapeless-network</h5><p>Public repo · MIT licensed · issues open for grabs</p></div>
+    </a>
+  </section>
+
+  <!-- RETREATS -->
+  <section class="view" data-view="retreats">
+    <p class="eyebrow">the house</p>
+    <h2 class="section-title" data-ck="retreatsTitle">Retreats</h2>
+    <p class="section-sub" data-ck="retreatsSub">The founder's home, open as a live-in creative HQ. Come for a weekend, work on code, music, or content, in person.</p>
+
+    <div class="retreats-grid">
+      <div class="retreats-main">
+        <div class="weekly-card">
+          <div class="weekly-badge">Weekly</div>
+          <div><h4>Open Zoom call</h4><p id="weekly-sub"></p></div>
+          <button class="btn btn-ghost btn-sm" data-ck="btnWeeklyJoin" onclick="app.toast('Zoom link goes here once scheduling is wired up.')">Join →</button>
+        </div>
+
+        <div class="calendar-card">
+          <div class="cal-head">
+            <button class="cal-nav" onclick="app.calMove(-1)" aria-label="Previous month">‹</button>
+            <h4 id="cal-label"></h4>
+            <button class="cal-nav" onclick="app.calMove(1)" aria-label="Next month">›</button>
+          </div>
+          <div class="cal-weekdays"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+          <div class="cal-grid" id="cal-grid"></div>
+        </div>
+
+        <div id="retreat-detail"></div>
+      </div>
+
+      <div class="retreats-side">
+        <p class="eyebrow" style="margin-top:20px">all upcoming dates</p>
+        <div id="retreat-agenda"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- JOIN -->
+  <section class="view" data-view="join">
+    <p class="eyebrow">pick a door</p>
+    <h2 class="section-title" data-ck="joinTitle">Join Shapeless</h2>
+    <p class="section-sub" data-ck="joinSub">Three doors below, but don't let them be the limit — if what you do isn't listed, the call is still for you.</p>
+    <div class="door-grid" id="door-grid"></div>
+
+    <div class="zoom-card">
+      <h4>Not a coder, musician or panelist?</h4>
+      <p>Come anyway — organizers, translators, video editors, cooks for retreat weekends, anyone. The call is <strong>weekly</strong>, every Thursday 20:00 Israel time, open to any role.</p>
+      <button class="btn btn-primary" data-ck="btnZoomJoin" onclick="app.toast('Zoom link goes here once scheduling is wired up.')">Join this week's call →</button>
+    </div>
+  </section>
+
+  <div class="tabbar">
+    <div class="tabbar-inner">
+      <button class="tab-btn" data-tab="home" data-active="true" onclick="app.goto('home')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 11.5 12 4l9 7.5M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+        <span data-ck="navHome">Home</span>
+      </button>
+      <button class="tab-btn" data-tab="imagine" onclick="app.goto('imagine')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="6" cy="7" r="2.3"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="17" r="2.6"/><circle cx="18" cy="15" r="1.8"/><path d="M7.8 8.4 10 15M14 16l2.3-1.6M8 6.5l8-.3"/></svg>
+        <span data-ck="navImagine">Imagine</span>
+      </button>
+      <button class="tab-btn" data-tab="build" onclick="app.goto('build')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 6h16M4 12h10M4 18h13"/><circle cx="19" cy="12" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg>
+        <span data-ck="navBuild">Build</span>
+      </button>
+      <button class="tab-btn" data-tab="retreats" onclick="app.goto('retreats')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 21V10.5L12 4l9 6.5V21"/><path d="M9 21v-6h6v6"/></svg>
+        <span data-ck="navRetreats">Retreats</span>
+      </button>
+      <button class="tab-btn" data-tab="join" onclick="app.goto('join')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8.5" r="3.2"/><path d="M5 20c0-3.6 3.1-6.2 7-6.2s7 2.6 7 6.2"/></svg>
+        <span data-ck="navJoin">Join</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="edit-bar" id="edit-bar" hidden>
+    <div class="edit-bar-inner">
+      <span>Editing text — tap into anything with a dashed outline.</span>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="app.cancelEditMode()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="app.saveContentEdits()">Save →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ck-color-popover" id="ck-color-popover" hidden>
+    <input type="color" id="ck-color-input" title="Text color" oninput="app.applyPickedColor(this.value)">
+    <button type="button" class="ck-pop-btn" onmousedown="event.preventDefault()" onclick="app.nudgeSize(-1)" title="Smaller text">A−</button>
+    <button type="button" class="ck-pop-btn" onmousedown="event.preventDefault()" onclick="app.nudgeSize(1)" title="Bigger text">A+</button>
+    <button type="button" class="ck-pop-btn" onmousedown="event.preventDefault()" onclick="app.resetPicked()" title="Reset color and size">Reset</button>
+  </div>
+
+  <div class="overlay" id="voyage-overlay" hidden>
+    <div class="overlay-header">
+      <div class="ov-top-row">
+        <button class="ov-back" onclick="app.closeVoyage()">‹ Back</button>
+        <span id="ov-scale-badge"></span>
+      </div>
+    </div>
+    <div class="overlay-body" id="voyage-detail-body"></div>
+  </div>
+
+  <div class="overlay" id="voyage-create-overlay" hidden>
+    <div class="overlay-header">
+      <div class="ov-top-row">
+        <button class="ov-back" onclick="app.closeVoyageCreate()">‹ Cancel</button>
+      </div>
+    </div>
+    <div class="overlay-body" id="voyage-create-body"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---------- editable page copy ----------
+  let CONTENT = {};
+  try { CONTENT = JSON.parse(document.getElementById('content-data').textContent); } catch(e){ CONTENT = {}; }
+  let COLORS = {};
+  try { COLORS = JSON.parse(document.getElementById('color-data').textContent); } catch(e){ COLORS = {}; }
+  let SIZES = {};
+  try { SIZES = JSON.parse(document.getElementById('size-data').textContent); } catch(e){ SIZES = {}; }
+  let editMode = false;
+  let draftColors = {}, draftSizes = {};
+  let activeCkKey = null;
+
+  function applyContent(){
+    document.querySelectorAll('[data-ck]').forEach(el=>{
+      const key = el.dataset.ck;
+      if(CONTENT[key] != null) el.textContent = CONTENT[key];
+    });
+  }
+
+  function applyStyles(){
+    document.querySelectorAll('[data-ck]').forEach(el=>{
+      const key = el.dataset.ck;
+      el.style.color = COLORS[key] || '';
+      el.style.fontSize = SIZES[key] ? SIZES[key] + 'px' : '';
+    });
+  }
+
+  function extractEditableText(el){
+    // Turns <br> boundaries into spaces before flattening, so a multi-line
+    // heading like the hero title doesn't lose the space between lines
+    // (plain textContent would merge "waiting" + "for" into "waitingfor").
+    const clone = el.cloneNode(true);
+    clone.querySelectorAll('br').forEach(br => br.replaceWith(' '));
+    return clone.textContent.replace(/\s+/g, ' ').trim();
+  }
+
+  function rgbToHex(rgb){
+    const m = (rgb || '').match(/\d+(\.\d+)?/g);
+    if(!m || m.length < 3) return '#ffffff';
+    return '#' + m.slice(0,3).map(x => Math.round(+x).toString(16).padStart(2,'0')).join('');
+  }
+
+  function positionCkPopover(el){
+    const pop = document.getElementById('ck-color-popover');
+    const rect = el.getBoundingClientRect();
+    const popW = 170, popH = 46;
+    let top = rect.top - popH - 8;
+    if(top < 8) top = Math.min(window.innerHeight - popH - 8, rect.bottom + 8);
+    let left = Math.max(8, Math.min(window.innerWidth - popW - 8, rect.left));
+    pop.style.top = top + 'px';
+    pop.style.left = left + 'px';
+    pop.hidden = false;
+  }
+
+  const THEMES = [
+    { id:'tech', label:'Technology', color:'#7CFFB2' },
+    { id:'economy', label:'Economy', color:'#FFD166' },
+    { id:'security', label:'Security', color:'#FF8B7A' },
+    { id:'wellbeing', label:'Wellbeing', color:'#8FD1FF' },
+    { id:'community', label:'Community', color:'#C9A6FF' },
+    { id:'ecology', label:'Ecology', color:'#9CFF66' },
+    { id:'bridges', label:'Bridges', color:'#FFB199' },
+  ];
+  const themeColor = id => (THEMES.find(t=>t.id===id)||{}).color || '#7CFFB2';
+
+  const DEFAULT_THRESHOLD = 8;
+  // threshold = how much backing (✦) this idea needs before it can become a voyage —
+  // set by whoever plants the seed, based on how big/complicated it actually is.
+  const SEED_TEXTS = [
+    { text:"Every neighborhood runs its own energy microgrid, owned by the people on it.", theme:'tech', step:"Find 3 neighborhoods already running microgrids and write up how they did it.", doers:2, threshold:15 },
+    { text:"Basic needs — food, housing, care — are guaranteed, work is chosen, not survival.", theme:'economy', step:"Collect the 5 best-evidenced UBI pilot results into one shareable page.", doers:1, threshold:60 },
+    { text:"No child grows up rehearsing a war their grandparents already survived.", theme:'security', step:"Draft the panel brief for the first security-track expert call.", doers:0, threshold:80 },
+    { text:"Therapy is as normal and free as a checkup. Nobody suffers alone by default.", theme:'wellbeing', step:"List 10 low-cost community mental-health models worldwide to study.", doers:3, threshold:40 },
+    { text:"Every town has a real commons again — a place, physical or not, people actually govern.", theme:'community', step:"Write the one-page playbook for 'replicate the house' in a new city.", doers:1, threshold:12 },
+    { text:"Rivers have legal standing. You can't poison a thing that can sue you back.", theme:'ecology', step:"Summarize the countries that already granted nature legal personhood.", doers:0, threshold:30 },
+    { text:"People who disagree on everything still show up to fix the same pothole.", theme:'bridges', step:"Pair two people who disagree politically for the first bridge-podcast pilot.", doers:2, threshold:6 },
+    { text:"Open-source code runs the systems that run our lives, auditable by anyone.", theme:'tech', step:"Open the shapeless-network repo and tag the first 5 good-first-issues.", doers:4, threshold:10 },
+    { text:"Local currencies exist alongside global ones so wealth can't fully leave a town.", theme:'economy', step:"Research 3 towns running a working local currency today.", doers:0, threshold:18 },
+    { text:"Whistleblowers are protected by default, not hunted by default.", theme:'security', step:"Draft a one-page explainer of existing whistleblower-protection gaps.", doers:1, threshold:25 },
+    { text:"Four-day work weeks, because burnout was never a badge of honor.", theme:'wellbeing', step:"Pull the results from the 3 largest 4-day-week trials into one summary.", doers:1, threshold:20 },
+    { text:"Retreats like this one exist in every country, same spirit, local flavor.", theme:'community', step:"Ask everyone in #general which city they'd host the second house in.", doers:2, threshold:15 },
+    { text:"Cities are measured by tree canopy the way they're measured by GDP.", theme:'ecology', step:"Find the cities already publishing a tree-canopy index and how they built it.", doers:0, threshold:12 },
+    { text:"Musicians and engineers write policy proposals together, on purpose.", theme:'bridges', step:"Set an agenda for one retreat session mixing coders and musicians on one proposal.", doers:1, threshold:6 },
+    { text:"Elections happen, but power is structurally too small to be worth buying.", theme:'security', step:"Summarize 3 real campaign-finance reform models that reduced buying power.", doers:0, threshold:35 },
+  ];
+
+  let ROADMAP = {
+    now: [
+      { title:'Open the repo', desc:'Publish shapeless-network/core as public + MIT license, write CONTRIBUTING.md.', tags:['github','coders'] },
+      { title:'Lock the first retreat date', desc:'Confirm dates + headcount for the first weekend at the house.', tags:['retreats'] },
+      { title:'Launch the Imagine board', desc:'Ship the seed-planting network people can add to publicly.', tags:['product'] },
+      { title:'Accounts + persistence', desc:'✓ Done — Google sign-in, and seeds/RSVPs/Voyages/messages now save for real.', tags:['supabase','coders'] },
+      { title:'Install on your phone', desc:'✓ Done — real PWA manifest + service worker + icons. Push notifications still open.', tags:['pwa'] },
+    ],
+    next: [
+      { title:'First protest-song drop', desc:'Record and release the first original track to the channel.', tags:['musicians'] },
+    ],
+    later: [
+      { title:'Local chapters', desc:'Package "replicate the house" into a playbook other cities can run.', tags:['community'] },
+      { title:'Hebrew + RTL', desc:'Full Hebrew translation with right-to-left layout, founder\'s native voice.', tags:['i18n'] },
+      { title:'Governance model', desc:'Decide, in public, how decisions actually get made as this grows.', tags:['governance'] },
+    ]
+  };
+  const ROADMAP_META = { now:{label:'Now', color:'#7CFFB2'}, next:{label:'Next', color:'#FFD166'}, later:{label:'Later', color:'#8FA69B'} };
+
+  // Each voyage: who's needed is decided by whoever charts it (the Captain), and can change
+  // as the idea develops. Roles are 'open' (join instantly) or 'approval' (Captain approves).
+  let uidCounter = 100;
+  function uid(prefix){ return prefix + (uidCounter++); }
+  function myName(){ const u = window.SB && SB.getUser(); return u ? u.name : 'You'; }
+  function myInit(){ return myName().charAt(0).toUpperCase() || 'Y'; }
+  // Every write action goes through this: no session → kick off Google
+  // sign-in and stop, instead of quietly acting as an anonymous "You".
+  function requireAuth(){
+    const u = window.SB && SB.getUser();
+    if(u) return true;
+    toast('Sign in with Google to do that.');
+    if(window.SB) SB.signInWithGoogle();
+    return false;
+  }
+
+  let VOYAGES = [
+    {
+      id:'v1', name:'Revolution Cover Song', scale:'hub', sizeNote:'10 players + 1 singer', theme:'community',
+      pitch:"A full-band cover of a protest anthem people already know the words to, recorded live at the house in one session — so a crowd can sing along the first time they hear it.",
+      captain:'Dana', coCaptains:[], fromSeed:false,
+      roles:[
+        { id:uid('r'), name:'Lead singer', slots:1, mode:'approval', crew:[] },
+        { id:uid('r'), name:'Guitar', slots:2, mode:'open', crew:[{name:'Omer', status:'approved'}] },
+        { id:uid('r'), name:'Drums', slots:1, mode:'open', crew:[] },
+        { id:uid('r'), name:'Bass', slots:1, mode:'open', crew:[] },
+        { id:uid('r'), name:'Keys', slots:1, mode:'approval', crew:[] },
+        { id:uid('r'), name:'Backing vocals', slots:4, mode:'open', crew:[{name:'Noa',status:'approved'},{name:'Yael',status:'approved'}] },
+      ],
+      timeline:[
+        { date:'2026-09-10', label:'Picked the song', done:true },
+        { date:'2026-11-14', label:'Full-band recording day at the house', done:false },
+      ],
+      comments:[
+        { author:'Dana', text:"Going with a cover over an original for round one — more people can join in the moment they hear it.", time:'2d' },
+      ],
+    },
+    {
+      id:'v2', name:'Coding the Future — Panel', scale:'hub', sizeNote:'1 host + 4 panelists', theme:'bridges',
+      pitch:"A filmed panel asking a specific question: can software actually help a decentralized movement coordinate itself, or does it just look like it does? Coders and organizers argue it out on camera.",
+      captain:'Itay', coCaptains:[], fromSeed:false,
+      roles:[
+        { id:uid('r'), name:'Host', slots:1, mode:'approval', crew:[] },
+        { id:uid('r'), name:'Panelist — technical', slots:2, mode:'approval', crew:[{name:'Itay', status:'approved'}] },
+        { id:uid('r'), name:'Panelist — organizer', slots:2, mode:'approval', crew:[] },
+      ],
+      timeline:[
+        { date:'2026-10-20', label:'Lock the question + panel list', done:false },
+        { date:'2026-12-05', label:'Film at the house', done:false },
+      ],
+      comments:[],
+    },
+    {
+      id:'v3', name:'Build the Platform', scale:'humanity', sizeNote:'worldwide — any contributor', theme:'tech',
+      pitch:"The Shapeless app itself. Open source, no headcount limit — anyone anywhere can pick up an issue and ship something real to a live product.",
+      captain:'Founder', coCaptains:[], fromSeed:false,
+      roles:[
+        { id:uid('r'), name:'Frontend', slots:null, mode:'open', crew:[{name:'Itay',status:'approved'}] },
+        { id:uid('r'), name:'Backend / Supabase', slots:null, mode:'open', crew:[] },
+        { id:uid('r'), name:'Design', slots:2, mode:'approval', crew:[] },
+      ],
+      timeline:[
+        { date:'2026-09-15', label:'Repo opened publicly', done:true },
+        { date:'2026-10-01', label:'First 5 issues tagged good-first-issue', done:false },
+      ],
+      comments:[
+        { author:'Founder', text:'Tagging issues by skill tonight — grab whatever fits, no need to ask first.', time:'6h' },
+      ],
+    },
+    {
+      id:'v4', name:'Global Day of Imagining', scale:'humanity', sizeNote:'200,000+ — synchronized worldwide', theme:'community',
+      pitch:"One day, every timezone: local groups everywhere run the same one-hour 'imagine the future' session at the same local hour, then post one idea from their room to a shared map as it fills in, live, around the planet.",
+      captain:'Founder', coCaptains:[], fromSeed:false,
+      roles:[
+        { id:uid('r'), name:'City organizer', slots:null, mode:'open', crew:[] },
+        { id:uid('r'), name:'Translator', slots:6, mode:'approval', crew:[] },
+        { id:uid('r'), name:'Livestream / tech', slots:3, mode:'approval', crew:[] },
+      ],
+      timeline:[
+        { date:'2027-03-01', label:'Pick the date + open city sign-ups', done:false },
+      ],
+      comments:[],
+    },
+  ];
+  let voyageScaleFilter = 'all';
+  let currentVoyageId = null;
+  let draftRoles = [];
+  let draftScale = 'hub';
+  let draftName = '', draftPitch = '', draftSize = '';
+
+  const RETREATS = [
+    { date:'2026-11-14', title:'Code + Music Weekend #1', loc:'The House · in-person', desc:'First working retreat — split time between the platform codebase and writing the opening track.', rsvps:6 },
+    { date:'2026-12-05', title:'Panel Recording Day', loc:'The House · in-person', desc:'Filming the first three expert panels: tech, economy, ecology.', rsvps:3 },
+    { date:'2027-01-17', title:'Open House + Zoom Overflow', loc:'The House + Zoom', desc:'Anyone curious can drop by in person or join remote for the day.', rsvps:11 },
+  ];
+  const WEEKLY_CALL = { weekday:'Thursday', time:'20:00 Israel time' };
+
+  const CHANNELS = [
+    { id:'general', label:'General' },
+    { id:'coders', label:'Coders' },
+    { id:'musicians', label:'Musicians' },
+    { id:'experts', label:'Experts' },
+  ];
+  let activeChannel = 'general';
+  let messages = {
+    general: [
+      { who:'Noa', init:'N', time:'2h', text:"First retreat date is up under Retreats — who's actually coming in person?" },
+      { who:'Founder', init:'F', time:'5h', text:'Opened the repo tonight. Issues are tagged by skill, grab whatever fits.' },
+    ],
+    coders: [
+      { who:'Itay', init:'I', time:'1h', text:"Started on the Supabase schema for seeds + votes, will push a draft PR tonight." },
+      { who:'Founder', init:'F', time:'6h', text:'PWA install + push notifications is the next big one after auth. Anyone done this before?' },
+    ],
+    musicians: [
+      { who:'Dana', init:'D', time:'3h', text:"Got a rough vocal take for the opening track, bringing it to the first retreat." },
+    ],
+    experts: [
+      { who:'Yossi', init:'Y', time:'4h', text:"Happy to do the economy panel — thinking UBI pilots as the concrete hook." },
+    ],
+  };
+
+  const DOORS = [
+    { id:'coder', title:'Coders', tag:'Help build the platform, open source', icon:'{ }' },
+    { id:'musician', title:'Musicians', tag:'Retreats, originals, covers, the channel', icon:'♪' },
+    { id:'expert', title:'Experts & panelists', tag:'Tech, economy, security, ecology, bridges', icon:'◎' },
+  ];
+
+  // ---------- state ----------
+  let seeds = SEED_TEXTS.map((s,i)=>({ id:'s'+i, text:s.text, theme:s.theme, step:s.step||'', doers:s.doers||0, threshold:s.threshold||DEFAULT_THRESHOLD, promoted:false, energy:2+Math.floor(Math.random()*5), pos:null, homeSet:false, born:performance.now() }));
+  let selectedTheme = 'tech';   // which theme a new seed gets planted under
+  let filterTheme = null;       // which theme is highlighted/browsed; null = all
+  let nodes = [];
+  let canvas, cw=0, ch=0;
+
+  // ---------- 3D scene (three.js) ----------
+  const R3 = 150; // theme-anchor orbit radius
+  let three = null; // { renderer, scene, camera, core, anchorMeshes, group, starPoints }
+  const fly = { yaw:0, pitch:0, pos:null, moveF:0, moveB:0, dragging:false, lastX:0, lastY:0, moved:false };
+
+  function anchorPos3D(themeIdx){
+    // Fibonacci-sphere placement so the 7 themes sit evenly around the core in 3D
+    const n = THEMES.length;
+    const off = 2/n;
+    const y = ((themeIdx*off) - 1) + off/2;
+    const r = Math.sqrt(Math.max(0, 1 - y*y));
+    const phi = themeIdx * Math.PI * (3 - Math.sqrt(5));
+    return new THREE.Vector3(Math.cos(phi)*r*R3, y*R3, Math.sin(phi)*r*R3);
+  }
+
+  function themeEnergy(themeId){
+    return seeds.filter(s=>s.theme===themeId).reduce((sum,s)=>sum+s.energy,0);
+  }
+
+  function glowTexture(){
+    const size = 128;
+    const c = document.createElement('canvas'); c.width = c.height = size;
+    const gctx = c.getContext('2d');
+    const g = gctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
+    g.addColorStop(0,'rgba(255,255,255,1)');
+    g.addColorStop(0.4,'rgba(255,255,255,0.55)');
+    g.addColorStop(1,'rgba(255,255,255,0)');
+    gctx.fillStyle = g; gctx.fillRect(0,0,size,size);
+    return new THREE.CanvasTexture(c);
+  }
+
+  function initScene(){
+    if(three || typeof THREE === 'undefined') return;
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 3000);
+    fly.pos = new THREE.Vector3(0, 30, 420);
+    fly.yaw = 0; fly.pitch = -0.05;
+
+    const glow = glowTexture();
+    const group = new THREE.Group();
+    scene.add(group);
+
+    // starfield for depth/motion cues while flying
+    const starCount = 500;
+    const starPos = new Float32Array(starCount*3);
+    for(let i=0;i<starCount;i++){
+      const rad = 500 + Math.random()*900;
+      const th = Math.random()*Math.PI*2, ph = Math.acos(2*Math.random()-1);
+      starPos[i*3] = rad*Math.sin(ph)*Math.cos(th);
+      starPos[i*3+1] = rad*Math.sin(ph)*Math.sin(th);
+      starPos[i*3+2] = rad*Math.cos(ph);
+    }
+    const starGeo = new THREE.BufferGeometry();
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
+    const starMat = new THREE.PointsMaterial({ map:glow, size:3.5, color:0xffffff, transparent:true, opacity:0.35, depthWrite:false, blending:THREE.AdditiveBlending });
+    const starPoints = new THREE.Points(starGeo, starMat);
+    scene.add(starPoints);
+
+    // pulsing core at the center
+    const coreGeo = new THREE.IcosahedronGeometry(1, 2);
+    const accentColor = (getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()) || '#3FE8FF';
+    const coreMat = new THREE.MeshBasicMaterial({ color:accentColor, transparent:true, opacity:0.92 });
+    const core = new THREE.Mesh(coreGeo, coreMat);
+    group.add(core);
+    const coreGlowMat = new THREE.SpriteMaterial({ map:glow, color:accentColor, transparent:true, opacity:0.5, blending:THREE.AdditiveBlending, depthWrite:false });
+    const coreGlow = new THREE.Sprite(coreGlowMat);
+    group.add(coreGlow);
+
+    // theme anchors + spokes from core + text-label sprites
+    const anchorMeshes = [];
+    const spokes = [];
+    THEMES.forEach((t,i)=>{
+      const a = anchorPos3D(i);
+      const mat = new THREE.MeshBasicMaterial({ color:t.color, transparent:true, opacity:1 });
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(4.5, 14, 14), mat);
+      mesh.position.copy(a);
+      mesh.userData = { isAnchor:true, themeId:t.id };
+      group.add(mesh);
+      anchorMeshes.push(mesh);
+
+      const label = makeLabelSprite(t.label, t.color);
+      label.position.copy(a.clone().multiplyScalar(1.12));
+      group.add(label);
+
+      const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), a]);
+      const lineMat = new THREE.LineBasicMaterial({ color:t.color, transparent:true, opacity:0.5 });
+      const line = new THREE.Line(geo, lineMat);
+      group.add(line);
+      spokes.push({ line, themeId:t.id, mat:lineMat });
+    });
+
+    three = { renderer, scene, camera, group, core, coreGlow, coreGlowMat, anchorMeshes, spokes, glow, starPoints, seedMeshes:new Map() };
+  }
+
+  function makeLabelSprite(text, color){
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 64;
+    const g = c.getContext('2d');
+    g.font = '600 30px "JetBrains Mono", monospace';
+    g.fillStyle = color;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(text, 128, 32);
+    const tex = new THREE.CanvasTexture(c);
+    const mat = new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(48, 12, 1);
+    return sprite;
+  }
+
+  function buildGraph(){
+    if(!three) return;
+    nodes = seeds;
+    nodes.forEach(n=>{
+      const idx = THEMES.findIndex(t=>t.id===n.theme);
+      const a = anchorPos3D(idx);
+      if(!n.homeSet || !n.pos){
+        const off = new THREE.Vector3((Math.random()-0.5), (Math.random()-0.5), (Math.random()-0.5)).normalize().multiplyScalar(14 + Math.random()*22);
+        n.pos = a.clone().add(off);
+        n.homeSet = true;
+      }
+      if(!three.seedMeshes.has(n.id)){
+        const color = themeColor(n.theme);
+        const mat = new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0 });
+        const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), mat);
+        mesh.position.copy(n.pos);
+        mesh.userData = { seedId:n.id };
+        const glowMat = new THREE.SpriteMaterial({ map:three.glow, color, transparent:true, opacity:0.35, blending:THREE.AdditiveBlending, depthWrite:false });
+        const glowSprite = new THREE.Sprite(glowMat);
+        glowSprite.position.copy(n.pos);
+        three.group.add(mesh); three.group.add(glowSprite);
+        const lineGeo = new THREE.BufferGeometry().setFromPoints([a, n.pos]);
+        const lineMat = new THREE.LineBasicMaterial({ color, transparent:true, opacity:0.3 });
+        const line = new THREE.Line(lineGeo, lineMat);
+        three.group.add(line);
+        three.seedMeshes.set(n.id, { mesh, glowSprite, line, mat, glowMat, lineMat });
+      }
+    });
+  }
+
+  function tick(){
+    if(!three) return;
+    const t = performance.now();
+    const pulse = 1 + Math.sin(t/700) * 0.06;
+    three.core.scale.setScalar(8*pulse);
+    three.coreGlow.scale.setScalar(34*pulse);
+
+    const maxThemeEnergy = Math.max(1, ...THEMES.map(tt=>themeEnergy(tt.id)));
+    three.spokes.forEach(s=>{
+      const dim = filterTheme && filterTheme !== s.themeId;
+      s.mat.opacity = (dim ? 0.08 : 0.45) * (0.4 + 0.6*(themeEnergy(s.themeId)/maxThemeEnergy));
+    });
+    three.anchorMeshes.forEach(m=>{
+      const dim = filterTheme && filterTheme !== m.userData.themeId;
+      m.material.opacity = dim ? 0.25 : 1;
+    });
+
+    for(const n of nodes){
+      const rec = three.seedMeshes.get(n.id);
+      if(!rec) continue;
+      rec.mesh.position.copy(n.pos);
+      rec.glowSprite.position.copy(n.pos);
+      const scale = 2 + Math.min(n.energy, 16) * 0.85;
+      rec.mesh.scale.setScalar(scale * (1 + Math.sin(t/900 + n.born)*0.03));
+      rec.glowSprite.scale.setScalar(scale*3.4);
+      const age = Math.min(1, (t - n.born)/500);
+      const dim = filterTheme && filterTheme !== n.theme;
+      const alpha = age * (dim ? 0.15 : 1);
+      rec.mat.opacity = alpha;
+      rec.glowMat.opacity = alpha * 0.4;
+      rec.lineMat.opacity = (dim ? 0.08 : 0.3) * age;
+      const pos = rec.line.geometry.attributes.position.array;
+      pos[3]=n.pos.x; pos[4]=n.pos.y; pos[5]=n.pos.z;
+      rec.line.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // slow ambient drift of the whole network, plus fly-through camera control
+    three.group.rotation.y += 0.0006;
+
+    fly.pitch = Math.max(-1.4, Math.min(1.4, fly.pitch));
+    const forward = new THREE.Vector3(
+      -Math.sin(fly.yaw)*Math.cos(fly.pitch),
+      Math.sin(fly.pitch),
+      -Math.cos(fly.yaw)*Math.cos(fly.pitch)
+    );
+    const speed = 3.2;
+    if(fly.moveF) fly.pos.addScaledVector(forward, speed);
+    if(fly.moveB) fly.pos.addScaledVector(forward, -speed);
+    if(fly.pos.length() > 1400) fly.pos.setLength(1400);
+
+    three.camera.position.copy(fly.pos);
+    three.camera.rotation.order = 'YXZ';
+    three.camera.rotation.set(fly.pitch, fly.yaw, 0);
+  }
+
+  function draw(){
+    if(!three || cw===0) return;
+    three.renderer.render(three.scene, three.camera);
+  }
+
+  function loop(){ tick(); draw(); requestAnimationFrame(loop); }
+
+  function resizeCanvas(){
+    const rect = canvas.getBoundingClientRect();
+    cw = rect.width; ch = rect.height;
+    if(three && cw>0 && ch>0){
+      three.renderer.setSize(cw, ch, false);
+      three.camera.aspect = cw/ch;
+      three.camera.updateProjectionMatrix();
+    }
+  }
+
+  function nodeAt(clientX, clientY){
+    if(!three) return null;
+    const rect = canvas.getBoundingClientRect();
+    const nx = ((clientX-rect.left)/rect.width)*2 - 1;
+    const ny = -((clientY-rect.top)/rect.height)*2 + 1;
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera({x:nx,y:ny}, three.camera);
+    const meshes = [...three.seedMeshes.values()].map(r=>r.mesh);
+    const hits = ray.intersectObjects(meshes);
+    if(!hits.length) return null;
+    const id = hits[0].object.userData.seedId;
+    return nodes.find(n=>n.id===id) || null;
+  }
+
+  function pointerPos(e){
+    const t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX, y: t.clientY };
+  }
+
+  function flyForward(){
+    return new THREE.Vector3(
+      -Math.sin(fly.yaw)*Math.cos(fly.pitch),
+      Math.sin(fly.pitch),
+      -Math.cos(fly.yaw)*Math.cos(fly.pitch)
+    );
+  }
+
+  function initCanvasEvents(){
+    const activePointers = new Map(); // pointerId -> {x,y}, tracks fingers for pinch
+    let pinchStartDist = 0;
+    const dist2 = (a,b)=>Math.hypot(a.x-b.x, a.y-b.y);
+
+    canvas.addEventListener('pointerdown', e=>{
+      canvas.setPointerCapture?.(e.pointerId);
+      activePointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+      if(activePointers.size >= 2){
+        const pts = [...activePointers.values()];
+        pinchStartDist = dist2(pts[0], pts[1]);
+        fly.moved = true; // a pinch should never register as a tap-select
+      } else {
+        fly.dragging = true; fly.moved = false;
+        const p = pointerPos(e); fly.lastX = p.x; fly.lastY = p.y;
+      }
+    });
+    canvas.addEventListener('pointermove', e=>{
+      if(!activePointers.has(e.pointerId)) return;
+      activePointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+
+      if(activePointers.size >= 2){
+        // pinch: two fingers spreading apart flies in, pinching together flies back out
+        const pts = [...activePointers.values()];
+        const d = dist2(pts[0], pts[1]);
+        const delta = d - pinchStartDist;
+        if(fly.pos && typeof THREE !== 'undefined' && Math.abs(delta) > 0.3){
+          fly.pos.addScaledVector(flyForward(), delta * 0.9);
+        }
+        pinchStartDist = d;
+        fly.moved = true;
+        return;
+      }
+
+      if(!fly.dragging) return;
+      const p = pointerPos(e);
+      const dx = p.x - fly.lastX, dy = p.y - fly.lastY;
+      if(Math.abs(dx) > 2 || Math.abs(dy) > 2) fly.moved = true;
+      fly.yaw -= dx * 0.0055;
+      fly.pitch -= dy * 0.0055;
+      fly.lastX = p.x; fly.lastY = p.y;
+    });
+    const endPointer = e=>{
+      activePointers.delete(e.pointerId);
+      if(activePointers.size === 1){
+        // dropped from two fingers to one: resume single-finger look from here, no jump, no tap
+        const [[, p]] = activePointers;
+        fly.dragging = true; fly.moved = true;
+        fly.lastX = p.x; fly.lastY = p.y;
+        return;
+      }
+      if(activePointers.size === 0){
+        if(fly.dragging && !fly.moved){
+          const p = pointerPos(e);
+          const n = nodeAt(p.x, p.y);
+          if(n){
+            n.energy += 1; n.born = performance.now()-300;
+            if(window.SB) SB.updateSeed(n.id, { energy:n.energy }).catch(()=>{});
+            toast(n.text);
+            renderThemeBars(); renderRecentSeeds(); renderStats();
+          }
+        }
+        fly.dragging = false;
+      }
+    };
+    window.addEventListener('pointerup', endPointer);
+    window.addEventListener('pointercancel', endPointer);
+    canvas.addEventListener('wheel', e=>{
+      if(!fly.pos || typeof THREE === 'undefined') return;
+      e.preventDefault();
+      fly.pos.addScaledVector(flyForward(), -e.deltaY * 0.35);
+    }, { passive:false });
+    window.addEventListener('keydown', e=>{
+      if(!fly.pos || typeof THREE === 'undefined') return;
+      if(!document.querySelector('[data-view="imagine"].active')) return;
+      if(['ArrowUp','w','W'].includes(e.key)) fly.moveF = 1;
+      if(['ArrowDown','s','S'].includes(e.key)) fly.moveB = 1;
+      if(['a','A','ArrowLeft'].includes(e.key)){
+        const right = new THREE.Vector3(Math.cos(fly.yaw),0,-Math.sin(fly.yaw));
+        fly.pos.addScaledVector(right, -3.2);
+      }
+      if(['d','D','ArrowRight'].includes(e.key)){
+        const right = new THREE.Vector3(Math.cos(fly.yaw),0,-Math.sin(fly.yaw));
+        fly.pos.addScaledVector(right, 3.2);
+      }
+    });
+    window.addEventListener('keyup', e=>{
+      if(['ArrowUp','w','W'].includes(e.key)) fly.moveF = 0;
+      if(['ArrowDown','s','S'].includes(e.key)) fly.moveB = 0;
+    });
+    const holdBtn = (el, on, off)=>{
+      if(!el) return;
+      el.addEventListener('pointerdown', e=>{ e.preventDefault(); on(); });
+      el.addEventListener('pointerup', off);
+      el.addEventListener('pointerleave', off);
+      el.addEventListener('pointercancel', off);
+    };
+    holdBtn(document.getElementById('fly-fwd'), ()=>fly.moveF=1, ()=>fly.moveF=0);
+    holdBtn(document.getElementById('fly-back'), ()=>fly.moveB=1, ()=>fly.moveB=0);
+    const resetBtn = document.getElementById('fly-reset');
+    if(resetBtn) resetBtn.addEventListener('click', ()=>{
+      if(!fly.pos) return;
+      fly.pos.set(0,30,420); fly.yaw = 0; fly.pitch = -0.05;
+    });
+  }
+
+  function renderThemeBars(){
+    const rows = THEMES.map(t=>({ t, val: themeEnergy(t.id) })).sort((a,b)=>b.val-a.val);
+    const max = Math.max(1, ...rows.map(r=>r.val));
+    document.getElementById('theme-bars').innerHTML = rows.map(r=>`
+      <div class="theme-bar-row" data-active="${filterTheme===r.t.id}" onclick="app.filterByTheme('${r.t.id}')">
+        <span class="theme-bar-label" style="color:${r.t.color}">${r.t.label}</span>
+        <span class="theme-bar-track"><span class="theme-bar-fill" style="width:${(r.val/max*100).toFixed(0)}%; background:${r.t.color}"></span></span>
+        <span class="theme-bar-value">${r.val}</span>
+      </div>`).join('');
+  }
+
+  function renderThemeVoyages(){
+    const panel = document.getElementById('theme-voyages');
+    if(!filterTheme){ panel.hidden = true; panel.innerHTML = ''; return; }
+    const t = THEMES.find(x=>x.id===filterTheme);
+    const matches = VOYAGES.filter(v=>v.theme===filterTheme);
+    panel.hidden = false;
+    panel.innerHTML = `<h5>Projects in ${t.label}</h5>` + (matches.length
+      ? matches.map(v=>{
+          const roleBits = v.roles.slice(0,3).map(r=>`${r.name} ${roleFillCount(r)}/${r.slots===null?'∞':r.slots}`).join(' · ');
+          return `
+          <div class="tv-card" onclick="app.jumpToVoyage('${v.id}')">
+            <div>
+              <div class="tv-name" style="color:${t.color}">${v.name}</div>
+              <div class="tv-meta">${v.scale} · ${roleBits}</div>
+            </div>
+            <span class="scale-badge ${v.scale}">${v.scale}</span>
+          </div>`;
+        }).join('')
+      : `<p class="tv-empty">No voyages in ${t.label} yet — back an idea above until it's ready to promote, or chart one directly in Build.</p>`);
+  }
+
+  function renderThemePicker(){
+    const el = document.getElementById('theme-picker');
+    el.innerHTML = THEMES.map(t=>`<button type="button" class="theme-btn" data-theme-id="${t.id}" data-active="${t.id===selectedTheme}" style="--theme-color:${t.color}" onclick="app.pickTheme('${t.id}')">${t.label}</button>`).join('');
+  }
+
+  function renderRecentSeeds(){
+    const pool = filterTheme ? seeds.filter(s=>s.theme===filterTheme) : seeds;
+    const sorted = [...pool].sort((a,b)=>b.energy-a.energy).slice(0,6);
+    const label = filterTheme ? THEMES.find(t=>t.id===filterTheme).label + ' — idea to action' : 'From idea to action';
+    document.getElementById('seed-list-label').textContent = label;
+    document.getElementById('recent-seeds').innerHTML = sorted.map(s=>{
+      const canPromote = !s.promoted && s.energy >= s.threshold;
+      return `
+      <div class="seed-card" data-promoted="${s.promoted}">
+        <div class="seed-top">
+          <span class="swatch" style="background:${themeColor(s.theme)}"></span>
+          <p>${s.text}</p>
+          <span class="energy">${s.energy}✦</span>
+        </div>
+        ${s.step ? `<div class="seed-step"><span class="step-label">Step</span><span>${s.step}</span></div>` : ''}
+        <div class="seed-actions">
+          <button class="btn btn-ghost btn-sm" onclick="app.commitToSeed('${s.id}')">I'll do this${s.doers ? ` (${s.doers})` : ''} →</button>
+          ${s.promoted
+            ? `<span class="promoted-badge">now a project in Build →</span>`
+            : `<button class="btn ${canPromote ? 'btn-primary' : 'btn-ghost'} btn-sm" onclick="app.promoteSeed('${s.id}')">${canPromote ? 'Make it a project →' : `Make it a project (needs ${s.threshold}✦) →`}</button>`}
+        </div>
+      </div>`;
+    }).join('') || '<p style="color:var(--muted); font-size:13px;">Nothing planted here yet — be the first.</p>';
+  }
+
+  function renderRoadmap(){
+    const cols = ['now','next','later'];
+    document.getElementById('roadmap-cols').innerHTML = cols.map(k=>{
+      const meta = ROADMAP_META[k];
+      const cards = ROADMAP[k].map(c=>`
+        <div class="rm-card" style="--col-color:${meta.color}">
+          <h5>${c.title}</h5>
+          <p>${c.desc}</p>
+          <div class="rm-tags">${c.tags.map(t=>`<span class="rm-tag">#${t}</span>`).join('')}</div>
+        </div>`).join('');
+      return `<div class="rm-col">
+        <div class="rm-col-head"><h4>${meta.label}</h4><span class="rm-count">${ROADMAP[k].length}</span></div>
+        <div class="rm-cards">${cards}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function roleFillCount(role){ return role.crew.filter(c=>c.status==='approved').length; }
+  function roleIsFull(role){ return role.slots !== null && roleFillCount(role) >= role.slots; }
+  function wheelIcon(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><path d="M12 4.5v3M12 16.5v3M4.5 12h3M16.5 12h3M6.3 6.3l2.1 2.1M15.6 15.6l2.1 2.1M17.7 6.3l-2.1 2.1M8.4 15.6l-2.1 2.1"/></svg>`; }
+
+  function renderScaleFilter(){
+    const opts = [ ['all','All voyages'], ['hub','Hub'], ['humanity','Humanity'] ];
+    document.getElementById('scale-filter').innerHTML = opts.map(([id,label])=>`
+      <div class="scale-chip" data-active="${voyageScaleFilter===id}" onclick="app.filterScale('${id}')">${label}</div>`).join('');
+  }
+
+  function renderVoyages(){
+    const pool = voyageScaleFilter==='all' ? VOYAGES : VOYAGES.filter(v=>v.scale===voyageScaleFilter);
+    document.getElementById('voyage-cards').innerHTML = pool.map(v=>{
+      const roleBits = v.roles.map(r=>{
+        const fill = roleFillCount(r);
+        const cap = r.slots===null ? '∞' : r.slots;
+        return `<span class="role-chip">${r.name} <span class="fill">${fill}/${cap}</span></span>`;
+      }).join('');
+      return `
+      <div class="voyage-card" onclick="app.openVoyage('${v.id}')">
+        <div class="voyage-top">
+          <h4>${v.name}${v.fromSeed ? '<span class="from-seed-tag">from Imagine</span>' : ''}</h4>
+          <span class="scale-badge ${v.scale}">${v.scale}</span>
+        </div>
+        <div class="voyage-captain">${wheelIcon()} Captain: ${v.captain}${v.coCaptains.length ? ' + '+v.coCaptains.length+' co-captain'+(v.coCaptains.length>1?'s':'') : ''} · ${v.sizeNote}</div>
+        <p class="desc">${v.pitch}</p>
+        <div class="role-needed">${roleBits}</div>
+        <div class="voyage-foot">
+          <span class="contrib-avatars">${v.timeline.length} milestone${v.timeline.length===1?'':'s'} · ${v.comments.length} comment${v.comments.length===1?'':'s'}</span>
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); app.openVoyage('${v.id}')">Open →</button>
+        </div>
+      </div>`;
+    }).join('') || '<p style="color:var(--muted); font-size:13px;">No voyages at this scale yet.</p>';
+  }
+
+  function renderVoyageDetail(){
+    const v = VOYAGES.find(x=>x.id===currentVoyageId);
+    if(!v) return;
+    document.getElementById('ov-scale-badge').innerHTML = `<span class="scale-badge ${v.scale}">${v.scale}</span>`;
+
+    const rolesHtml = v.roles.map(r=>{
+      const approvedCrew = r.crew.filter(c=>c.status==='approved');
+      const pendingCrew = r.crew.filter(c=>c.status==='pending');
+      const full = roleIsFull(r);
+      const youIn = r.crew.some(c=>c.name===myName());
+      const cap = r.slots===null ? 'open crew' : `${approvedCrew.length}/${r.slots}`;
+      return `
+      <div class="role-block">
+        <div class="role-block-top">
+          <b>${r.name}</b>
+          <span class="role-mode-badge ${r.mode}">${r.mode==='open' ? 'Open' : 'By approval'} · ${cap}</span>
+        </div>
+        <div class="crew-list">
+          ${approvedCrew.map(c=>`<span class="crew-chip">${c.name}</span>`).join('') || '<span class="crew-chip" style="opacity:.5">no one yet</span>'}
+        </div>
+        ${pendingCrew.map(c=>`
+          <div class="pending-row">
+            <span>${c.name} · requested</span>
+            <div class="mini-actions">
+              <button class="mini-btn approve" onclick="app.setCrewStatus('${v.id}','${r.id}','${c.name}','approved')">Approve</button>
+              <button class="mini-btn decline" onclick="app.setCrewStatus('${v.id}','${r.id}','${c.name}','decline')">Decline</button>
+            </div>
+          </div>`).join('')}
+        <button class="btn ${youIn ? 'btn-ghost' : 'btn-primary'} btn-sm" ${youIn||full ? 'disabled style="opacity:.5"' : ''} onclick="app.joinRole('${v.id}','${r.id}')">
+          ${youIn ? "You're in" : full ? 'Full' : (r.mode==='open' ? 'Join this role →' : 'Request to join →')}
+        </button>
+      </div>`;
+    }).join('');
+
+    const tlHtml = v.timeline.map((t,i)=>`
+      <div class="tl-item">
+        <span class="tl-dot ${t.done?'done':''}" onclick="app.toggleMilestone('${v.id}',${i})" style="cursor:pointer"></span>
+        <div class="tl-body"><b>${t.label}</b><span>${t.date}</span></div>
+      </div>`).join('');
+
+    const commentsHtml = v.comments.map(c=>`
+      <div class="comment-item"><div class="who">${c.author} <span>${c.time}</span></div><p>${c.text}</p></div>`).join('')
+      || '<p style="color:var(--muted); font-size:13px;">No comments yet.</p>';
+
+    const crewNames = [...new Set(v.roles.flatMap(r=>r.crew.filter(c=>c.status==='approved').map(c=>c.name)))].filter(n=>n!==v.captain);
+
+    document.getElementById('voyage-detail-body').innerHTML = `
+      <h2>${v.name}${v.fromSeed ? '<span class="from-seed-tag">from Imagine</span>' : ''}</h2>
+      <div class="voyage-captain">${wheelIcon()} Captain: ${v.captain}${v.coCaptains.length ? ' + co-captain(s): '+v.coCaptains.join(', ') : ''} · ${v.sizeNote}</div>
+      <p class="desc" style="font-size:14px;">${v.pitch}</p>
+
+      <div class="overlay-section">
+        <div class="overlay-section-head"><h3>Roles &amp; crew</h3></div>
+        ${rolesHtml}
+      </div>
+
+      <div class="overlay-section">
+        <div class="overlay-section-head"><h3>Timeline</h3></div>
+        ${tlHtml || '<p style="color:var(--muted); font-size:13px;">No milestones yet.</p>'}
+        <div class="tl-add">
+          <input type="text" class="date" id="tl-date-input" placeholder="e.g. Nov 14">
+          <input type="text" class="label" id="tl-label-input" placeholder="Add a milestone...">
+          <button class="btn btn-ghost btn-sm" onclick="app.addMilestone('${v.id}')">Add</button>
+        </div>
+      </div>
+
+      <div class="overlay-section">
+        <div class="overlay-section-head"><h3>Comments</h3></div>
+        ${commentsHtml}
+        <div class="comment-add">
+          <input type="text" id="comment-input" placeholder="Say something to the crew...">
+          <button class="btn btn-ghost btn-sm" onclick="app.addVoyageComment('${v.id}')">Post</button>
+        </div>
+      </div>
+
+      <div class="overlay-section">
+        <div class="overlay-section-head"><h3>Captain tools</h3></div>
+        <div class="captain-panel">
+          <p class="note">Shown here so anyone can preview what the Captain sees — real access control (only the actual Captain can use this) arrives with accounts.</p>
+          ${crewNames.length ? `
+            <select id="nominate-select">${crewNames.map(n=>`<option value="${n}">${n}</option>`).join('')}</select>
+            <div class="btn-row">
+              <button class="btn btn-primary btn-sm" onclick="app.nominateCaptain('${v.id}','transfer')">Transfer captaincy →</button>
+              <button class="btn btn-ghost btn-sm" onclick="app.nominateCaptain('${v.id}','add')">Add as co-captain →</button>
+            </div>
+          ` : `<p style="font-size:12.5px; color:var(--muted); margin:0;">Once someone's approved into a role, the Captain can hand off the wheel or bring them on as a co-captain here.</p>`}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderVoyageCreateForm(){
+    const el = document.getElementById('voyage-create-body');
+    el.innerHTML = `
+      <h2>Chart a new voyage</h2>
+      <p class="desc" style="font-size:13.5px; margin-bottom:18px;">You'll be its Captain. Set what it needs now — you can change all of this later as the idea develops.</p>
+
+      <div class="form-field">
+        <label>Voyage name</label>
+        <input type="text" id="voyage-name-input" value="${draftName}" oninput="app.updateDraftField('name', this.value)" placeholder="e.g. Translate the manifesto into 5 languages">
+      </div>
+      <div class="form-field">
+        <label>Pitch — what is this, in a sentence or two?</label>
+        <textarea id="voyage-pitch-input" oninput="app.updateDraftField('pitch', this.value)" placeholder="What does finishing this actually look like?">${draftPitch}</textarea>
+      </div>
+      <div class="form-field">
+        <label>Scale</label>
+        <div class="scale-toggle">
+          <button data-active="${draftScale==='hub'}" onclick="app.setDraftScale('hub')">Hub — a small crew</button>
+          <button data-active="${draftScale==='humanity'}" onclick="app.setDraftScale('humanity')">Humanity — any size</button>
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Roughly how many people? (optional)</label>
+        <input type="text" id="voyage-size-input" value="${draftSize}" oninput="app.updateDraftField('size', this.value)" placeholder="${draftScale==='humanity' ? "e.g. worldwide, or 5,000" : "e.g. 6, or 12"}">
+      </div>
+
+      <div class="form-field">
+        <label>Roles needed</label>
+        ${draftRoles.map((r,i)=>`
+          <div class="role-draft-row">
+            <div class="rdr-top">
+              <input type="text" placeholder="Role name (e.g. Drummer)" value="${r.name}" oninput="app.updateDraftRole(${i},'name',this.value)">
+              <button class="role-draft-remove" onclick="app.removeDraftRole(${i})" aria-label="Remove role">×</button>
+            </div>
+            <div class="rdr-bottom">
+              <div class="rdr-slots">Slots <input type="number" min="1" value="${r.slots}" onchange="app.updateDraftRole(${i},'slots',this.value)"></div>
+              <div class="mode-toggle">
+                <button class="mode-btn" data-active="${r.mode==='open'}" onclick="app.updateDraftRole(${i},'mode','open')">Open</button>
+                <button class="mode-btn" data-active="${r.mode==='approval'}" onclick="app.updateDraftRole(${i},'mode','approval')">By approval</button>
+              </div>
+            </div>
+          </div>`).join('')}
+        <button class="btn btn-ghost btn-sm" onclick="app.addDraftRole()">+ Add another role</button>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%; justify-content:center; margin-top:8px;" onclick="app.submitVoyage()">Set sail →</button>
+    `;
+  }
+
+  function pad2(n){ return n<10 ? '0'+n : ''+n; }
+  function isoDate(y,m,d){ return `${y}-${pad2(m+1)}-${pad2(d)}`; }
+  function nearestUpcoming(){
+    const today = new Date(); today.setHours(0,0,0,0);
+    const upcoming = RETREATS.map(r=>({ ...r, d:new Date(r.date+'T00:00:00') })).filter(r=>r.d>=today).sort((a,b)=>a.d-b.d);
+    return upcoming[0] || null;
+  }
+  const _near = nearestUpcoming();
+  let calYear = _near ? _near.d.getFullYear() : new Date().getFullYear();
+  let calMonthIdx = _near ? _near.d.getMonth() : new Date().getMonth();
+  let selectedDate = _near ? _near.date : null;
+
+  function renderWeekly(){
+    document.getElementById('weekly-sub').textContent = `Every ${WEEKLY_CALL.weekday} · ${WEEKLY_CALL.time} · open to any role`;
+  }
+
+  function renderCalendar(){
+    const label = new Date(calYear, calMonthIdx, 1).toLocaleString('en-US',{ month:'long', year:'numeric' });
+    document.getElementById('cal-label').textContent = label;
+
+    const startWeekday = new Date(calYear, calMonthIdx, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonthIdx+1, 0).getDate();
+    const daysInPrevMonth = new Date(calYear, calMonthIdx, 0).getDate();
+    const today = new Date(); const todayIso = isoDate(today.getFullYear(), today.getMonth(), today.getDate());
+
+    let cells = [];
+    for(let i=startWeekday-1;i>=0;i--) cells.push({ day: daysInPrevMonth-i, outside:true });
+    for(let d=1; d<=daysInMonth; d++) cells.push({ day:d, outside:false, iso: isoDate(calYear, calMonthIdx, d) });
+    let tail = 1;
+    while(cells.length < 42) cells.push({ day: tail++, outside:true });
+
+    document.getElementById('cal-grid').innerHTML = cells.map(c=>{
+      if(c.outside) return `<div class="cal-day outside">${c.day}</div>`;
+      const retreat = RETREATS.find(r=>r.date===c.iso);
+      const classes = ['cal-day'];
+      if(retreat) classes.push('has-retreat');
+      if(c.iso === todayIso) classes.push('today');
+      if(c.iso === selectedDate) classes.push('selected');
+      return `<div class="${classes.join(' ')}" ${retreat ? `onclick="app.selectDate('${c.iso}')"` : ''}>${c.day}</div>`;
+    }).join('');
+  }
+
+  function renderRetreatDetail(){
+    const el = document.getElementById('retreat-detail');
+    const r = RETREATS.find(x=>x.date===selectedDate);
+    if(!r){
+      el.innerHTML = `<div class="retreat-card"><p class="desc" style="margin:0">Nothing scheduled on this day yet. New dates get added as retreats are confirmed — the weekly call above always runs in the meantime.</p></div>`;
+      return;
+    }
+    const d = new Date(r.date+'T00:00:00');
+    el.innerHTML = `
+      <div class="retreat-card">
+        <div class="retreat-date">
+          <div class="date-block"><span class="num">${d.getDate()}</span><span class="mo">${d.toLocaleString('en-US',{month:'short'})}</span></div>
+          <div><h4>${r.title}</h4><div class="loc">${r.loc}</div></div>
+        </div>
+        <div class="desc">${r.desc}</div>
+        <div class="rsvp-row">
+          <div style="display:flex; align-items:center;">
+            <div class="avatars"><span>A</span><span>M</span><span>R</span></div>
+            <span class="rsvp-count">${r.rsvps} coming</span>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="app.rsvp('${r.date}')">I'm in →</button>
+        </div>
+      </div>`;
+  }
+
+  function renderAgenda(){
+    const sorted = [...RETREATS].sort((a,b)=>a.date.localeCompare(b.date));
+    document.getElementById('retreat-agenda').innerHTML = sorted.map(r=>{
+      const d = new Date(r.date+'T00:00:00');
+      return `<div class="agenda-row" onclick="app.jumpToDate('${r.date}')">
+        <div class="date-block"><span class="num">${d.getDate()}</span><span class="mo">${d.toLocaleString('en-US',{month:'short'})}</span></div>
+        <div style="flex:1"><b>${r.title}</b><div class="sub">${r.loc} · ${r.rsvps} coming</div></div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderDoors(){
+    document.getElementById('door-grid').innerHTML = DOORS.map(d=>`
+      <div class="door" id="door-${d.id}" data-open="false" onclick="app.toggleDoor('${d.id}', event)">
+        <div class="door-head">
+          <div class="icon">${d.icon}</div>
+          <div><h4>${d.title}</h4><p class="tag">${d.tag}</p></div>
+          <div class="chev">›</div>
+        </div>
+        <div class="door-form" onclick="event.stopPropagation()">
+          <input type="text" placeholder="Your name" id="${d.id}-name">
+          <input type="text" placeholder="Email or phone" id="${d.id}-contact">
+          <textarea placeholder="What do you want to bring to this?" id="${d.id}-msg"></textarea>
+          <button class="btn btn-primary btn-sm" style="width:100%; justify-content:center" onclick="app.submitDoor('${d.id}','${d.title}')">Send it →</button>
+        </div>
+      </div>`).join('');
+  }
+
+  function renderChannelPicker(){
+    document.getElementById('channel-picker').innerHTML = CHANNELS.map(c=>`
+      <div class="channel-chip" data-active="${c.id===activeChannel}" onclick="app.switchChannel('${c.id}')"><span class="hash">#</span>${c.label}</div>`).join('');
+  }
+  function renderChannelFeed(){
+    const list = messages[activeChannel] || [];
+    document.getElementById('channel-feed').innerHTML = list.map(m=>`
+      <div class="msg">
+        <div class="avatar">${m.init}</div>
+        <div class="bubble">
+          <div class="who"><b>${m.who}</b><span>${m.time}</span></div>
+          <p>${m.text}</p>
+        </div>
+      </div>`).join('') || '<p style="color:var(--muted); font-size:13px;">Nothing here yet — be the first.</p>';
+  }
+
+  function renderStats(){
+    document.getElementById('stat-seeds').textContent = seeds.length;
+    document.getElementById('stat-projects').textContent = VOYAGES.length;
+    document.getElementById('stat-retreats').textContent = RETREATS.length;
+    document.getElementById('pill-count').textContent = 37 + seeds.length;
+  }
+
+  let toastTimer;
+  function toast(msg){
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>el.classList.remove('show'), 2600);
+  }
+
+  const app = {
+    goto(view){
+      document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.dataset.view===view));
+      document.querySelectorAll('.tab-btn').forEach(b=>b.dataset.active = (b.dataset.tab===view) ? 'true' : 'false');
+      if(view === 'imagine') requestAnimationFrame(()=>app.refreshCanvas());
+    },
+    refreshCanvas(){
+      const wasEmpty = cw === 0 || ch === 0;
+      initScene();
+      resizeCanvas();
+      if(wasEmpty && cw > 0){
+        buildGraph();
+      }
+    },
+    filterByTheme(id){
+      filterTheme = (filterTheme === id) ? null : id;
+      renderThemeBars(); renderRecentSeeds(); renderThemeVoyages();
+    },
+    jumpToVoyage(id){
+      app.openVoyage(id);
+    },
+    buildTab(tab){
+      document.querySelectorAll('[data-build-tab]').forEach(el=>el.dataset.active = el.dataset.buildTab===tab ? 'true':'false');
+      document.getElementById('build-roadmap').style.display = tab==='roadmap' ? '' : 'none';
+      document.getElementById('build-projects').style.display = tab==='projects' ? '' : 'none';
+      document.getElementById('build-community').style.display = tab==='community' ? '' : 'none';
+    },
+    switchChannel(id){ activeChannel = id; renderChannelPicker(); renderChannelFeed(); },
+    postMessage(){
+      if(!requireAuth()) return;
+      const input = document.getElementById('composer-input');
+      const text = input.value.trim();
+      if(!text){ return; }
+      messages[activeChannel] = messages[activeChannel] || [];
+      messages[activeChannel].push({ who:myName(), init:myInit(), time:'now', text });
+      if(window.SB) SB.insertMessage({ channel:activeChannel, who:myName(), init:myInit(), text }).catch(()=>{});
+      input.value = '';
+      renderChannelFeed();
+    },
+    pickTheme(id){ selectedTheme = id; renderThemePicker(); },
+    plantSeed(){
+      if(!requireAuth()) return;
+      const input = document.getElementById('seed-input');
+      const stepInput = document.getElementById('step-input');
+      const thresholdInput = document.getElementById('threshold-input');
+      const text = input.value.trim();
+      const step = stepInput.value.trim();
+      if(!text){ toast('Write the future you want first.'); return; }
+      let threshold = parseInt(thresholdInput.value, 10);
+      if(!Number.isFinite(threshold) || threshold < 3) threshold = DEFAULT_THRESHOLD;
+      const n = { id:'s'+Date.now(), text, theme:selectedTheme, step, doers:0, threshold, promoted:false, energy:1, pos:null, homeSet:false, born:performance.now() };
+      seeds.push(n);
+      if(window.SB) SB.insertSeed({ id:n.id, text:n.text, theme:n.theme, step:n.step, doers:n.doers, threshold:n.threshold, promoted:n.promoted, energy:n.energy }).catch(()=>{});
+      buildGraph();
+      input.value = ''; stepInput.value = ''; thresholdInput.value = '';
+      document.getElementById('char-count').textContent = '0';
+      renderThemeBars(); renderRecentSeeds(); renderStats();
+      toast(step ? `Planted with a first step — needs ${threshold}✦ to become a project.` : `Planted — needs ${threshold}✦ to become a project. Add a first step next time to make it actionable.`);
+    },
+    commitToSeed(id){
+      if(!requireAuth()) return;
+      const s = seeds.find(x=>x.id===id);
+      if(!s) return;
+      s.doers += 1;
+      if(window.SB) SB.updateSeed(s.id, { doers:s.doers }).catch(()=>{});
+      renderRecentSeeds();
+      toast(s.step ? `You're doer #${s.doers} on: ${s.step}` : "You're in — added to this idea's crew.");
+    },
+    promoteSeed(id){
+      if(!requireAuth()) return;
+      const s = seeds.find(x=>x.id===id);
+      if(!s || s.promoted) return;
+      if(s.energy < s.threshold){
+        toast(`Needs ${s.threshold}✦ of backing first — it has ${s.energy}. Back it above, or come back once others have.`);
+        return;
+      }
+      s.promoted = true;
+      const vid = uid('v');
+      const newVoyage = {
+        id: vid,
+        name: s.text.length > 48 ? s.text.slice(0,45) + '…' : s.text,
+        scale: 'hub', sizeNote: 'size not set yet — the Captain can update this',
+        pitch: s.text, theme: s.theme,
+        captain: myName(), coCaptains: [], fromSeed: true,
+        roles: [ { id: uid('r'), name:'Anyone', slots: null, mode:'open', crew:[{name:myName(), status:'approved'}] } ],
+        timeline: s.step ? [ { date:'today', label: s.step, done:false } ] : [],
+        comments: [],
+      };
+      VOYAGES.unshift(newVoyage);
+      if(window.SB){
+        SB.updateSeed(s.id, { promoted:true }).catch(()=>{});
+        SB.insertVoyage({ id:newVoyage.id, name:newVoyage.name, scale:newVoyage.scale, size_note:newVoyage.sizeNote, pitch:newVoyage.pitch, theme:newVoyage.theme,
+          captain:newVoyage.captain, co_captains:newVoyage.coCaptains, from_seed:newVoyage.fromSeed, roles:newVoyage.roles, timeline:newVoyage.timeline, comments:newVoyage.comments }).catch(()=>{});
+      }
+      renderRecentSeeds(); renderVoyages(); renderThemeVoyages();
+      toast('Promoted to a voyage — jumping to Build.');
+      app.goto('build'); app.buildTab('projects');
+      app.openVoyage(vid);
+    },
+    calMove(delta){
+      calMonthIdx += delta;
+      if(calMonthIdx < 0){ calMonthIdx = 11; calYear--; }
+      if(calMonthIdx > 11){ calMonthIdx = 0; calYear++; }
+      renderCalendar();
+    },
+    selectDate(iso){ selectedDate = iso; renderCalendar(); renderRetreatDetail(); },
+    jumpToDate(iso){
+      const d = new Date(iso+'T00:00:00');
+      calYear = d.getFullYear(); calMonthIdx = d.getMonth(); selectedDate = iso;
+      renderCalendar(); renderRetreatDetail();
+    },
+    rsvp(dateIso){
+      if(!requireAuth()) return;
+      const r = RETREATS.find(x=>x.date===dateIso);
+      if(!r) return;
+      r.rsvps += 1;
+      if(window.SB) SB.insertRsvp(dateIso).catch(()=>{});
+      renderRetreatDetail(); renderAgenda();
+      toast("You're on the list for " + r.title + '.');
+    },
+    toggleDoor(id, e){
+      const el = document.getElementById('door-'+id);
+      const open = el.dataset.open === 'true';
+      document.querySelectorAll('.door').forEach(d=>d.dataset.open='false');
+      el.dataset.open = open ? 'false' : 'true';
+    },
+    submitDoor(id, title){
+      if(!requireAuth()) return;
+      const name = document.getElementById(id+'-name').value.trim();
+      const contact = document.getElementById(id+'-contact').value.trim();
+      const message = document.getElementById(id+'-msg').value.trim();
+      if(!name){ toast('Add your name so we know who you are.'); return; }
+      if(window.SB) SB.insertJoinSubmission({ door:id, name, contact, message }).catch(()=>{});
+      toast(`Thanks ${name} — you're in the ${title} queue.`);
+      document.getElementById(id+'-name').value='';
+      document.getElementById(id+'-contact').value='';
+      document.getElementById(id+'-msg').value='';
+      document.getElementById('door-'+id).dataset.open = 'false';
+    },
+
+    // ---------- Voyages ----------
+    filterScale(id){ voyageScaleFilter = id; renderScaleFilter(); renderVoyages(); },
+    openVoyage(id){
+      currentVoyageId = id;
+      renderVoyageDetail();
+      document.getElementById('voyage-overlay').hidden = false;
+    },
+    closeVoyage(){
+      document.getElementById('voyage-overlay').hidden = true;
+      renderVoyages();
+    },
+    joinRole(voyageId, roleId){
+      if(!requireAuth()) return;
+      const v = VOYAGES.find(x=>x.id===voyageId);
+      const r = v && v.roles.find(x=>x.id===roleId);
+      if(!v || !r) return;
+      if(r.crew.some(c=>c.name===myName())){ toast("You're already on this one."); return; }
+      if(roleIsFull(r)){ toast('That role just filled up.'); return; }
+      if(r.mode === 'open'){
+        r.crew.push({ name:myName(), status:'approved' });
+        toast(`You're crewed for ${r.name}.`);
+      } else {
+        r.crew.push({ name:myName(), status:'pending' });
+        toast(`Request sent to Captain ${v.captain} for ${r.name}.`);
+      }
+      persistVoyage(v);
+      renderVoyageDetail();
+    },
+    setCrewStatus(voyageId, roleId, name, status){
+      if(!requireAuth()) return;
+      const v = VOYAGES.find(x=>x.id===voyageId);
+      const r = v && v.roles.find(x=>x.id===roleId);
+      if(!v || !r) return;
+      if(status === 'decline'){
+        r.crew = r.crew.filter(c=>c.name!==name);
+        toast(`Declined ${name} for ${r.name}.`);
+      } else {
+        const c = r.crew.find(x=>x.name===name);
+        if(c) c.status = 'approved';
+        toast(`${name} is crewed for ${r.name}.`);
+      }
+      persistVoyage(v);
+      renderVoyageDetail();
+    },
+    toggleMilestone(voyageId, idx){
+      if(!requireAuth()) return;
+      const v = VOYAGES.find(x=>x.id===voyageId);
+      if(!v) return;
+      v.timeline[idx].done = !v.timeline[idx].done;
+      persistVoyage(v);
+      renderVoyageDetail();
+    },
+    addMilestone(voyageId){
+      if(!requireAuth()) return;
+      const v = VOYAGES.find(x=>x.id===voyageId);
+      if(!v) return;
+      const dateEl = document.getElementById('tl-date-input');
+      const labelEl = document.getElementById('tl-label-input');
+      const date = dateEl.value.trim() || 'TBD';
+      const label = labelEl.value.trim();
+      if(!label){ toast('Write what the milestone is first.'); return; }
+      v.timeline.push({ date, label, done:false });
+      dateEl.value=''; labelEl.value='';
+      persistVoyage(v);
+      renderVoyageDetail();
+    },
+    addVoyageComment(voyageId){
+      if(!requireAuth()) return;
+      const v = VOYAGES.find(x=>x.id===voyageId);
+      if(!v) return;
+      const input = document.getElementById('comment-input');
+      const text = input.value.trim();
+      if(!text) return;
+      v.comments.push({ author:myName(), text, time:'now' });
+      persistVoyage(v);
+      input.value = '';
+      renderVoyageDetail();
+    },
+    nominateCaptain(voyageId, mode){
+      if(!requireAuth()) return;
+      const v = VOYAGES.find(x=>x.id===voyageId);
+      const select = document.getElementById('nominate-select');
+      if(!v || !select || !select.value) return;
+      const name = select.value;
+      if(mode === 'transfer'){
+        v.coCaptains = v.coCaptains.filter(n=>n!==name);
+        v.captain = name;
+        toast(`${name} is now Captain.`);
+      } else {
+        if(!v.coCaptains.includes(name)) v.coCaptains.push(name);
+        toast(`${name} added as co-captain.`);
+      }
+      persistVoyage(v);
+      renderVoyageDetail(); renderVoyages();
+    },
+    openVoyageCreate(){
+      draftRoles = [ { name:'', slots:1, mode:'open' }, { name:'', slots:1, mode:'open' } ];
+      draftScale = 'hub';
+      draftName = ''; draftPitch = ''; draftSize = '';
+      renderVoyageCreateForm();
+      document.getElementById('voyage-create-overlay').hidden = false;
+    },
+    closeVoyageCreate(){ document.getElementById('voyage-create-overlay').hidden = true; },
+    updateDraftField(field, val){
+      if(field==='name') draftName = val;
+      else if(field==='pitch') draftPitch = val;
+      else draftSize = val;
+    },
+    setDraftScale(s){ draftScale = s; renderVoyageCreateForm(); },
+    addDraftRole(){ draftRoles.push({ name:'', slots:1, mode:'open' }); renderVoyageCreateForm(); },
+    removeDraftRole(i){ draftRoles.splice(i,1); renderVoyageCreateForm(); },
+    updateDraftRole(i, field, val){
+      draftRoles[i][field] = field==='slots' ? Math.max(1, parseInt(val)||1) : val;
+      if(field !== 'name') renderVoyageCreateForm();
+    },
+    submitVoyage(){
+      if(!requireAuth()) return;
+      const name = draftName.trim();
+      const pitch = draftPitch.trim();
+      const sizeNote = draftSize.trim();
+      if(!name || !pitch){ toast('Give it a name and a pitch first.'); return; }
+      const roles = draftRoles.filter(r=>r.name.trim()).map(r=>({ id:uid('r'), name:r.name.trim(), slots:r.slots, mode:r.mode, crew:[] }));
+      const vid = uid('v');
+      const newVoyage = {
+        id: vid, name, scale: draftScale, sizeNote: sizeNote || (draftScale==='humanity' ? 'worldwide' : 'size not set'),
+        pitch, captain:myName(), coCaptains:[], fromSeed:false,
+        roles: roles.length ? roles : [ { id:uid('r'), name:'Anyone', slots:null, mode:'open', crew:[] } ],
+        timeline: [ { date:'today', label:'Voyage chartered', done:true } ],
+        comments: [],
+      };
+      VOYAGES.unshift(newVoyage);
+      if(window.SB) SB.insertVoyage({ id:newVoyage.id, name:newVoyage.name, scale:newVoyage.scale, size_note:newVoyage.sizeNote, pitch:newVoyage.pitch, theme:newVoyage.theme,
+        captain:newVoyage.captain, co_captains:newVoyage.coCaptains, from_seed:newVoyage.fromSeed, roles:newVoyage.roles, timeline:newVoyage.timeline, comments:newVoyage.comments }).catch(()=>{});
+      app.closeVoyageCreate();
+      renderVoyages();
+      toast('Voyage chartered — you\'re the Captain.');
+      app.openVoyage(vid);
+    },
+    toggleEditMode(){
+      if(editMode) app.cancelEditMode(); else {
+        editMode = true;
+        draftColors = {...COLORS}; draftSizes = {...SIZES};
+        document.body.dataset.editing = 'true';
+        document.getElementById('edit-toggle-btn').dataset.active = 'true';
+        document.getElementById('edit-bar').hidden = false;
+        requestAnimationFrame(()=>{
+          const bar = document.getElementById('edit-bar');
+          document.documentElement.style.setProperty('--edit-bar-h', bar.offsetHeight + 'px');
+        });
+        document.querySelectorAll('[data-ck]').forEach(el=>{ el.contentEditable = 'true'; });
+      }
+    },
+    cancelEditMode(){
+      editMode = false;
+      activeCkKey = null;
+      document.body.dataset.editing = 'false';
+      document.getElementById('edit-toggle-btn').dataset.active = 'false';
+      document.getElementById('edit-bar').hidden = true;
+      document.getElementById('ck-color-popover').hidden = true;
+      document.querySelectorAll('[data-ck]').forEach(el=>{ el.contentEditable = 'false'; });
+      applyContent(); // discard unsaved text edits, restore last-saved text
+      applyStyles();  // discard unsaved color/size edits, restore last-saved styling
+    },
+    applyPickedColor(value){
+      if(!activeCkKey) return;
+      const el = document.querySelector(`[data-ck="${activeCkKey}"]`);
+      if(!el) return;
+      el.style.color = value;
+      draftColors[activeCkKey] = value;
+    },
+    nudgeSize(delta){
+      if(!activeCkKey) return;
+      const el = document.querySelector(`[data-ck="${activeCkKey}"]`);
+      if(!el) return;
+      const current = parseFloat(getComputedStyle(el).fontSize) || 14;
+      const next = Math.max(10, Math.min(72, Math.round(current + delta*2)));
+      el.style.fontSize = next + 'px';
+      draftSizes[activeCkKey] = next;
+    },
+    resetPicked(){
+      if(!activeCkKey) return;
+      const el = document.querySelector(`[data-ck="${activeCkKey}"]`);
+      if(el){ el.style.color = ''; el.style.fontSize = ''; }
+      delete draftColors[activeCkKey];
+      delete draftSizes[activeCkKey];
+      if(el) document.getElementById('ck-color-input').value = rgbToHex(getComputedStyle(el).color);
+    },
+    async saveContentEdits(){
+      if(!requireAuth()) return;
+      const changedKeys = new Set();
+      document.querySelectorAll('[data-ck]').forEach(el=>{
+        const key = el.dataset.ck;
+        const text = extractEditableText(el);
+        if(CONTENT[key] !== text) changedKeys.add(key);
+        CONTENT[key] = text;
+      });
+      Object.keys(draftColors).forEach(k=>changedKeys.add(k));
+      Object.keys(draftSizes).forEach(k=>changedKeys.add(k));
+      document.getElementById('content-data').textContent = JSON.stringify(CONTENT, null, 2);
+      COLORS = draftColors; SIZES = draftSizes;
+      document.getElementById('color-data').textContent = JSON.stringify(COLORS, null, 2);
+      document.getElementById('size-data').textContent = JSON.stringify(SIZES, null, 2);
+
+      // reset transient UI state so whoever opens the link next lands cleanly
+      app.goto('home');
+      document.getElementById('voyage-overlay').hidden = true;
+      document.getElementById('voyage-create-overlay').hidden = true;
+      app.buildTab('roadmap');
+      document.querySelectorAll('.door').forEach(d=>d.dataset.open='false');
+      activeChannel = 'general'; renderChannelPicker(); renderChannelFeed();
+
+      app.cancelEditMode();
+
+      try {
+        const rows = [...changedKeys].map(key=>({ key, text: CONTENT[key] ?? null, color: COLORS[key] ?? null, font_size: SIZES[key] ?? null }));
+        if(rows.length && window.SB) await SB.upsertPageContent(rows);
+        toast('Saved — everyone who opens this link now sees your edits.');
+      } catch(err){
+        toast('Could not save just now — your edits are still on screen, try again.');
+      }
+    },
+    authAction(){
+      if(!window.SB) return;
+      const u = SB.getUser();
+      if(u) SB.signOut(); else SB.signInWithGoogle();
+    },
+    toast,
+  };
+  window.app = app;
+
+  document.getElementById('seed-input').addEventListener('input', e=>{
+    document.getElementById('char-count').textContent = e.target.value.length;
+  });
+  document.getElementById('composer-input').addEventListener('keydown', e=>{
+    if(e.key === 'Enter'){ app.postMessage(); }
+  });
+
+  function initCkEditingChrome(){
+    document.addEventListener('focusin', e=>{
+      if(!editMode) return;
+      const el = e.target.closest('[data-ck]');
+      if(!el) return;
+      activeCkKey = el.dataset.ck;
+      document.getElementById('ck-color-input').value = rgbToHex(getComputedStyle(el).color);
+      positionCkPopover(el);
+    });
+    // while editing, a data-ck field that's also a real button (Grow it, nav tabs, etc.)
+    // should let you place a text cursor and type, not fire its normal navigation/action
+    document.addEventListener('click', e=>{
+      if(!editMode) return;
+      const btn = e.target.closest('button');
+      if(btn && (btn.dataset.ck || btn.querySelector('[data-ck]'))){
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
+  }
+
+  // ---------- auth UI ----------
+  function renderAuth(user){
+    const btn = document.getElementById('auth-btn');
+    const label = document.getElementById('auth-label');
+    const avatar = document.getElementById('auth-avatar');
+    if(!btn) return;
+    if(user){
+      label.textContent = user.name || 'Signed in';
+      if(user.picture){ avatar.src = user.picture; avatar.hidden = false; } else { avatar.hidden = true; }
+      btn.title = 'Sign out';
+    } else {
+      label.textContent = 'Sign in with Google';
+      avatar.hidden = true;
+      btn.title = 'Sign in with Google';
+    }
+  }
+  if(window.SB) SB.onAuthChange((user)=>{ renderAuth(user); });
+
+  // ---------- real persistence (Supabase) ----------
+  // Renders once immediately with the local demo data (so the page never
+  // waits on a network round-trip to show something), then swaps in the
+  // real rows once they arrive. First visitor ever bootstraps the tables
+  // with the current demo content so there's something to read after that.
+  function persistVoyage(v){
+    if(!window.SB) return;
+    SB.updateVoyage(v.id, { name:v.name, scale:v.scale, size_note:v.sizeNote, pitch:v.pitch, theme:v.theme,
+      captain:v.captain, co_captains:v.coCaptains, roles:v.roles, timeline:v.timeline, comments:v.comments,
+    }).catch(()=>{});
+  }
+  function timeAgo(iso){
+    const s = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime())/1000));
+    if(s < 60) return 'now';
+    if(s < 3600) return Math.floor(s/60)+'m';
+    if(s < 86400) return Math.floor(s/3600)+'h';
+    return Math.floor(s/86400)+'d';
+  }
+  async function hydrateFromSupabase(){
+    if(!window.SB) return;
+    try {
+      const [dbSeeds, dbVoyages, dbMessages, rsvpCounts, dbRoadmap] = await Promise.all([
+        SB.listSeeds(), SB.listVoyages(), SB.listMessages(), SB.listRsvpCounts(), SB.listRoadmap(),
+      ]);
+
+      if(dbRoadmap && dbRoadmap.length){
+        const grouped = { now:[], next:[], later:[] };
+        dbRoadmap.forEach(r=>{ (grouped[r.col] = grouped[r.col] || []).push({ title:r.title, desc:r.description, tags:r.tags||[] }); });
+        ROADMAP = grouped;
+      } else {
+        const rows = [];
+        let order = 0;
+        Object.keys(ROADMAP).forEach(col=>ROADMAP[col].forEach(item=>{
+          rows.push({ id:'rm'+(order++), col, title:item.title, description:item.desc, tags:item.tags, sort_order:order });
+        }));
+        SB.bulkInsertRoadmap(rows).catch(()=>{});
+      }
+      renderRoadmap();
+
+      if(dbSeeds && dbSeeds.length){
+        seeds = dbSeeds.map(r=>({ id:r.id, text:r.text, theme:r.theme, step:r.step||'', doers:r.doers||0,
+          threshold:r.threshold||DEFAULT_THRESHOLD, promoted:r.promoted, energy:r.energy,
+          pos:null, homeSet:false, born:performance.now() }));
+      } else {
+        SB.bulkInsertSeeds(seeds.map(s=>({ id:s.id, text:s.text, theme:s.theme, step:s.step, doers:s.doers, threshold:s.threshold, promoted:s.promoted, energy:s.energy }))).catch(()=>{});
+      }
+
+      if(dbVoyages && dbVoyages.length){
+        VOYAGES.length = 0;
+        dbVoyages.forEach(r=>VOYAGES.push({ id:r.id, name:r.name, scale:r.scale, sizeNote:r.size_note, pitch:r.pitch, theme:r.theme,
+          captain:r.captain, coCaptains:r.co_captains||[], fromSeed:r.from_seed,
+          roles:r.roles||[], timeline:r.timeline||[], comments:r.comments||[] }));
+      } else {
+        SB.bulkInsertVoyages(VOYAGES.map(v=>({ id:v.id, name:v.name, scale:v.scale, size_note:v.sizeNote, pitch:v.pitch, theme:v.theme,
+          captain:v.captain, co_captains:v.coCaptains, from_seed:v.fromSeed, roles:v.roles, timeline:v.timeline, comments:v.comments }))).catch(()=>{});
+      }
+
+      if(dbMessages && dbMessages.length){
+        const grouped = {};
+        dbMessages.forEach(m=>{ (grouped[m.channel] = grouped[m.channel] || []).push({ who:m.who, init:m.init, time:timeAgo(m.created_at), text:m.text }); });
+        messages = grouped;
+      } else {
+        const rows = [];
+        Object.keys(messages).forEach(ch=>messages[ch].forEach(m=>rows.push({ channel:ch, who:m.who, init:m.init, text:m.text })));
+        if(rows.length) SB.bulkInsertMessages(rows).catch(()=>{});
+      }
+
+      Object.keys(rsvpCounts||{}).forEach(dateIso=>{
+        const r = RETREATS.find(x=>x.date===dateIso);
+        if(r) r.rsvps += rsvpCounts[dateIso];
+      });
+
+      buildGraph(); renderThemeBars(); renderRecentSeeds(); renderStats();
+      renderVoyages(); renderThemeVoyages();
+      if(document.getElementById('channel-feed')) renderChannelFeed();
+      renderRetreatDetail(); renderAgenda();
+    } catch(e){
+      console.warn('Shapeless: could not reach the real backend, staying on local demo data.', e);
+    }
+  }
+
+  // Live sync across tabs/people: any insert/update on these tables from
+  // anyone re-pulls the real state. Debounced since a burst of writes (e.g.
+  // bootstrapping) would otherwise trigger a re-fetch per row.
+  let realtimeTimer = null;
+  function startRealtime(){
+    if(!window.SB || !SB.subscribeRealtime) return;
+    SB.subscribeRealtime(['shapeless_seeds','shapeless_voyages','shapeless_messages'], ()=>{
+      clearTimeout(realtimeTimer);
+      realtimeTimer = setTimeout(hydrateFromSupabase, 400);
+    });
+  }
+
+  async function hydratePageContent(){
+    if(!window.SB) return;
+    try {
+      const rows = await SB.listPageContent();
+      (rows||[]).forEach(r=>{
+        if(r.text != null) CONTENT[r.key] = r.text;
+        if(r.color != null) COLORS[r.key] = r.color;
+        if(r.font_size != null) SIZES[r.key] = r.font_size;
+      });
+    } catch(e){ /* stay on the shipped defaults */ }
+  }
+
+  function boot(){
+    applyContent();
+    applyStyles();
+    initCkEditingChrome();
+    canvas = document.getElementById('web');
+    resizeCanvas();
+    initCanvasEvents();
+    window.addEventListener('resize', resizeCanvas);
+    renderThemeBars();
+    renderThemeVoyages();
+    renderThemePicker();
+    renderRecentSeeds();
+    renderRoadmap();
+    renderScaleFilter();
+    renderVoyages();
+    renderChannelPicker();
+    renderChannelFeed();
+    renderWeekly();
+    renderCalendar();
+    renderRetreatDetail();
+    renderAgenda();
+    renderDoors();
+    renderStats();
+    requestAnimationFrame(loop);
+
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    }
+  }
+
+  if(window.claude?.hot?.snapshot){
+    window.claude.hot.snapshot(()=>({ seedCount:seeds.length }));
+  }
+  const start = () => { hydratePageContent().then(boot).then(()=>hydrateFromSupabase().then(startRealtime)); };
+  (window.claude?.hot?.ready ? window.claude.hot.ready(start) : start());
+})();
+</script>
