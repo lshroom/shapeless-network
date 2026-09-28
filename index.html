@@ -1190,28 +1190,24 @@
         <label class="feed-stem-picker">Harmony<input type="file" accept="audio/*" id="feed-stem-other" onchange="app.previewStemFile(this)"></label>
         <span class="pad-hint" id="feed-post-stems-status">split the song into vocals/drums/bass/harmony first (your stem-splitter app, or the button above if it's running), then add all 4 here</span>
         <div class="feed-stems-layers" id="feed-stems-layers">
-          <!-- one row per stem, each stem listed exactly once — the dropdown
-               picks WHICH VISUAL EFFECT that stem drives (or Off). Only one
-               stem can hold a given slot (Center/Plate/Orbit/Background glow)
-               at a time; picking a slot another stem already holds bumps
-               that other stem back to Off (see app.setStemEffect). -->
+          <!-- One row per stem, each stem listed exactly once. Off/Plate/
+               Orbit/Background glow are plain fixed looks — no shape menu,
+               just which stem drives that slot's motion. "Center" is only
+               offered on the 5 stems that were given one exact, real shape
+               from the sphere.html/field.html library (never a shape menu):
+               Kick=Fluff (morphs to Gyroid Lattice on snare hits), Cymbals=
+               Crystal Burst, Bass=SDF Morph Field (bubbles with bass),
+               Vocals=Resonant Spiderweb, Harmony=Chladni Plate. Only one
+               stem can hold a given slot at a time — picking one bumps
+               whichever other stem already held it back to Off (see
+               app.setStemEffect). -->
           <div class="feed-stems-layer-row" data-stem="drums">
             <span class="fsl-label">Drums</span>
             <select class="fsl-effect" onchange="app.setStemEffect('drums', this.value)">
               <option value="off">Off</option>
-              <option value="center-auto">Center: Auto-morph</option>
-              <option value="center-0">Center: Fluff</option>
-              <option value="center-1">Center: Gyroid</option>
-              <option value="center-2">Center: Mandelbulb</option>
-              <option value="center-3">Center: Spikes</option>
-              <option value="plate-0">Plate: Ripple</option>
-              <option value="plate-1">Plate: Bumps</option>
-              <option value="plate-2">Plate: Dome</option>
-              <option value="orbit-0">Orbit: Blob</option>
-              <option value="orbit-1">Orbit: Shimmer</option>
-              <option value="orbit-2">Orbit: Ribbon</option>
-              <option value="glow-0">Background glow: Ambient</option>
-              <option value="glow-1">Background glow: Pulse</option>
+              <option value="plate">Plate</option>
+              <option value="orbit">Orbit</option>
+              <option value="glow">Background glow</option>
             </select>
             <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('drums', this.value)">
           </div>
@@ -1219,39 +1215,20 @@
             <span class="fsl-label">Kick</span>
             <select class="fsl-effect" onchange="app.setStemEffect('kick', this.value)">
               <option value="off">Off</option>
-              <option value="center-auto">Center: Auto-morph</option>
-              <option value="center-0">Center: Fluff</option>
-              <option value="center-1">Center: Gyroid</option>
-              <option value="center-2">Center: Mandelbulb</option>
-              <option value="center-3">Center: Spikes</option>
-              <option value="plate-0">Plate: Ripple</option>
-              <option value="plate-1">Plate: Bumps</option>
-              <option value="plate-2">Plate: Dome</option>
-              <option value="orbit-0">Orbit: Blob</option>
-              <option value="orbit-1">Orbit: Shimmer</option>
-              <option value="orbit-2">Orbit: Ribbon</option>
-              <option value="glow-0">Background glow: Ambient</option>
-              <option value="glow-1">Background glow: Pulse</option>
+              <option value="center" selected>Center: Fluff (morphs on snare hits)</option>
+              <option value="plate">Plate</option>
+              <option value="orbit">Orbit</option>
+              <option value="glow">Background glow</option>
             </select>
             <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('kick', this.value)">
           </div>
           <div class="feed-stems-layer-row" data-stem="snare">
             <span class="fsl-label">Snare</span>
             <select class="fsl-effect" onchange="app.setStemEffect('snare', this.value)">
-              <option value="off">Off</option>
-              <option value="center-auto">Center: Auto-morph</option>
-              <option value="center-0">Center: Fluff</option>
-              <option value="center-1">Center: Gyroid</option>
-              <option value="center-2">Center: Mandelbulb</option>
-              <option value="center-3">Center: Spikes</option>
-              <option value="plate-0">Plate: Ripple</option>
-              <option value="plate-1">Plate: Bumps</option>
-              <option value="plate-2">Plate: Dome</option>
-              <option value="orbit-0">Orbit: Blob</option>
-              <option value="orbit-1">Orbit: Shimmer</option>
-              <option value="orbit-2">Orbit: Ribbon</option>
-              <option value="glow-0">Background glow: Ambient</option>
-              <option value="glow-1">Background glow: Pulse</option>
+              <option value="off">Off (still drives Kick's snare-hit morph)</option>
+              <option value="plate">Plate</option>
+              <option value="orbit">Orbit</option>
+              <option value="glow">Background glow</option>
             </select>
             <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('snare', this.value)">
           </div>
@@ -1259,19 +1236,10 @@
             <span class="fsl-label">Cymbals</span>
             <select class="fsl-effect" onchange="app.setStemEffect('cymbals', this.value)">
               <option value="off">Off</option>
-              <option value="center-auto">Center: Auto-morph</option>
-              <option value="center-0">Center: Fluff</option>
-              <option value="center-1">Center: Gyroid</option>
-              <option value="center-2">Center: Mandelbulb</option>
-              <option value="center-3">Center: Spikes</option>
-              <option value="plate-0">Plate: Ripple</option>
-              <option value="plate-1">Plate: Bumps</option>
-              <option value="plate-2">Plate: Dome</option>
-              <option value="orbit-0">Orbit: Blob</option>
-              <option value="orbit-1">Orbit: Shimmer</option>
-              <option value="orbit-2">Orbit: Ribbon</option>
-              <option value="glow-0">Background glow: Ambient</option>
-              <option value="glow-1">Background glow: Pulse</option>
+              <option value="center">Center: Crystal Burst</option>
+              <option value="plate">Plate</option>
+              <option value="orbit">Orbit</option>
+              <option value="glow">Background glow</option>
             </select>
             <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('cymbals', this.value)">
           </div>
@@ -1279,19 +1247,10 @@
             <span class="fsl-label">Bass</span>
             <select class="fsl-effect" onchange="app.setStemEffect('bass', this.value)">
               <option value="off">Off</option>
-              <option value="center-auto">Center: Auto-morph</option>
-              <option value="center-0">Center: Fluff</option>
-              <option value="center-1">Center: Gyroid</option>
-              <option value="center-2">Center: Mandelbulb</option>
-              <option value="center-3">Center: Spikes</option>
-              <option value="plate-0">Plate: Ripple</option>
-              <option value="plate-1">Plate: Bumps</option>
-              <option value="plate-2">Plate: Dome</option>
-              <option value="orbit-0">Orbit: Blob</option>
-              <option value="orbit-1">Orbit: Shimmer</option>
-              <option value="orbit-2">Orbit: Ribbon</option>
-              <option value="glow-0">Background glow: Ambient</option>
-              <option value="glow-1">Background glow: Pulse</option>
+              <option value="center">Center: SDF Morph Field (bubbles with bass)</option>
+              <option value="plate" selected>Plate</option>
+              <option value="orbit">Orbit</option>
+              <option value="glow">Background glow</option>
             </select>
             <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('bass', this.value)">
           </div>
@@ -1299,19 +1258,10 @@
             <span class="fsl-label">Vocals</span>
             <select class="fsl-effect" onchange="app.setStemEffect('vocals', this.value)">
               <option value="off">Off</option>
-              <option value="center-auto">Center: Auto-morph</option>
-              <option value="center-0">Center: Fluff</option>
-              <option value="center-1">Center: Gyroid</option>
-              <option value="center-2">Center: Mandelbulb</option>
-              <option value="center-3">Center: Spikes</option>
-              <option value="plate-0">Plate: Ripple</option>
-              <option value="plate-1">Plate: Bumps</option>
-              <option value="plate-2">Plate: Dome</option>
-              <option value="orbit-0">Orbit: Blob</option>
-              <option value="orbit-1">Orbit: Shimmer</option>
-              <option value="orbit-2">Orbit: Ribbon</option>
-              <option value="glow-0">Background glow: Ambient</option>
-              <option value="glow-1">Background glow: Pulse</option>
+              <option value="center">Center: Resonant Spiderweb</option>
+              <option value="plate">Plate</option>
+              <option value="orbit" selected>Orbit</option>
+              <option value="glow">Background glow</option>
             </select>
             <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('vocals', this.value)">
           </div>
@@ -1319,19 +1269,10 @@
             <span class="fsl-label">Harmony</span>
             <select class="fsl-effect" onchange="app.setStemEffect('harmony', this.value)">
               <option value="off">Off</option>
-              <option value="center-auto">Center: Auto-morph</option>
-              <option value="center-0">Center: Fluff</option>
-              <option value="center-1">Center: Gyroid</option>
-              <option value="center-2">Center: Mandelbulb</option>
-              <option value="center-3">Center: Spikes</option>
-              <option value="plate-0">Plate: Ripple</option>
-              <option value="plate-1">Plate: Bumps</option>
-              <option value="plate-2">Plate: Dome</option>
-              <option value="orbit-0">Orbit: Blob</option>
-              <option value="orbit-1">Orbit: Shimmer</option>
-              <option value="orbit-2">Orbit: Ribbon</option>
-              <option value="glow-0">Background glow: Ambient</option>
-              <option value="glow-1">Background glow: Pulse</option>
+              <option value="center">Center: Chladni Plate</option>
+              <option value="plate">Plate</option>
+              <option value="orbit">Orbit</option>
+              <option value="glow" selected>Background glow</option>
             </select>
             <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('harmony', this.value)">
           </div>
@@ -2365,14 +2306,19 @@
   }
   // Per-stem scene config — each of the 7 stems (drums/kick/snare/cymbals/
   // bass/vocals/harmony) appears exactly once in the composer, and picks
-  // which visual EFFECT it drives (or "off"): a combined slot+shape value
-  // like "orbit-1" (Orbit: Shimmer). Only one stem can hold a given slot —
-  // see app.setStemEffect for the bump-the-other-one-to-off exclusivity.
-  // deriveSceneCfg() below converts this stem-first shape into the
-  // slot-first {slots,sizes,centerShape,shapes} format scene.html expects,
-  // so scene.html itself needs no changes.
+  // which SLOT it drives: off/center/plate/orbit/glow. Plate/Orbit/Glow are
+  // plain fixed looks (no shape menu). Center is only offered on the 5
+  // stems that were each given one exact, real shape from the sphere.html/
+  // field.html library — see CENTER_SHAPE_FOR_STEM. Only one stem can hold
+  // a given slot — see app.setStemEffect for the bump-the-other-one-to-off
+  // exclusivity. deriveSceneCfg() converts this into the slot-first
+  // {slots,sizes,centerShape} format scene.html expects.
   const STEMS = ['drums','kick','snare','cymbals','bass','vocals','harmony'];
-  const DEFAULT_ASSIGN = { drums:'center-auto', kick:'off', snare:'off', cymbals:'off', bass:'plate-0', vocals:'orbit-0', harmony:'glow-0' };
+  // scene.html's CENTER_SHAPES index: 0 Fluff, 1 Gyroid Lattice, 2 Superformula,
+  // 3 Mandelbulb, 4 SDF Morph Field, 5 Wave Interference, 6 Chladni Plate,
+  // 7 Resonant Spiderweb, 8 Crystal Burst (cymbals-only, real geometry not an SDF).
+  const CENTER_SHAPE_FOR_STEM = { kick:0, cymbals:8, bass:4, vocals:7, harmony:6 };
+  const DEFAULT_ASSIGN = { drums:'off', kick:'center', snare:'off', cymbals:'off', bass:'plate', vocals:'orbit', harmony:'glow' };
   const stemLayerCfg = { assign: Object.assign({}, DEFAULT_ASSIGN), sizes: { drums:1, kick:1, snare:1, cymbals:1, bass:1, vocals:1, harmony:1 } };
   function stemLayerRowEls(stem){
     const row = document.querySelector('.feed-stems-layer-row[data-stem="'+stem+'"]');
@@ -2384,25 +2330,24 @@
     STEMS.forEach(stem=>{
       const { effect, size } = stemLayerRowEls(stem);
       if(effect) effect.value = stemLayerCfg.assign[stem];
-      if(size){ size.value = 1; size.hidden = (stemLayerCfg.assign[stem] === 'off' || stemLayerCfg.assign[stem].startsWith('glow')); }
+      if(size){ size.value = 1; size.hidden = (stemLayerCfg.assign[stem] === 'off' || stemLayerCfg.assign[stem] === 'glow'); }
     });
   }
   function deriveSceneCfg(){
-    const slots = {}, sizes = { center:1, plate:1, orbit:1 }, shapes = { plate:0, orbit:0, glow:0 };
-    let centerShape = 'auto';
+    const slots = {}, sizes = { center:1, plate:1, orbit:1 };
+    let centerShape = 0;
     STEMS.forEach(stem=>{
-      const val = stemLayerCfg.assign[stem];
-      if(!val || val === 'off') return;
-      const dash = val.indexOf('-'); const slotName = val.slice(0, dash), idx = val.slice(dash+1);
+      const slotName = stemLayerCfg.assign[stem];
+      if(!slotName || slotName === 'off') return;
       slots[slotName] = stem;
-      if(slotName === 'center'){ centerShape = idx === 'auto' ? 'auto' : parseInt(idx, 10); sizes.center = stemLayerCfg.sizes[stem]; }
-      else { shapes[slotName] = parseInt(idx, 10); sizes[slotName] = stemLayerCfg.sizes[stem]; }
+      if(slotName === 'center') centerShape = CENTER_SHAPE_FOR_STEM[stem] != null ? CENTER_SHAPE_FOR_STEM[stem] : 0;
+      sizes[slotName] = stemLayerCfg.sizes[stem];
     });
-    if(!slots.center) slots.center = 'drums';
+    if(!slots.center) slots.center = 'kick';
     if(!slots.plate) slots.plate = 'bass';
     if(!slots.orbit) slots.orbit = 'vocals';
     if(!slots.glow) slots.glow = 'harmony';
-    return { slots, sizes, centerShape, shapes };
+    return { slots, sizes, centerShape };
   }
   // The local stem-splitter (tools/stem_server.py) — runs Demucs on the
   // uploader's own machine, per shapeless-1974's "🔪 Stems" button and the
@@ -8071,11 +8016,9 @@
     },
     setStemEffect(stem, val){
       if(val !== 'off'){
-        const slotName = val.slice(0, val.indexOf('-'));
         STEMS.forEach(other=>{
           if(other === stem) return;
-          const otherVal = stemLayerCfg.assign[other];
-          if(otherVal && otherVal !== 'off' && otherVal.slice(0, otherVal.indexOf('-')) === slotName){
+          if(stemLayerCfg.assign[other] === val){
             stemLayerCfg.assign[other] = 'off';
             const { effect, size } = stemLayerRowEls(other);
             if(effect) effect.value = 'off';
@@ -8085,7 +8028,7 @@
       }
       stemLayerCfg.assign[stem] = val;
       const { size } = stemLayerRowEls(stem);
-      if(size) size.hidden = (val === 'off' || val.startsWith('glow'));
+      if(size) size.hidden = (val === 'off' || val === 'glow');
     },
     setStemEffectSize(stem, val){ stemLayerCfg.sizes[stem] = parseFloat(val); },
     async submitFeedPost(){
