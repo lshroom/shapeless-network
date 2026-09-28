@@ -1181,19 +1181,25 @@
         <span id="feed-post-media-name" class="pad-hint"></span>
         <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="app.submitFeedPost()">Post →</button>
       </div>
+      <div class="feed-composer-row" id="feed-post-mode-prompt" hidden>
+        <span class="pad-hint">Split this song into stems for the full scene?</span>
+        <button class="btn btn-ghost btn-sm" id="feed-post-mode-auto-btn" onclick="app.chooseStemsMode('auto')" hidden>Split automatically</button>
+        <button class="btn btn-ghost btn-sm" onclick="app.chooseStemsMode('manual')">Upload stems manually</button>
+        <button class="btn btn-ghost btn-sm" onclick="app.chooseStemsMode('single')">Just use this song (one effect)</button>
+      </div>
       <div class="feed-composer-row" id="feed-post-effect-row" hidden>
         <button class="btn btn-ghost btn-sm" id="feed-post-schedule-btn" onclick="app.openScheduleEditor()">Design the visuals</button>
         <span class="pad-hint" id="feed-post-schedule-status">defaults to Sphere</span>
-        <label class="feed-stems-toggle"><input type="checkbox" id="feed-post-stems-toggle" onchange="app.toggleStemsMode(this.checked)"> Full (4 stems)</label>
+        <button class="btn btn-ghost btn-sm" onclick="app.backToStemsPrompt()">split into stems instead</button>
       </div>
       <div class="feed-stems-pickers" id="feed-post-stems-pickers" hidden>
+        <button class="btn btn-ghost btn-sm" onclick="app.backToStemsPrompt()">← change</button>
         <div class="feed-stems-auto" id="feed-stems-auto" hidden>
           <button class="btn btn-ghost btn-sm" id="feed-stems-auto-btn" onclick="app.autoSplitStems()">Split automatically</button>
           <button class="btn btn-ghost btn-sm" onclick="app.configureStemRemote()" title="Set up reaching your PC's splitter from away from home">⚙ configure remote splitter</button>
           <span class="pad-hint" id="feed-stems-auto-status"></span>
         </div>
-        <button class="btn btn-ghost btn-sm" id="feed-stems-manual-toggle" onclick="app.toggleManualStemPickers()" hidden>or upload files manually instead</button>
-        <div class="feed-stems-manual" id="feed-stems-manual-pickers">
+        <div class="feed-stems-manual" id="feed-stems-manual-pickers" hidden>
           <label class="feed-stem-picker">Vocals<input type="file" accept="audio/*" id="feed-stem-vocals" onchange="app.previewStemFile(this)"></label>
           <label class="feed-stem-picker">Drums<input type="file" accept="audio/*" id="feed-stem-drums" onchange="app.previewStemFile(this)"></label>
           <label class="feed-stem-picker">Bass<input type="file" accept="audio/*" id="feed-stem-bass" onchange="app.previewStemFile(this)"></label>
@@ -7976,13 +7982,17 @@
 
     previewFeedMedia(input){
       const label = document.getElementById('feed-post-media-name');
+      const modePrompt = document.getElementById('feed-post-mode-prompt');
       const effectRow = document.getElementById('feed-post-effect-row');
+      const stemsPickers = document.getElementById('feed-post-stems-pickers');
       const all = ['feed-post-camera','feed-post-media','feed-post-song','feed-post-video'].map(id=>document.getElementById(id));
       all.forEach(el=>{ if(el && el.id !== input.id) el.value = ''; });
       if(label) label.textContent = (input.files[0] && input.files[0].name) || '';
-      // A song gets the sphere/field timeline editor. A video always goes
+      // A song asks: split it or just use it as-is? A video always goes
       // straight into the cube — no picker, nothing to design there.
-      if(effectRow) effectRow.hidden = input.id !== 'feed-post-song';
+      if(modePrompt) modePrompt.hidden = input.id !== 'feed-post-song';
+      if(effectRow) effectRow.hidden = true;
+      if(stemsPickers) stemsPickers.hidden = true;
       // A newly-picked song invalidates any in-progress timeline draft — it
       // was built against a different file's uploaded URL.
       if(input.id === 'feed-post-song'){
@@ -7990,21 +8000,48 @@
         document.getElementById('feed-post-schedule-status').textContent = 'defaults to Sphere';
         stemsMode = false;
         Object.keys(stemFiles).forEach(k=>stemFiles[k]=null);
-        document.getElementById('feed-post-stems-toggle').checked = false;
-        document.getElementById('feed-post-stems-pickers').hidden = true;
-        document.getElementById('feed-post-schedule-btn').hidden = false;
         resetStemLayerCfg();
+        app.checkStemModePromptServer();
       }
     },
-    async toggleStemsMode(on){
-      stemsMode = on;
-      document.getElementById('feed-post-stems-pickers').hidden = !on;
-      // Stems mode replaces the switch-point timeline entirely — the 4-stem
-      // scene plays all 4 at once, there's nothing to schedule switches on.
-      document.getElementById('feed-post-schedule-btn').hidden = on;
+    async checkStemModePromptServer(){
+      // Only offer "Split automatically" up front if a local splitter is
+      // actually reachable — otherwise that button would just fail.
+      const btn = document.getElementById('feed-post-mode-auto-btn');
+      if(btn) btn.hidden = true;
+      const resolved = await resolveStemServer();
+      _stemServerResolved = resolved;
+      if(btn) btn.hidden = !resolved;
+    },
+    backToStemsPrompt(){
+      stemsMode = false;
+      Object.keys(stemFiles).forEach(k=>stemFiles[k]=null);
+      resetStemLayerCfg();
+      document.getElementById('feed-post-effect-row').hidden = true;
+      document.getElementById('feed-post-stems-pickers').hidden = true;
+      document.getElementById('feed-post-mode-prompt').hidden = false;
+      app.checkStemModePromptServer();
+    },
+    async chooseStemsMode(mode){
+      const modePrompt = document.getElementById('feed-post-mode-prompt');
+      const effectRow = document.getElementById('feed-post-effect-row');
+      const stemsPickers = document.getElementById('feed-post-stems-pickers');
+      const autoBox = document.getElementById('feed-stems-auto');
+      const manualBox = document.getElementById('feed-stems-manual-pickers');
+      if(modePrompt) modePrompt.hidden = true;
+      if(mode === 'single'){
+        stemsMode = false;
+        if(effectRow) effectRow.hidden = false;
+        if(stemsPickers) stemsPickers.hidden = true;
+        return;
+      }
+      stemsMode = true;
+      if(effectRow) effectRow.hidden = true;
+      if(stemsPickers) stemsPickers.hidden = false;
+      if(autoBox) autoBox.hidden = mode !== 'auto';
+      if(manualBox) manualBox.hidden = mode !== 'manual';
       renderStemsStatus();
-      if(!on) return;
-      await app.refreshStemServerStatus();
+      if(mode === 'auto') await app.refreshStemServerStatus();
     },
     async refreshStemServerStatus(){
       const autoRow = document.getElementById('feed-stems-auto');
@@ -8014,18 +8051,16 @@
       autoRow.hidden = false;
       const resolved = await resolveStemServer();
       _stemServerResolved = resolved;
-      const manualBox = document.getElementById('feed-stems-manual-pickers');
-      const manualToggle = document.getElementById('feed-stems-manual-toggle');
       if(resolved){
         autoBtn.hidden = false;
-        autoStatus.textContent = (resolved.base === LOCAL_STEM_SERVER ? 'local splitter found' : 'reached your PC through its tunnel') + ' — one click instead of 4 files';
-        if(manualBox) manualBox.hidden = true;
-        if(manualToggle) manualToggle.hidden = false;
+        autoStatus.textContent = (resolved.base === LOCAL_STEM_SERVER ? 'local splitter found' : 'reached your PC through its tunnel') + ' — one click to split';
       } else {
         autoBtn.hidden = true;
-        autoStatus.textContent = myStemServerUrl ? "couldn't reach your PC — is stem_server.py and the tunnel still running?" : '';
-        if(manualBox) manualBox.hidden = false;
-        if(manualToggle) manualToggle.hidden = true;
+        autoStatus.textContent = (myStemServerUrl ? "couldn't reach your PC — is stem_server.py and the tunnel still running?" : "no local splitter found") + ' — ';
+        const link = document.createElement('a');
+        link.href = '#'; link.textContent = 'upload stems manually instead';
+        link.onclick = (e)=>{ e.preventDefault(); app.chooseStemsMode('manual'); };
+        autoStatus.appendChild(link);
       }
     },
     async configureStemRemote(){
@@ -8126,10 +8161,6 @@
     },
     setStemEffectSize(stem, val){ stemLayerCfg.sizes[stem] = parseFloat(val); pushPreviewCfg(); },
     setGlowBg(val){ stemLayerCfg.glowBg = parseInt(val, 10); pushPreviewCfg(); },
-    toggleManualStemPickers(){
-      const box = document.getElementById('feed-stems-manual-pickers');
-      if(box) box.hidden = !box.hidden;
-    },
     async openScenePreview(){
       const modal = document.getElementById('feed-scene-preview-modal');
       const frame = document.getElementById('feed-scene-preview-frame');
@@ -8210,7 +8241,7 @@
         scheduleDraft = null; scheduleUploadedMedia = null; scheduleUploadedForFile = null;
         stemsMode = false;
         Object.keys(stemFiles).forEach(k=>stemFiles[k]=null);
-        document.getElementById('feed-post-stems-toggle').checked = false;
+        document.getElementById('feed-post-mode-prompt').hidden = true;
         document.getElementById('feed-post-stems-pickers').hidden = true;
         ['feed-stem-vocals','feed-stem-drums','feed-stem-bass','feed-stem-other'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
         resetStemLayerCfg();
