@@ -1,0 +1,353 @@
+<!doctype html>
+<!-- effect #4 for the Feed player: "scene" — the 4-stem visualizer. Four
+     separately-decoded tracks (vocals/drums/bass/other-as-harmony) each
+     drive their own part of ONE shared 3D scene instead of four separate
+     screens: drums morph the central solid (reusing the same raymarched SDF
+     shapes sphere.html has), bass ripples a plate underneath it, vocals
+     float and orbit above as their own small pulsing blob, and harmony
+     washes the background/bloom color. No dots, no manual switching — this
+     page only ever plays what the uploader's stem mix already is. -->
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>scene — 4-stem visualizer</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#05060a;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;}
+  canvas{display:block;touch-action:none;}
+  #stage{position:fixed;inset:0;z-index:1;}
+  #noSrc{position:fixed;bottom:16px;left:0;right:0;text-align:center;color:rgba(255,255,255,.4);font-size:11px;z-index:5;pointer-events:none;}
+  #stemLabels{position:fixed;top:12px;left:12px;z-index:10;display:flex;flex-direction:column;gap:4px;
+       background:rgba(10,10,14,.55);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12);
+       border-radius:8px;padding:8px 12px;font-size:10.5px;color:rgba(255,255,255,.7);}
+  #stemLabels b{color:#f5f5f7;}
+  #fsBtn{position:fixed;bottom:10px;right:10px;z-index:10;background:rgba(255,255,255,.08);color:#f5f5f7;
+       border:1px solid rgba(255,255,255,.18);border-radius:99px;padding:6px 9px;font-size:13px;cursor:pointer;}
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="noSrc">waiting for stems…</div>
+<div id="stemLabels">
+  <span><b>●</b> drums → center</span>
+  <span><b>●</b> bass → plate</span>
+  <span><b>●</b> vocals → orbit</span>
+  <span><b>●</b> harmony → glow</span>
+</div>
+<button id="fsBtn" title="Fullscreen">⛶</button>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GLSL, raymarchQuad } from '/h5555/core.js';
+
+// ---- renderer / scene / camera ----
+const canvas = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+renderer.setClearColor(0x05060a, 1);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(55, 1, 0.01, 200);
+camera.position.set(0, 0.6, 6.5);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.target.set(0, 0, 0);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.5, 0.7, 0.82);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h); composer.setSize(w, h);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+  bloom.resolution.set(w, h);
+}
+addEventListener('resize', resize); resize();
+
+// ---- per-stem audio: 4 independent decode/analyse chains, one per role ----
+// Each stem gets its own <audio> + AnalyserNode, all started/sought/muted in
+// lockstep so the 4 tracks stay in sync — they're really one song, just
+// decoded 4 times because that's how a stem split hands them to us.
+const ROLES = ['drums','bass','vocals','harmony'];
+let actx;
+function ensureCtx(){ if(!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); }
+const stems = {}; // role -> { el, analyser, freqData, timeData, bass, mid, high, rms, bassFast, bassSlow, kickRefractory, kick }
+ROLES.forEach(role=>{ stems[role] = { el:null, analyser:null, bass:0, mid:0, high:0, rms:0, bassFast:0, bassSlow:0, kickRefractory:0, kick:0 }; });
+
+function loadStemUrl(role, url, muted, startTime, active){
+  if(!url) return;
+  ensureCtx();
+  const s = stems[role];
+  if(s.el){ try{ s.el.pause(); }catch(_){} }
+  const el = new Audio(url);
+  el.crossOrigin = 'anonymous'; el.loop = true; el.muted = !!muted;
+  if(startTime > 0) el.addEventListener('loadedmetadata', ()=>{ el.currentTime = startTime; }, { once:true });
+  const analyser = actx.createAnalyser();
+  analyser.fftSize = 2048; analyser.smoothingTimeConstant = 0.8;
+  const src = actx.createMediaElementSource(el);
+  src.connect(analyser); analyser.connect(actx.destination);
+  actx.resume();
+  if(active !== false) el.play().catch(()=>{});
+  s.el = el; s.analyser = analyser;
+  s.freqData = new Uint8Array(analyser.frequencyBinCount);
+  s.timeData = new Uint8Array(analyser.fftSize);
+  document.getElementById('noSrc').style.display = 'none';
+  // only the drums track's clock reports back to the parent — all 4 stay
+  // locked to the same song position, no need for 4 separate timeupdate spams
+  if(role === 'drums'){
+    el.addEventListener('timeupdate', ()=>{
+      try { parent.postMessage({ type:'timeupdate', currentTime: el.currentTime, duration: el.duration || 0 }, '*'); } catch(_){}
+    });
+  }
+}
+window._sceneSetStemUrl = loadStemUrl;
+
+function sampleStem(role){
+  const s = stems[role];
+  if(!s.analyser) return;
+  s.analyser.getByteFrequencyData(s.freqData);
+  s.analyser.getByteTimeDomainData(s.timeData);
+  const n = s.freqData.length;
+  let b=0,m=0,h=0; const bEnd=(n*0.08)|0, mEnd=(n*0.4)|0;
+  for(let i=0;i<n;i++){ const v=s.freqData[i]/255; if(i<bEnd)b+=v; else if(i<mEnd)m+=v; else h+=v; }
+  b/=bEnd; m/=(mEnd-bEnd); h/=(n-mEnd);
+  let rms=0; for(let i=0;i<s.timeData.length;i++){ const v=(s.timeData[i]-128)/128; rms+=v*v; } rms=Math.sqrt(rms/s.timeData.length);
+  s.bass += (b - s.bass)*0.3; s.mid += (m - s.mid)*0.3; s.high += (h - s.high)*0.3; s.rms += (rms - s.rms)*0.3;
+  // onset detector, same fast-envelope-vs-slow-baseline trick as sphere.html —
+  // used here for the drums stem to trigger the central shape's morph
+  s.bassFast += (b - s.bassFast)*0.55; s.bassSlow += (b - s.bassSlow)*0.045;
+  const now = performance.now()/1000;
+  let hit = false;
+  if(s.bassFast > s.bassSlow*1.35 + 0.06 && (now - s.kickRefractory) > 0.14){ hit = true; s.kickRefractory = now; }
+  s.kick = Math.max(s.kick*0.7, hit ? 1 : 0);
+}
+function sampleAll(){ ROLES.forEach(sampleStem); }
+
+// ---- the shared scene: one raymarched shader, 3 audio-driven elements ----
+// (drums → central solid, bass → plate, vocals → orbiting blob) plus a
+// background wash driven by harmony — same de()/liquid-morph machinery
+// sphere.html uses for its own shape library, just fed by 3 different
+// audio sources instead of one, and composed into one frame instead of
+// switching between them.
+const CENTER_SHAPES = ['Fluff','Gyroid','Mandelbulb']; // the drums cycle through these on kicks
+const SCENE_FRAG = `
+${GLSL.snoise3}
+${GLSL.palette}
+uniform int uCenterShape;
+uniform float uDrumsBass, uDrumsMid, uDrumsHigh, uDrumsKick;
+uniform float uBassLevel, uBassMid;
+uniform float uVocalsRms, uVocalsHigh;
+uniform float uHarmonyMid, uHarmonyRms;
+
+float deFluffC(vec3 p){
+  float n = snoise(p*2.2+uTime*0.15) + 0.5*snoise(p*4.4-uTime*0.1);
+  return length(p) - (1.1 + n*0.2*(0.4+uDrumsBass));
+}
+float deGyroidC(vec3 p){
+  float s=3.2+uDrumsBass*1.8; vec3 q=p*s;
+  float g=dot(sin(q),cos(q.yzx));
+  float lattice=(abs(g)-0.14*(1.0+uDrumsMid))/s;
+  float ball=length(p)-1.5;
+  return max(lattice,ball);
+}
+float deMandelbulbC(vec3 p){
+  vec3 z=p*1.1; float dr=1.0; float r=0.0;
+  float pw=8.0+sin(uTime*0.3)*1.0+uDrumsBass*2.0;
+  for(int i=0;i<8;i++){
+    r=length(z); if(r>2.0)break;
+    float th=acos(z.z/r); float ph=atan(z.y,z.x);
+    dr=pow(r,pw-1.0)*pw*dr+1.0;
+    float zr=pow(r,pw); th*=pw; ph*=pw;
+    z=zr*vec3(sin(th)*cos(ph),sin(ph)*sin(th),cos(th))+p*1.1;
+  }
+  return (0.5*log(r)*r/dr) / 1.1;
+}
+float deCenter(vec3 p){
+  vec3 q = p - vec3(0.0, 0.15, 0.0);
+  if(uCenterShape==0) return deFluffC(q);
+  if(uCenterShape==1) return deGyroidC(q);
+  return deMandelbulbC(q);
+}
+// Bass ripples a plate beneath the center shape — a bounded heightfield SDF,
+// the same technique the old field.html patterns were folded into sphere.html
+// with: p.y-h(x,z), clipped to a disc so it reads as a grounded slab, not an
+// infinite plane.
+float dePlate(vec3 p){
+  vec3 q = p - vec3(0.0, -1.55, 0.0);
+  float d = length(q.xz);
+  float h = sin(d*5.0 - uTime*3.0*(0.5+uBassLevel)) / (1.0+d*0.6);
+  h *= 0.22*(0.4+uBassLevel) * (1.0 + uBassMid*0.4);
+  float plate = max(q.y - h, d - 2.0);
+  return plate;
+}
+// Vocals orbit above as their own small blob — orbit radius/height driven by
+// rms so it visibly lifts and swings wider when the vocal is louder/brighter.
+float deOrbit(vec3 p){
+  float orbitR = 1.6 + uVocalsRms*0.6;
+  float ang = uTime*0.6;
+  vec3 c = vec3(cos(ang)*orbitR, 1.3+sin(uTime*1.7)*0.15+uVocalsRms*0.5, sin(ang)*orbitR);
+  float rad = 0.32 + uVocalsRms*0.28 + uVocalsHigh*0.12;
+  vec3 q = p - c;
+  float n = snoise(q*3.0+uTime*0.6)*0.08*(0.3+uVocalsHigh);
+  return length(q) - rad - n;
+}
+float sdfSmin(float a,float b,float k){ float h=clamp(0.5+0.5*(b-a)/k,0.0,1.0); return mix(b,a,h)-k*h*(1.0-h); }
+float de(vec3 p){
+  float d = deCenter(p);
+  d = min(d, dePlate(p));
+  d = sdfSmin(d, deOrbit(p), 0.35);
+  return d;
+}
+vec3 colorAt(vec3 p, vec3 n){
+  // three light-color zones blended by proximity: center=drums-warm,
+  // plate=bass-cool, orbit=vocals-bright — plus a harmony wash tinting
+  // everything, so the whole scene visibly breathes with the harmony track
+  // even where it isn't the dominant shape.
+  vec3 centerCol = spectral(0.06 + uDrumsHigh*0.1 + uTime*0.015);
+  vec3 plateCol = spectral(0.55 + uBassMid*0.1);
+  vec3 orbitCol = spectral(0.9 - uVocalsHigh*0.15);
+  float dC = deCenter(p), dP = dePlate(p), dO = deOrbit(p);
+  float wC = 1.0/(0.08+abs(dC)), wP = 1.0/(0.08+abs(dP)), wO = 1.0/(0.08+abs(dO));
+  float wSum = wC+wP+wO;
+  vec3 base = (centerCol*wC + plateCol*wP + orbitCol*wO) / wSum;
+  vec3 harmonyTint = spectral(0.4 + uHarmonyMid*0.25);
+  return mix(base, harmonyTint, 0.18 + uHarmonyRms*0.22);
+}
+vec3 render(vec3 ro, vec3 rd){
+  float t=0.0; vec3 col=vec3(0.02,0.02,0.035)*(0.5+uHarmonyRms*0.6);
+  for(int i=0;i<110;i++){
+    vec3 p=ro+rd*t; float d=de(p);
+    if(d<0.0015){
+      vec2 e=vec2(0.002,0.0);
+      vec3 n=normalize(vec3(de(p+e.xyy)-de(p-e.xyy),de(p+e.yxy)-de(p-e.yxy),de(p+e.yyx)-de(p-e.yyx)));
+      float diff=max(dot(n,normalize(vec3(0.6,0.8,0.5))),0.0);
+      float fres=pow(1.0-max(dot(n,-rd),0.0),2.5);
+      vec3 baseCol = colorAt(p,n);
+      float ao=1.0-float(i)/110.0;
+      col=baseCol*(0.3+0.7*diff)*ao+fres*0.4*baseCol;
+      break;
+    }
+    t+=d; if(t>18.0)break;
+  }
+  return col;
+}`;
+
+const { mesh, uniforms } = raymarchQuad(SCENE_FRAG, {
+  uCenterShape:{value:0}, uDrumsBass:{value:0}, uDrumsMid:{value:0}, uDrumsHigh:{value:0}, uDrumsKick:{value:0},
+  uBassLevel:{value:0}, uBassMid:{value:0}, uVocalsRms:{value:0}, uVocalsHigh:{value:0},
+  uHarmonyMid:{value:0}, uHarmonyRms:{value:0},
+});
+scene.add(mesh);
+
+let centerShapeIdx = 0, centerLastSwitch = 0;
+
+// ---- render loop ----
+const clock = new THREE.Clock();
+function loop(){
+  const t = clock.getElapsedTime();
+  sampleAll();
+  const d = stems.drums, b = stems.bass, v = stems.vocals, h = stems.harmony;
+  // the drums stem's kicks cycle the central shape — same idea as sphere.html's
+  // auto-switch, just gated on this stem's own onset detector instead of the
+  // whole mix's, so it genuinely tracks the drum part and nothing else.
+  if(d.kick > 0.85 && (t - centerLastSwitch) > 1.2){
+    centerLastSwitch = t;
+    centerShapeIdx = (centerShapeIdx + 1) % CENTER_SHAPES.length;
+  }
+  uniforms.uCenterShape.value = centerShapeIdx;
+  uniforms.uDrumsBass.value = d.bass; uniforms.uDrumsMid.value = d.mid; uniforms.uDrumsHigh.value = d.high; uniforms.uDrumsKick.value = d.kick;
+  uniforms.uBassLevel.value = b.bass; uniforms.uBassMid.value = b.mid;
+  uniforms.uVocalsRms.value = v.rms; uniforms.uVocalsHigh.value = v.high;
+  uniforms.uHarmonyMid.value = h.mid; uniforms.uHarmonyRms.value = h.rms;
+  uniforms.uTime.value = t;
+  uniforms.uRes.value.set(innerWidth, innerHeight);
+  uniforms.uCamPos.value.copy(camera.position);
+  uniforms.uCamMat.value.copy(camera.matrixWorld);
+  controls.update();
+  composer.render();
+  requestAnimationFrame(loop);
+}
+loop();
+
+document.getElementById('fsBtn').addEventListener('click', ()=>{
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen?.().catch(()=>{});
+});
+
+// ---- feed embed: ?vocals=&drums=&bass=&other=<urls>[&muted=1] + postMessage ----
+const qp = new URLSearchParams(location.search);
+const mutedParam = qp.get('muted') === '1';
+const startTimeParam = parseFloat(qp.get('t') || '0');
+const activeParam = qp.get('active') !== '0';
+['vocals','drums','bass'].forEach(role=>{
+  const u = qp.get(role);
+  if(u) loadStemUrl(role, decodeURIComponent(u), mutedParam, startTimeParam, activeParam);
+});
+// "other" in the media model is the harmony stem — kept as its own query key
+// on this page so it reads plainly next to vocals/drums/bass.
+const otherUrl = qp.get('other');
+if(otherUrl) loadStemUrl('harmony', decodeURIComponent(otherUrl), mutedParam, startTimeParam, activeParam);
+
+if(qp.get('embed') === 'inline'){
+  document.getElementById('stemLabels').style.display = 'none';
+  document.getElementById('fsBtn').style.display = 'none';
+}
+
+addEventListener('message', e=>{
+  if(e.data?.type === 'stems' && e.data.urls){
+    Object.keys(e.data.urls).forEach(role=>{
+      const mappedRole = role === 'other' ? 'harmony' : role;
+      if(stems[mappedRole]) loadStemUrl(mappedRole, e.data.urls[role], e.data.muted);
+    });
+  }
+  if(e.data?.type === 'setActive'){
+    if(e.data.active){
+      ROLES.forEach(role=>{
+        const el = stems[role].el;
+        if(el && isFinite(e.data.time) && Math.abs(el.currentTime - e.data.time) > 0.4) el.currentTime = e.data.time;
+      });
+      actx?.resume().catch(()=>{});
+      ROLES.forEach(role=> stems[role].el?.play().catch(()=>{}));
+    } else {
+      ROLES.forEach(role=> stems[role].el?.pause());
+    }
+  }
+  if(e.data?.type === 'mute'){
+    ROLES.forEach(role=>{
+      const el = stems[role].el;
+      if(!el) return;
+      el.muted = !!e.data.muted;
+      if(!e.data.muted){ actx?.resume().catch(()=>{}); el.play().catch(()=>{}); }
+    });
+  }
+  if(e.data?.type === 'play'){ actx?.resume().catch(()=>{}); ROLES.forEach(role=> stems[role].el?.play().catch(()=>{})); }
+  if(e.data?.type === 'pause'){ ROLES.forEach(role=> stems[role].el?.pause()); }
+  if(e.data?.type === 'seek' && isFinite(e.data.time)){ ROLES.forEach(role=>{ const el = stems[role].el; if(el) el.currentTime = e.data.time; }); }
+  if(e.data?.type === 'volume'){
+    ROLES.forEach(role=>{
+      const el = stems[role].el;
+      if(!el) return;
+      el.volume = e.data.value; el.muted = e.data.value <= 0;
+      if(e.data.value > 0){ actx?.resume().catch(()=>{}); el.play().catch(()=>{}); }
+    });
+  }
+});
+addEventListener('pointerdown', () => {
+  actx?.resume().catch(()=>{});
+  ROLES.forEach(role=>{ const el = stems[role].el; if(el && !el.muted) el.play().catch(()=>{}); });
+}, { once: true });
+</script>
+</body>
+</html>

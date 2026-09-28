@@ -415,6 +415,12 @@
   .feed-schedule-hint{ padding:10px 14px 0; font-size:11px; color:var(--muted); line-height:1.4; }
   .feed-schedule-actions{ display:flex; gap:8px; justify-content:flex-end; padding:14px; }
   #feed-post-schedule-status{ color:var(--accent); }
+  .feed-stems-toggle{ display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--muted); cursor:pointer; margin-left:auto; }
+  .feed-stems-toggle input{ accent-color:var(--accent); }
+  .feed-stems-pickers{ display:flex; flex-wrap:wrap; gap:8px; padding:10px 14px 0; align-items:center; }
+  .feed-stem-picker{ display:flex; flex-direction:column; gap:4px; font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
+  .feed-stem-picker input{ font-size:11px; color:var(--ink); max-width:150px; }
+  #feed-post-stems-status{ flex-basis:100%; }
   .feed-item{ position:relative; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
   .feed-item-activity{ cursor:pointer; border-left:3px solid var(--accent); }
   .feed-item-head{ display:flex; align-items:center; gap:9px; margin-bottom:8px; }
@@ -1164,6 +1170,14 @@
       <div class="feed-composer-row" id="feed-post-effect-row" hidden>
         <button class="btn btn-ghost btn-sm" id="feed-post-schedule-btn" onclick="app.openScheduleEditor()">Design the visuals</button>
         <span class="pad-hint" id="feed-post-schedule-status">defaults to Sphere</span>
+        <label class="feed-stems-toggle"><input type="checkbox" id="feed-post-stems-toggle" onchange="app.toggleStemsMode(this.checked)"> Full (4 stems)</label>
+      </div>
+      <div class="feed-stems-pickers" id="feed-post-stems-pickers" hidden>
+        <label class="feed-stem-picker">Vocals<input type="file" accept="audio/*" id="feed-stem-vocals" onchange="app.previewStemFile(this)"></label>
+        <label class="feed-stem-picker">Drums<input type="file" accept="audio/*" id="feed-stem-drums" onchange="app.previewStemFile(this)"></label>
+        <label class="feed-stem-picker">Bass<input type="file" accept="audio/*" id="feed-stem-bass" onchange="app.previewStemFile(this)"></label>
+        <label class="feed-stem-picker">Harmony<input type="file" accept="audio/*" id="feed-stem-other" onchange="app.previewStemFile(this)"></label>
+        <span class="pad-hint" id="feed-post-stems-status">split the song into vocals/drums/bass/harmony first (your stem-splitter app), then add all 4 here</span>
       </div>
       <div class="feed-post-progress" id="feed-post-progress" hidden>
         <div class="feed-post-progress-track"><div class="feed-post-progress-bar" id="feed-post-progress-bar"></div></div>
@@ -1570,6 +1584,7 @@
       <iframe id="feed-player-iframe-cube" class="feed-player-frame" allow="autoplay; fullscreen" hidden></iframe>
       <iframe id="feed-player-iframe-sphere" class="feed-player-frame" allow="autoplay; fullscreen" hidden></iframe>
       <iframe id="feed-player-iframe-field" class="feed-player-frame" allow="autoplay; fullscreen" hidden></iframe>
+      <iframe id="feed-player-iframe-scene" class="feed-player-frame" allow="autoplay; fullscreen" hidden></iframe>
     </div>
     <div class="feed-player-bar">
       <select id="feed-player-effect-select" onchange="app.switchFeedPlayerEffect(this.value)">
@@ -1947,14 +1962,25 @@
   const FEED_INLINE_SEEK_DRAG = new Set(); // postIds mid-drag on their seek slider — don't let timeupdate fight the user's thumb
   const FEED_INLINE_LAST_TIME = {}; // postId -> last known playback position, so opening fullscreen can continue instead of restarting
   function feedInlinePlayerHtml(p){
-    const sched = Array.isArray(p.media.effectSchedule) && p.media.effectSchedule.length ? p.media.effectSchedule : null;
-    const effect = sched ? sched[0].page : (['sphere','field'].includes(p.media.effect) ? p.media.effect : 'cube');
-    const base = FEED_EFFECT_PAGES[effect];
-    const sep = base.endsWith('?') ? '' : '&';
-    let src = base + sep + 'song=' + encodeURIComponent(p.media.url) + '&muted=1&embed=inline';
-    // The small inline preview just opens on the uploader's first chosen shape
-    // — the full scheduled switching plays out once the viewer goes fullscreen.
-    if(sched) src += '&driven=1&shape=' + sched[0].shape;
+    let src;
+    if(p.media.effect === 'scene' && p.media.stems){
+      const sep = FEED_SCENE_PAGE.endsWith('?') ? '' : '&';
+      src = FEED_SCENE_PAGE + sep
+        + 'vocals=' + encodeURIComponent(p.media.stems.vocals)
+        + '&drums=' + encodeURIComponent(p.media.stems.drums)
+        + '&bass=' + encodeURIComponent(p.media.stems.bass)
+        + '&other=' + encodeURIComponent(p.media.stems.other)
+        + '&muted=1&embed=inline';
+    } else {
+      const sched = Array.isArray(p.media.effectSchedule) && p.media.effectSchedule.length ? p.media.effectSchedule : null;
+      const effect = sched ? sched[0].page : (['sphere','field'].includes(p.media.effect) ? p.media.effect : 'cube');
+      const base = FEED_EFFECT_PAGES[effect];
+      const sep = base.endsWith('?') ? '' : '&';
+      src = base + sep + 'song=' + encodeURIComponent(p.media.url) + '&muted=1&embed=inline';
+      // The small inline preview just opens on the uploader's first chosen shape
+      // — the full scheduled switching plays out once the viewer goes fullscreen.
+      if(sched) src += '&driven=1&shape=' + sched[0].shape;
+    }
     return `<div class="feed-inline-player">
       <iframe class="feed-inline-frame" id="feed-inline-frame-${p.id}" src="${src}" allow="autoplay" loading="lazy"></iframe>
       <div class="feed-inline-bar">
@@ -2154,6 +2180,13 @@
   // lives inside sphere.html as one continuously-deformable SDF, so nothing
   // new is ever authored on the 'field' page again.
   const FEED_EFFECT_PAGES = { cube: 'effects-lab/destinys-child.html?world=1&v=' + FEED_EFFECT_CACHE_BUST, sphere: 'effects-lab/sphere.html?v=' + FEED_EFFECT_CACHE_BUST, field: 'effects-lab/field.html?v=' + FEED_EFFECT_CACHE_BUST };
+  // 'scene' (the 4-stem visualizer) is deliberately NOT in FEED_EFFECT_PAGES —
+  // that map drives the fullscreen player's 3-frame preload-everything/
+  // crossfade machinery, which assumes every effect plays the SAME single
+  // song url. A scene post has 4 different stem urls and never crossfades to
+  // another effect, so it gets its own single dedicated frame instead — see
+  // ensureFeedPlayerLoaded's scene branch and #feed-player-iframe-scene.
+  const FEED_SCENE_PAGE = 'effects-lab/scene.html?v=' + FEED_EFFECT_CACHE_BUST;
   const SPHERE_SHAPE_NAMES = ['Fluff','Gyroid','Superformula','Mandelbulb','SDF Morph','Waves','Chladni','Spiderweb'];
   // Upload-time timeline editor state — separate from the fullscreen player's
   // own feedPlayer* state above, since this drives one small preview iframe
@@ -2161,6 +2194,15 @@
   let scheduleDraft = null; // { markers:[{t,page,shape}], duration }
   let scheduleUploadedMedia = null; // the media object once the song has been uploaded to get a real URL for the preview iframe
   let scheduleUploadedForFile = null; // which File object scheduleUploadedMedia belongs to, so re-opening doesn't re-upload
+  let stemsMode = false;
+  const stemFiles = { vocals:null, drums:null, bass:null, other:null };
+  function stemsPickedCount(){ return Object.values(stemFiles).filter(Boolean).length; }
+  function renderStemsStatus(){
+    const el = document.getElementById('feed-post-stems-status');
+    if(!el) return;
+    const n = stemsPickedCount();
+    el.textContent = n === 4 ? 'all 4 stems ready' : `${n}/4 stems added — vocals, drums, bass, and harmony (the rest of the song) all need a file`;
+  }
   let scheduleSelectedMarkerIdx = 0;
   let scheduleDuration = 0;
   let scheduleCurrentTime = 0;
@@ -7642,16 +7684,48 @@
       if(input.id === 'feed-post-song'){
         scheduleDraft = null; scheduleUploadedMedia = null; scheduleUploadedForFile = null;
         document.getElementById('feed-post-schedule-status').textContent = 'defaults to Sphere';
+        stemsMode = false;
+        Object.keys(stemFiles).forEach(k=>stemFiles[k]=null);
+        document.getElementById('feed-post-stems-toggle').checked = false;
+        document.getElementById('feed-post-stems-pickers').hidden = true;
+        document.getElementById('feed-post-schedule-btn').hidden = false;
       }
+    },
+    toggleStemsMode(on){
+      stemsMode = on;
+      document.getElementById('feed-post-stems-pickers').hidden = !on;
+      // Stems mode replaces the switch-point timeline entirely — the 4-stem
+      // scene plays all 4 at once, there's nothing to schedule switches on.
+      document.getElementById('feed-post-schedule-btn').hidden = on;
+      renderStemsStatus();
+    },
+    previewStemFile(input){
+      const role = input.id.replace('feed-stem-', '');
+      stemFiles[role] = input.files[0] || null;
+      renderStemsStatus();
     },
     async submitFeedPost(){
       if(!requireAuth()) return;
       const text = (document.getElementById('feed-post-input').value||'').trim();
       const file = document.getElementById('feed-post-media').files[0] || document.getElementById('feed-post-camera').files[0] || document.getElementById('feed-post-song').files[0] || document.getElementById('feed-post-video').files[0];
-      if(!text && !file){ toast('Write something, or add an image, a video, or a song first.'); return; }
+      if(stemsMode && stemsPickedCount() < 4){ toast('Add all 4 stems (vocals, drums, bass, harmony) first — or turn off Full to post the single file instead.'); return; }
+      if(!text && !file && !(stemsMode && stemsPickedCount()===4)){ toast('Write something, or add an image, a video, or a song first.'); return; }
       try {
         let media = null;
-        if(file){
+        if(stemsMode && stemsPickedCount() === 4){
+          setProgress(5, 'Uploading stems…');
+          const roles = ['vocals','drums','bass','other'];
+          const stemUrls = {};
+          for(let i=0;i<roles.length;i++){
+            const role = roles[i];
+            const uploadFile = await prepareForUpload(stemFiles[role]);
+            if(uploadFile.size > UPLOAD_CAP){ setProgress(0, `The ${role} stem is still too large after compression — try a shorter clip.`, true); return; }
+            setProgress(10 + Math.round((i/roles.length)*80), `Uploading ${role}…`);
+            const uploaded = await SB.uploadMedia(uploadFile);
+            stemUrls[role] = uploaded.url;
+          }
+          media = { kind:'audio', url: stemUrls.drums, name: stemFiles.drums.name, effect:'scene', stems: stemUrls };
+        } else if(file){
           // The timeline editor already uploaded this exact file to get a
           // real URL for its own preview — reuse that instead of uploading twice.
           if(scheduleUploadedForFile === file && scheduleUploadedMedia){
@@ -7681,7 +7755,13 @@
         document.getElementById('feed-post-media-name').textContent = '';
         document.getElementById('feed-post-effect-row').hidden = true;
         document.getElementById('feed-post-schedule-status').textContent = '';
+        document.getElementById('feed-post-schedule-btn').hidden = false;
         scheduleDraft = null; scheduleUploadedMedia = null; scheduleUploadedForFile = null;
+        stemsMode = false;
+        Object.keys(stemFiles).forEach(k=>stemFiles[k]=null);
+        document.getElementById('feed-post-stems-toggle').checked = false;
+        document.getElementById('feed-post-stems-pickers').hidden = true;
+        ['feed-stem-vocals','feed-stem-drums','feed-stem-bass','feed-stem-other'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
         hideProgress();
         renderFeed();
         toast('Posted.');
@@ -7952,6 +8032,42 @@
     playFeedEffect(postId){
       const p = FEED_POSTS.find(x=>x.id===postId);
       if(!p || !p.media || !p.media.url) return;
+      // A "Full (4 stems)" post has no single song and never crossfades to
+      // another effect — it's one dedicated frame for its whole life, fed all
+      // 4 stem urls directly, instead of the cube/sphere/field preload-and-
+      // crossfade dance below (which assumes one shared song url).
+      if(p.media.effect === 'scene' && p.media.stems){
+        const inlineFrameScene = document.getElementById('feed-inline-frame-'+postId);
+        feedPlayerStartTime = FEED_INLINE_LAST_TIME[postId] || 0;
+        if(inlineFrameScene){
+          inlineFrameScene.contentWindow?.postMessage({ type: 'pause' }, '*');
+          inlineFrameScene.contentWindow?.postMessage({ type: 'volume', value: 0 }, '*');
+          const vol = document.getElementById('feed-inline-vol-'+postId);
+          if(vol) vol.value = 0;
+          const playBtn = document.getElementById('feed-inline-playpause-'+postId);
+          if(playBtn){ playBtn.innerHTML = ICON_PLAY; playBtn.title = 'Play'; }
+        }
+        feedPlayerSongUrl = null;
+        feedPlayerActiveSchedule = null;
+        feedPlayerScheduleFired = -1;
+        feedPlayerCurrentEffect = 'scene';
+        const sceneFrame = feedPlayerFrame('scene');
+        const sep = FEED_SCENE_PAGE.endsWith('?') ? '' : '&';
+        let src = FEED_SCENE_PAGE + sep
+          + 'vocals=' + encodeURIComponent(p.media.stems.vocals)
+          + '&drums=' + encodeURIComponent(p.media.stems.drums)
+          + '&bass=' + encodeURIComponent(p.media.stems.bass)
+          + '&other=' + encodeURIComponent(p.media.stems.other)
+          + '&active=1';
+        if(feedPlayerStartTime > 1) src += '&t=' + feedPlayerStartTime.toFixed(2);
+        sceneFrame.src = src;
+        sceneFrame.hidden = false;
+        sceneFrame.style.opacity = '1';
+        sceneFrame.style.pointerEvents = 'auto';
+        document.getElementById('feed-player-effect-select').hidden = true;
+        document.getElementById('feed-player-overlay').hidden = false;
+        return;
+      }
       // actually PAUSE the inline preview's own audio (not just mute it) —
       // otherwise it keeps playing silently underneath and any delay before
       // the mute message lands is audible as a doubled/echoed overlap.
@@ -8005,7 +8121,7 @@
     },
     closeFeedPlayer(){
       document.getElementById('feed-player-overlay').hidden = true;
-      Object.keys(FEED_EFFECT_PAGES).forEach(e=>{
+      Object.keys(FEED_EFFECT_PAGES).concat('scene').forEach(e=>{
         const frame = feedPlayerFrame(e);
         feedPlayerFadeAnims[e]?.cancel();
         delete feedPlayerFadeAnims[e];
