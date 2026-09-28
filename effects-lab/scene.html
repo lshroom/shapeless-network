@@ -133,14 +133,25 @@ function sampleStem(role){
   if(s.bassFast > s.bassSlow*1.35 + 0.06 && (now - s.kickRefractory) > 0.14){ hit = true; s.kickRefractory = now; }
   s.kick = Math.max(s.kick*0.7, hit ? 1 : 0);
 }
-// ---- kick/snare/hihat: derived from the drums stem's own FFT, no extra
-// decode — same Hz-band onset technique as the drum-room classifier (kick
-// 40-120Hz, snare 180-500Hz, hihat 6-12kHz; peak-bin energy vs moving
-// baseline, refractory per drum). Each becomes a selectable "stem" like any
-// other, so a layer slot can be aimed at just the kick or just the hats.
-const DRUM_PARTS = ['kick','snare','hihat'];
-const DRUM_BANDS = { kick:[40,120,0.08], snare:[180,500,0.09], hihat:[6000,12000,0.04] }; // [loHz,hiHz,refractorySec]
-DRUM_PARTS.forEach(part=>{ stems[part] = { bass:0, mid:0, high:0, rms:0, kick:0, _baseline:0, _refractory:0 }; });
+// ---- kick/snare/cymbals: derived from the drums stem's own FFT, no extra
+// decode. Spectral-flux + HFC-weighted onset detector (the upgraded technique
+// from the drum-room classifier, not the cruder peak-vs-baseline version) —
+// sums positive bin-to-bin magnitude rises per band, weights high bins more
+// for transient-heavy layers (snare crack, cymbals) so bleed between them
+// doesn't swamp either one, and fires on an adaptive threshold (moving mean
+// + k*deviation) instead of one fixed delta. "cymbals" is deliberately one
+// combined band (hihat+crash+ride all live in the same 2.5-15kHz range and
+// aren't separable without their own stem split) rather than hihat alone.
+// Each becomes a selectable "stem" like any other, so a layer slot can be
+// aimed at just the kick, just the snare, or all the cymbals together.
+const DRUM_PARTS = ['kick','snare','cymbals'];
+// [loHz, hiHz, refractorySec, hfcWeight(0=off,1=full bin/hi weighting), k(threshold sensitivity)]
+const DRUM_BANDS = {
+  kick:    [40,   120,   0.11,  0,   1.4],
+  snare:   [180,  500,   0.095, 0.5, 1.3],
+  cymbals: [2500, 15000, 0.045, 1,   1.1],
+};
+DRUM_PARTS.forEach(part=>{ stems[part] = { bass:0, mid:0, high:0, rms:0, kick:0, _prevBand:null, _fluxMean:0, _fluxDev:0, _refractory:0 }; });
 function sampleDrumParts(){
   const d = stems.drums;
   if(!d.analyser || !actx) return;
@@ -149,13 +160,23 @@ function sampleDrumParts(){
   const now = performance.now()/1000;
   DRUM_PARTS.forEach(part=>{
     const s = stems[part];
-    const [loHz, hiHz, refractoryS] = DRUM_BANDS[part];
+    const [loHz, hiHz, refractoryS, hfcWeight, k] = DRUM_BANDS[part];
     const lo = Math.max(0, Math.floor(loHz/binHz)), hi = Math.min(n-1, Math.ceil(hiHz/binHz));
-    let peak = 0;
-    for(let i=lo;i<=hi;i++){ const v = d.freqData[i]/255; if(v>peak) peak = v; }
-    s._baseline = s._baseline*0.78 + peak*0.22;
+    const span = Math.max(1, hi - lo);
+    if(!s._prevBand || s._prevBand.length !== span+1) s._prevBand = new Float32Array(span+1);
+    let flux = 0, peak = 0;
+    for(let i=lo;i<=hi;i++){
+      const v = d.freqData[i]/255;
+      if(v > peak) peak = v;
+      const rise = v - s._prevBand[i-lo];
+      if(rise > 0){ const w = hfcWeight ? (1 - hfcWeight) + hfcWeight*((i-lo)/span) : 1; flux += rise*w; }
+      s._prevBand[i-lo] = v;
+    }
+    s._fluxMean = s._fluxMean*0.85 + flux*0.15;
+    s._fluxDev = s._fluxDev*0.85 + Math.abs(flux - s._fluxMean)*0.15;
+    const thr = s._fluxMean + k*s._fluxDev + 0.004;
     let hit = false;
-    if((peak - s._baseline) > 0.18 && peak > 0.25 && (now - s._refractory) > refractoryS){ hit = true; s._refractory = now; }
+    if(flux > thr && peak > 0.10 && (now - s._refractory) > refractoryS){ hit = true; s._refractory = now; }
     const target = hit ? 1 : 0;
     s.kick = Math.max(s.kick*0.82, target); // decaying hit envelope, reused as every slot field below
     s.bass = s.mid = s.high = s.rms = s.kick;
