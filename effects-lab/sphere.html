@@ -15,7 +15,6 @@
   canvas{display:block;touch-action:none;}
   #layers{position:fixed;inset:0;z-index:1;transform-origin:50% 50%;}
   .layerCanvas{position:absolute;inset:0;width:100%;height:100%;transform-origin:50% 50%;}
-  #kickFlash{position:fixed;inset:0;z-index:2;background:#fff;opacity:0;pointer-events:none;mix-blend-mode:overlay;}
   #bar{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;
        padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
        background:linear-gradient(to top,rgba(0,0,0,.75),transparent);}
@@ -58,7 +57,6 @@
 </head>
 <body>
 <div id="layers"></div>
-<div id="kickFlash"></div>
 <div id="prep"><div class="spin"></div><div id="prepText">Preparing visuals… 0%</div></div>
 <div id="noSrc">waiting for audio…</div>
 <div id="loadSongWrap"><button id="loadSongBtn">🎵 Load a song</button><input id="loadSongFile" type="file" accept="audio/*" style="display:none"></div>
@@ -455,6 +453,7 @@ uniform vec3 uJitter;
 uniform mat3 uJitterRot;
 uniform float uHueKick;
 uniform float uPulse;
+uniform float uKickDeform;
 uniform int uMaxSteps, uNormalSamples;
 ${HELPERS_SRC}
 ${shapesSrc}
@@ -478,6 +477,14 @@ float de(vec3 p){
   // grow/breathe on the beat.
   float pulseS = 1.0 + uPulse;
   vec3 q = (uJitterRot * (p - uJitter)) / pulseS;
+  // Kick deform: a real distortion of the shape's OWN domain — a shockwave
+  // ripple radiating outward — instead of a camera/screen trick. Driven
+  // hardest on whichever layer is mapped to the drums stem (see
+  // createLayer's step()), so the kick reads as this shape visibly rippling.
+  if (uKickDeform > 0.001) {
+    float r = length(q);
+    q += normalize(q + 1e-4) * uKickDeform * sin(r*10.0 - uTime*26.0) * 0.28;
+  }
   float dA=deShape(uCur,q) * pulseS;
   if(uMorph<=0.001) return dA;
   float dB=deShape(uNext,q) * pulseS;
@@ -538,7 +545,7 @@ function makeUniforms(){
     uCamMat: { value: new THREE.Matrix4() },
     uCur:{value:0}, uNext:{value:0}, uMorph:{value:0},
     uJitter:{value:new THREE.Vector3()}, uJitterRot:{value:new THREE.Matrix3()},
-    uHueKick:{value:0}, uPulse:{value:0},
+    uHueKick:{value:0}, uPulse:{value:0}, uKickDeform:{value:0},
     uMaxSteps:{value:64}, uNormalSamples:{value:4},
   });
 }
@@ -728,6 +735,11 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera, 
     pulseVal *= Math.pow(pulseValDecay, dt);
     const idleBreath = Math.sin(t*breatheFreq + reactPhase)*breatheAmp*(1 + bv2*1.6) + Math.sin(t*breatheFreq*2.3 + reactPhase*1.7)*breatheAmp*0.5;
     uniforms.uPulse.value = Math.max(lo, Math.min(hi, pulseVal + idleBreath));
+    // The drums layer gets the full ripple deform — that's the one actually
+    // meant to visibly react to the kick; the other layers get a much
+    // smaller echo of it off their own band so the kick isn't totally silent
+    // there, without stealing the drums layer's job.
+    uniforms.uKickDeform.value = reactBand === 'drums' ? audio.drums : bandVal() * 0.18;
     // camera is the shared one — its own orbit/fov update happens once at
     // module level, not per layer; this just reads its current pose.
     pushAudio(uniforms, audio, t);
@@ -1022,23 +1034,6 @@ function cameraBeatFlourish() {
   else fovPunch += 6 + audio.bass * 4;
 }
 
-// ================= KICK PUNCH =================
-// The per-layer flourishes were too subtle to read as "the kick is doing
-// something" — this is a deliberately unsubtle, unconditional reaction that
-// fires on EVERY drum hit regardless of which layer/band it belongs to: a
-// fast whole-screen zoom-punch plus a white flash, both gone within ~150ms.
-const kickFlashEl = document.getElementById('kickFlash');
-const kickTargetEl = document.getElementById('layers');
-let kickAmt = 0;
-function kickPunch() {
-  kickAmt = 1;
-  fovPunch += 10 + audio.bass * 6;
-}
-function stepKick(dt) {
-  kickAmt *= Math.pow(0.015, dt);
-  kickFlashEl.style.opacity = String(Math.min(0.5, kickAmt * 0.5));
-  kickTargetEl.style.transform = `scale(${1 + kickAmt * 0.045})`;
-}
 let onFrameExtra = null; // blended mode hooks its switch-point check here (declared before MODE SELECT so its assignment there sticks)
 
 // ================= MODE SELECT =================
@@ -1290,9 +1285,8 @@ document.getElementById('fsBtn').addEventListener('click', ()=>{
 function loop(){
   const dt = clock.getDelta(), t = clock.getElapsedTime();
   sampleAudio();
-  if (audio.hit) { cameraBeatFlourish(); kickPunch(); }
+  if (audio.hit) cameraBeatFlourish();
   stepCamera(dt, t);
-  stepKick(dt);
   layers.forEach(l => l.step(dt, t));
   onFrameExtra?.(); // blended mode hooks its switch-point check in here
   requestAnimationFrame(loop);

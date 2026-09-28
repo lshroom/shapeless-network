@@ -655,7 +655,10 @@
   .track-owner-note{ font-size:9.5px; color:var(--dim); margin-top:3px; display:block; }
   .lane-clip-track{ position:relative; min-height:34px; }
   .lane-clip-track.drag-over{ background:color-mix(in srgb, var(--accent) 18%, transparent); outline:2px dashed var(--accent); outline-offset:-2px; }
-  .bar-tick{ height:20px; border-right:1px solid var(--line-soft); display:inline-flex; flex-direction:column; align-items:center; justify-content:center; font-size:9px; font-family:var(--font-mono); color:var(--dim); box-sizing:border-box; flex:none; line-height:1.15; }
+  /* Ableton-style bar/beat grid — same background-image formula used on every
+     row (ruler, each track lane, master) via barsGridBg(barPx) so they are
+     always the one shared grid instead of each row inventing its own. */
+  .bar-tick{ height:20px; display:inline-flex; flex-direction:column; align-items:center; justify-content:center; font-size:9px; font-family:var(--font-mono); color:var(--dim); box-sizing:border-box; flex:none; line-height:1.15; }
   .bar-tick .bar-num{ font-weight:600; color:var(--muted); font-size:7px; }
   .bar-tick .bar-time{ font-size:9px; color:var(--dim); }
   .zoom-row{ display:flex; gap:3px; margin-left:6px; }
@@ -706,7 +709,6 @@
   .ruler-track{ min-height:0; white-space:nowrap; }
   .ruler-track::before{ display:none; }
   .studio-playline{ position:absolute; top:0; bottom:0; left:0; width:2px; background:var(--accent); box-shadow:0 0 6px var(--accent); pointer-events:none; z-index:3; }
-  .bar-grid-overlay{ position:absolute; top:0; bottom:0; pointer-events:none; z-index:0; }
   .lane-clip{ position:absolute; top:6px; bottom:6px; border-radius:7px; background:color-mix(in srgb, var(--track-color) 30%, var(--surface-2)); border:1px solid var(--track-color); display:flex; align-items:center; gap:6px; padding:0 8px; font-size:10.5px; color:var(--text); white-space:nowrap; overflow:hidden; cursor:grab; touch-action:none; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; z-index:1; transition:box-shadow .2s ease, background .2s ease; }
   .lane-clip:active{ cursor:grabbing; }
   .lane-clip.now-playing{ background:color-mix(in srgb, var(--track-color) 55%, var(--surface-2)); box-shadow:0 0 0 2px var(--track-color), 0 0 14px color-mix(in srgb, var(--track-color) 60%, transparent); }
@@ -785,7 +787,6 @@
   .key-btn{ flex:1; aspect-ratio:.6; border-radius:0 0 8px 8px; background:#f4f4f4; border:1px solid var(--line); color:#111; font-size:11px; font-weight:700; display:flex; align-items:flex-end; justify-content:center; padding-bottom:8px; cursor:pointer; user-select:none; touch-action:manipulation; }
   .key-btn:active{ background:var(--accent); }
   .master-channel{ margin-top:12px; border:1px solid var(--accent-dim); border-radius:12px; overflow:hidden; }
-  .master-meter{ background:repeating-linear-gradient(90deg, color-mix(in srgb, #E8D27C 12%, transparent) 0 1px, transparent 1px 8px); }
   .captain-tag{ font-size:9.5px; color:var(--accent); font-family:var(--font-mono); white-space:nowrap; }
 
   .form-field{ margin-bottom:12px; }
@@ -2210,7 +2211,12 @@
       scheduleUploadedForFile = file;
       hideProgress();
       return scheduleUploadedMedia;
-    } catch(e){ hideProgress(); toast('Could not upload for preview — try again.'); return null; }
+    } catch(e){
+      console.error('ensureScheduleSongUploaded failed:', e);
+      hideProgress();
+      toast('Could not upload for preview: ' + (e?.message || e?.error_description || 'unknown error'));
+      return null;
+    }
   }
   // Design the visuals now always opens straight into the full blended
   // experience (all 3 banks + background layer composited together) — the
@@ -4476,6 +4482,15 @@
     }
     return out;
   }
+  // One shared Ableton-style grid: a bright line at every bar, a faint line at
+  // every beat (1/4 bar). Every row — ruler, each track lane, master — gets this
+  // exact same background so they read as one continuous grid, never their own.
+  function barsGridBg(barPx){
+    const beatPx = barPx / 4;
+    return `background-image:`
+      + `repeating-linear-gradient(to right, color-mix(in srgb, var(--muted) 45%, transparent) 0, color-mix(in srgb, var(--muted) 45%, transparent) 1px, transparent 1px, transparent ${barPx}px),`
+      + `repeating-linear-gradient(to right, color-mix(in srgb, var(--muted) 16%, transparent) 0, color-mix(in srgb, var(--muted) 16%, transparent) 1px, transparent 1px, transparent ${beatPx}px);`;
+  }
   function rulerTicksHtml(bars, barPx, barSec){
     const everyN = barPx<10 ? 8 : (barPx<20 ? 4 : 1);
     let ticks = '';
@@ -4549,7 +4564,7 @@
           </div>` : ''}
           ${manageOpen ? `<span class="track-owner-note">${lane.owner}${lane.assignedTo&&lane.assignedTo.length ? ' · assigned: '+lane.assignedTo.join(', ') : ''}</span>` : ''}
         </div>
-        <div class="lane-clip-track" style="width:${bars*barPx}px;" data-lane="${lane.id}" ondragover="event.preventDefault(); this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="app.dropFileOnTrack(event,'${v.id}','${lane.id}')">
+        <div class="lane-clip-track" style="width:${bars*barPx}px; ${barsGridBg(barPx)}" data-lane="${lane.id}" ondragover="event.preventDefault(); this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="app.dropFileOnTrack(event,'${v.id}','${lane.id}')">
           ${clips || `<span class="lane-empty">no loops placed</span>`}
         </div>
       </div>
@@ -4609,13 +4624,8 @@
     return `
       <div class="track-lane-row section-marker-row">
         <div class="lane-sidebar ruler-label">Sections</div>
-        <div class="lane-clip-track section-track" style="width:${bars*barPx}px;">${blocks || ''}</div>
+        <div class="lane-clip-track section-track" style="width:${bars*barPx}px; ${barsGridBg(barPx)}">${blocks || ''}</div>
       </div>`;
-  }
-  function barGridOverlayHtml(v, barPx){
-    const bars = v.studio.bars || 16;
-    const everyN = barPx<10 ? 8 : (barPx<20 ? 4 : 1);
-    return `<div class="bar-grid-overlay" id="bar-grid-${v.id}" style="left:${LANE_SIDEBAR_PX}px; width:${bars*barPx}px; background-image:repeating-linear-gradient(to right, color-mix(in srgb, var(--muted) 35%, transparent) 0, color-mix(in srgb, var(--muted) 35%, transparent) 1px, transparent 1px, transparent ${barPx*everyN}px);"></div>`;
   }
   function loopRegionOverlayHtml(v, barPx){
     const bars = v.studio.bars || 16;
@@ -4733,7 +4743,7 @@
           <div class="timeline-content" id="timeline-content-${v.id}">
             <div class="track-lane-row ruler-row">
               <div class="lane-sidebar ruler-label">Bars / Time <span id="studio-clock-label-${v.id}" class="ruler-clock">0:00</span></div>
-              <div class="lane-clip-track ruler-track" style="width:${bars*barPx}px;">${rulerTicksHtml(bars, barPx, (60/(s.bpm||100))*4)}</div>
+              <div class="lane-clip-track ruler-track" style="width:${bars*barPx}px; ${barsGridBg(barPx)}">${rulerTicksHtml(bars, barPx, (60/(s.bpm||100))*4)}</div>
             </div>
             <div class="track-lanes">${lanesHtml || '<p class="studio-empty-hint">No lanes yet — the button above or Record will start yours.</p>'}</div>
             <div class="track-lane-row master-channel" style="--track-color:#E8D27C">
@@ -4747,9 +4757,8 @@
                   <div class="track-knob" id="knob-master-${v.id}" style="--vol:${Math.round(((s.master&&s.master.volume!=null)?s.master.volume:0.85)*100)}" title="Master volume — drag up/down" onpointerdown="app.beginMasterKnob(event,'${v.id}')"></div>
                 </div>
               </div>
-              <div class="lane-clip-track master-meter" style="width:${bars*barPx}px;"></div>
+              <div class="lane-clip-track master-meter" style="width:${bars*barPx}px; ${barsGridBg(barPx)}"></div>
             </div>
-            ${barGridOverlayHtml(v, barPx)}
             ${loopRegionOverlayHtml(v, barPx)}
             <div class="studio-playline" id="studio-playline-${v.id}" style="left:${LANE_SIDEBAR_PX}px;"></div>
           </div>
