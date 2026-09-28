@@ -2079,10 +2079,18 @@
       await withTimeout(ffmpeg.load({
         coreURL: await withTimeout(toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'), 20000, 'Loading compressor core'),
         wasmURL: await withTimeout(toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'), 30000, 'Loading compressor (wasm)'),
-        // ffmpeg.wasm spawns its own internal worker from its own package URL —
-        // browsers refuse `new Worker(crossOriginURL)` outright, so that also
-        // needs blob-wrapping (classWorkerURL), same as the core JS/WASM above.
-        classWorkerURL: await withTimeout(toBlobURL('/vendor/ffmpeg/ffmpeg/worker.js', 'text/javascript'), 20000, 'Loading compressor worker'),
+        // classWorkerURL used to be blob-wrapped, same as core/wasm above — that
+        // was only ever needed to get past the browser's "no cross-origin
+        // Worker" rule when this loaded from unpkg. But worker.js itself does
+        // `import ... from "./const.js"` internally, and a blob: URL has no
+        // real path for that relative import to resolve against — so the
+        // worker silently failed to start and ffmpeg.load() hung forever
+        // waiting for a ready message that could never arrive. This is the
+        // actual root cause of "stuck loading compressor" (confirmed by
+        // reproducing it locally with zero network involved at all). Now that
+        // everything is same-origin, the worker can load from its real path
+        // directly — its relative imports resolve normally, no blob needed.
+        classWorkerURL: '/vendor/ffmpeg/ffmpeg/worker.js',
       }), 20000, 'Starting compressor');
       _ffmpeg = ffmpeg;
       return ffmpeg;
