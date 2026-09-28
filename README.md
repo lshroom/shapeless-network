@@ -20,6 +20,10 @@ node server.cjs
 (Don't just double-click `index.html` — the service worker and `<video>` tags need `http://`,
 not `file://`.)
 
+Once, after cloning: `git config core.hooksPath .githooks` — turns on a pre-commit check that
+catches a broken `index.html` before it can even be committed (there's no build step or test
+suite otherwise).
+
 ## Backend
 
 Supabase (Postgres + Auth + Realtime). Schema lives in `schema.sql` / `schema_v2.sql` /

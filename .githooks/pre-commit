@@ -1,0 +1,36 @@
+#!/bin/sh
+# Syntax-checks index.html's inline <script> blocks before letting a commit
+# through — there's no build step or test suite in this repo, so this is the
+# one automated gate standing between a typo and a broken page. Skips any
+# block using `import` (ES modules can't run through `new Function`).
+#
+# Enable once per clone: git config core.hooksPath .githooks
+
+if ! git diff --cached --name-only | grep -q '^index\.html$'; then
+  exit 0
+fi
+
+node -e "
+const fs = require('fs');
+const html = fs.readFileSync('index.html', 'utf8');
+const scripts = [...html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)];
+let failed = false;
+scripts.forEach((m, i) => {
+  const attrs = m[1], body = m[2];
+  if (/\bsrc=/.test(attrs)) return; // external file, nothing to check here
+  const typeMatch = attrs.match(/type=[\"']([^\"']+)[\"']/);
+  const type = typeMatch ? typeMatch[1].toLowerCase() : '';
+  // Only check actual classic-script JS blocks — data blocks (application/json,
+  // ld+json, importmap, etc.) aren't code, and type=module scripts use real
+  // import/export statements new Function() can't parse (that's a separate,
+  // legitimate JS dialect, not a syntax error).
+  if (type === 'module') return;
+  if (type && !type.includes('javascript')) return;
+  try { new Function(body); }
+  catch (e) {
+    console.error('Syntax error in index.html <script> block #' + i + ': ' + e.message);
+    failed = true;
+  }
+});
+process.exit(failed ? 1 : 0);
+"
