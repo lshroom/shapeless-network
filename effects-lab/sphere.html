@@ -435,6 +435,7 @@ uniform float uMorph;
 uniform vec3 uJitter;
 uniform mat3 uJitterRot;
 uniform float uHueKick;
+uniform float uPulse;
 uniform int uMaxSteps, uNormalSamples;
 ${HELPERS_SRC}
 ${shapesSrc}
@@ -452,11 +453,16 @@ float de(vec3 p){
   // uJitterRot adds a small bounded spring-back rotation on top of the
   // translation jitter — beat flourishes nudge it, it always springs back
   // toward identity, so the shape gets real "internal shift" without ever
-  // ending up permanently misoriented.
-  p = uJitterRot * (p - uJitter);
-  float dA=deShape(uCur,p);
+  // ending up permanently misoriented. uPulse is a real geometry swell, not
+  // a camera trick: evaluating the SDF in space scaled by (1+uPulse) and
+  // scaling the returned distance back makes the shape itself visibly
+  // grow/breathe on the beat — this is what actually reacts internally when
+  // it ISN'T switching shapes, on top of the position/rotation jitter.
+  float pulseS = 1.0 + uPulse;
+  vec3 q = (uJitterRot * (p - uJitter)) / pulseS;
+  float dA=deShape(uCur,q) * pulseS;
   if(uMorph<=0.001) return dA;
-  float dB=deShape(uNext,p);
+  float dB=deShape(uNext,q) * pulseS;
   float t=smoothstep(0.0,1.0,uMorph);
   // A plain mix() of two distance FIELDS doesn't read as a dissolve — the two
   // shapes have very different distance magnitudes, so the surface tends to
@@ -521,7 +527,7 @@ function makeUniforms(){
     uCamMat: { value: new THREE.Matrix4() },
     uCur:{value:0}, uNext:{value:0}, uMorph:{value:0},
     uJitter:{value:new THREE.Vector3()}, uJitterRot:{value:new THREE.Matrix3()},
-    uHueKick:{value:0},
+    uHueKick:{value:0}, uPulse:{value:0},
     uMaxSteps:{value:64}, uNormalSamples:{value:4},
   });
 }
@@ -622,18 +628,23 @@ const jitterVel = new THREE.Vector3(), jitterPos = new THREE.Vector3();
 // pulse. Each has its own decaying state so it reads as a distinct "hit"
 // rather than a permanent change.
 const rotVel = new THREE.Vector3(), rotOffset = new THREE.Vector3();
-let spinDir = 1, fovPunch = 0;
+let spinDir = 1, fovPunch = 0, pulseVel = 0, pulseVal = 0;
 function onBeatMove(){
+  // Pulse (the shape itself swelling/breathing) fires on EVERY beat — it's
+  // the one flourish that's actually geometry, not camera, so it's the main
+  // thing carrying "still alive while not switching shapes." The rest are
+  // occasional variety on top of that, picked randomly each hit.
+  pulseVel += 1.6 + audio.bass * 0.8;
   const roll = Math.random();
-  if (roll < 0.2) {
+  if (roll < 0.22) {
     spinDir *= -1;
     controls.autoRotateSpeed = (0.4 + audio.bass * 1.1) * (1.4 + Math.random()) * spinDir;
-  } else if (roll < 0.4) {
-    rotVel.set((Math.random()-0.5)*2.2, (Math.random()-0.5)*2.2, (Math.random()-0.5)*2.2);
-  } else if (roll < 0.6) {
+  } else if (roll < 0.44) {
+    rotVel.set((Math.random()-0.5)*3.2, (Math.random()-0.5)*3.2, (Math.random()-0.5)*3.2);
+  } else if (roll < 0.66) {
     jitterVel.set((Math.random()-0.5)*1.1, (Math.random()-0.5)*0.95, (Math.random()-0.5)*0.7);
-  } else if (roll < 0.8) {
-    fovPunch = 7 + Math.random() * 6;
+  } else if (roll < 0.85) {
+    fovPunch = 10 + Math.random() * 10;
   } else {
     uniforms.uHueKick.value = 1;
   }
@@ -715,12 +726,26 @@ function loop(){
   uniforms.uJitter.value.copy(jitterPos);
   // bounded shape-rotation impulse from onBeatMove(), always spring-decaying
   // back toward identity so it never leaves the shape permanently misoriented.
-  rotVel.multiplyScalar(Math.pow(0.85, dt*60));
+  // Decay rates here are per REAL SECOND (Math.pow(k, dt), not dt*60) — the
+  // dt*60 pattern used for the translation jitter above decays a burst to
+  // nothing within ~0.3s, which is right for a percussive snap but made
+  // these flourishes disappear before they were ever visible. These need to
+  // read clearly for a beat or more.
+  rotVel.multiplyScalar(Math.pow(0.2, dt));
   rotOffset.addScaledVector(rotVel, dt);
-  rotOffset.multiplyScalar(Math.pow(0.9, dt*60));
+  rotOffset.multiplyScalar(Math.pow(0.25, dt));
   uniforms.uJitterRot.value.setFromMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rotOffset.x, rotOffset.y, rotOffset.z)));
-  uniforms.uHueKick.value *= Math.pow(0.75, dt*60);
-  fovPunch *= Math.pow(0.8, dt*60);
+  uniforms.uHueKick.value *= Math.pow(0.2, dt);
+  fovPunch *= Math.pow(0.15, dt);
+  // Pulse: a beat-triggered swell (pulseVel/pulseVal, a real spring against
+  // the shape's own geometry via uPulse — see de() in the shader) plus a
+  // slow, always-on idle breathing term so the shape is never fully static
+  // even through a stretch with no clear onsets at all.
+  pulseVel *= Math.pow(0.25, dt);
+  pulseVal += pulseVel * dt;
+  pulseVal *= Math.pow(0.35, dt);
+  const idleBreath = Math.sin(t*0.55)*0.028 + Math.sin(t*1.3+1.7)*0.016;
+  uniforms.uPulse.value = Math.max(-0.35, Math.min(0.9, pulseVal + idleBreath));
   // camera: resume the slow auto-orbit a few seconds after the viewer lets
   // go, speed up a touch on the beat (direction can flip via onBeatMove), and
   // give the FOV a small kick-punch on top of the steady beatEnv pulse — all
