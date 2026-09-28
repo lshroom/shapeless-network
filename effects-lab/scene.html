@@ -51,8 +51,29 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GLSL, raymarchQuad } from '/h5555/core.js';
 
 // ---- renderer / scene / camera ----
+// A gray box with nothing drawn (instead of the "waiting for stems"
+// placeholder or a real error) is Chrome's own built-in fallback when
+// WebGL context creation fails or gets lost — happened on a phone GPU
+// that couldn't create the context this page was asking for, with zero
+// signal to the page itself. antialias + powerPreference:'high-performance'
+// are the two settings most likely to push a weaker/mobile GPU over that
+// edge, so drop both to the browser's own default choice, and surface a
+// real on-screen message instead of a silent gray box if it still fails.
 const canvas = document.getElementById('stage');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: !/Mobi|Android/i.test(navigator.userAgent) });
+} catch(e) {
+  document.getElementById('noSrc').textContent = "this device/browser can't render 3D previews (WebGL failed to start)";
+  document.getElementById('noSrc').style.display = 'block';
+  throw e;
+}
+canvas.addEventListener('webglcontextlost', (e)=>{
+  e.preventDefault();
+  const el = document.getElementById('noSrc');
+  el.textContent = "3D preview lost its render context — try reopening it";
+  el.style.display = 'block';
+});
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setClearColor(0x05060a, 1);
 const scene = new THREE.Scene();
