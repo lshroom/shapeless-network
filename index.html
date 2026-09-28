@@ -388,7 +388,8 @@
   .feed-schedule-head{ display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid var(--line); font-size:13.5px; font-weight:600; }
   .feed-schedule-close{ background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; padding:2px 6px; }
   .feed-schedule-preview{ position:relative; width:100%; aspect-ratio:4/3; background:#05060a; }
-  .feed-schedule-frame{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .feed-schedule-frame{ position:absolute; inset:0; width:100%; height:100%; border:0; opacity:0; pointer-events:none; transition:opacity .25s ease; }
+  .feed-schedule-frame[data-active="true"]{ opacity:1; pointer-events:auto; }
   .feed-schedule-shapes{ display:flex; flex-wrap:wrap; gap:6px; padding:10px 14px 0; }
   .feed-schedule-shape-btn{ background:var(--surface-2); color:var(--muted); border:1px solid var(--line); border-radius:99px; padding:6px 12px; font-size:11.5px; cursor:pointer; }
   .feed-schedule-shape-btn[data-active="true"]{ background:var(--accent); color:#04181B; border-color:transparent; font-weight:600; }
@@ -401,21 +402,19 @@
   .feed-schedule-track{ position:relative; margin:0 14px; height:64px; background:
       repeating-linear-gradient(to right, var(--line) 0, var(--line) 1px, transparent 1px, transparent calc(100%/var(--fst-ticks, 20)))
       , var(--surface-2); border:1px solid var(--line); border-radius:10px; cursor:pointer; touch-action:none; }
-  .feed-schedule-playhead{ position:absolute; top:0; bottom:0; width:2px; background:var(--accent-2); pointer-events:none; box-shadow:0 0 6px var(--accent-2); }
-  .feed-schedule-marker{ position:absolute; top:0; bottom:0; width:26px; margin-left:-13px; cursor:grab; touch-action:none;
-      display:flex; align-items:flex-start; justify-content:center; }
-  .feed-schedule-marker::before{ content:''; position:absolute; inset:0; border-radius:6px; border:2px solid rgba(255,255,255,.45); opacity:.9; }
-  .feed-schedule-marker[data-page="sphere"]::before{ background:rgba(139,155,255,.55); }
-  .feed-schedule-marker[data-page="field"]::before{ background:rgba(79,216,196,.55); }
-  .feed-schedule-marker[data-selected="true"]::before{ border-color:#fff; box-shadow:0 0 0 2px var(--accent); }
-  .feed-schedule-marker-tag{ position:relative; top:-22px; font-size:9.5px; font-weight:700; color:var(--ink); background:var(--surface-3); border:1px solid var(--line); border-radius:5px; padding:2px 5px; white-space:nowrap; pointer-events:none; }
+  .feed-schedule-playhead{ position:absolute; top:0; bottom:0; width:1px; background:var(--ink); opacity:.6; pointer-events:none; }
+  .feed-schedule-marker{ position:absolute; top:3px; bottom:3px; width:5px; margin-left:-2.5px; border-radius:3px; cursor:grab; touch-action:none;
+      background:var(--muted); opacity:.55; }
+  .feed-schedule-marker[data-page="sphere"]{ background:var(--accent); }
+  .feed-schedule-marker[data-page="field"]{ background:var(--accent-2); }
+  .feed-schedule-marker[data-selected="true"]{ opacity:1; box-shadow:0 0 0 1px var(--ink); }
   .feed-schedule-add-btn{ margin:10px 14px 0; }
-  .feed-schedule-marker-list{ display:flex; flex-direction:column; gap:6px; padding:12px 14px 0; max-height:180px; overflow-y:auto; }
+  .feed-schedule-marker-list{ display:flex; flex-direction:column; gap:5px; padding:12px 14px 0; max-height:180px; overflow-y:auto; }
   .feed-schedule-marker-row{ display:flex; align-items:center; gap:8px; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:7px 9px; cursor:pointer; }
-  .feed-schedule-marker-row[data-selected="true"]{ border-color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, var(--surface-2)); }
-  .feed-schedule-marker-row .fsr-dot{ width:9px; height:9px; border-radius:50%; flex:none; }
-  .feed-schedule-marker-row[data-page="sphere"] .fsr-dot{ background:#8b9bff; }
-  .feed-schedule-marker-row[data-page="field"] .fsr-dot{ background:#4fd8c4; }
+  .feed-schedule-marker-row[data-selected="true"]{ border-color:var(--accent); background:color-mix(in srgb, var(--accent) 8%, var(--surface-2)); }
+  .feed-schedule-marker-row .fsr-dot{ width:7px; height:7px; border-radius:50%; flex:none; background:var(--muted); }
+  .feed-schedule-marker-row[data-page="sphere"] .fsr-dot{ background:var(--accent); }
+  .feed-schedule-marker-row[data-page="field"] .fsr-dot{ background:var(--accent-2); }
   .feed-schedule-marker-row .fsr-time{ font-family:var(--font-mono); font-size:12px; color:var(--ink); width:40px; }
   .feed-schedule-marker-row .fsr-label{ flex:1; font-size:12px; color:var(--muted); }
   .feed-schedule-marker-row button{ background:none; border:none; color:var(--muted); font-size:12px; cursor:pointer; padding:4px 6px; flex:none; }
@@ -1170,7 +1169,7 @@
         <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="app.submitFeedPost()">Post →</button>
       </div>
       <div class="feed-composer-row" id="feed-post-effect-row" hidden>
-        <button class="btn btn-ghost btn-sm" id="feed-post-schedule-btn" onclick="app.openScheduleEditor()">🎬 Design the visuals</button>
+        <button class="btn btn-ghost btn-sm" id="feed-post-schedule-btn" onclick="app.openScheduleEditor()">Design the visuals</button>
         <span class="pad-hint" id="feed-post-schedule-status">defaults to Sphere</span>
       </div>
       <div class="feed-post-progress" id="feed-post-progress" hidden>
@@ -1186,7 +1185,8 @@
           <button class="feed-schedule-close" onclick="app.closeScheduleEditor()">✕</button>
         </div>
         <div class="feed-schedule-preview">
-          <iframe id="feed-schedule-frame" class="feed-schedule-frame" allow="autoplay"></iframe>
+          <iframe id="feed-schedule-frame-sphere" class="feed-schedule-frame" allow="autoplay"></iframe>
+          <iframe id="feed-schedule-frame-field" class="feed-schedule-frame" allow="autoplay"></iframe>
         </div>
         <div class="feed-schedule-page-toggle">
           <button data-page="sphere" onclick="app.setSelectedMarkerPage('sphere')">Sphere</button>
@@ -1204,10 +1204,10 @@
         </div>
         <div class="feed-schedule-add-btn" style="display:flex;gap:8px;margin:10px 14px 0;">
           <button class="btn btn-primary btn-sm" style="flex:1" onclick="app.addMarkerAtPlayhead()">+ Add a switch here</button>
-          <button class="btn btn-ghost btn-sm" id="feed-schedule-suggest-btn" style="flex:1" onclick="app.suggestSwitchPoints()">✨ Suggest switch points</button>
+          <button class="btn btn-ghost btn-sm" id="feed-schedule-suggest-btn" style="flex:1" onclick="app.suggestSwitchPoints()">Suggest switch points</button>
         </div>
         <div class="feed-schedule-marker-list" id="feed-schedule-marker-list"></div>
-        <div class="feed-schedule-hint">Tap the timeline to move to that moment (it plays there so you can hear it). Tap <b>+ Add a switch here</b> to drop a marker at the playhead, or drag an existing one to fine-tune it. Tap a row below to select it, nudge its time, or remove it. <b>✨ Suggest</b> listens to the song and drops markers where the energy changes.</div>
+        <div class="feed-schedule-hint">Tap the timeline to move to that moment (it plays there so you can hear it). Tap <b>+ Add a switch here</b> to drop a marker at the playhead, or drag an existing one to fine-tune it. Tap a row below to select it, nudge its time, or remove it. <b>Suggest switch points</b> listens to the song and drops markers on its own.</div>
         <div class="feed-schedule-actions">
           <button class="btn btn-ghost btn-sm" onclick="app.closeScheduleEditor()">Cancel</button>
           <button class="btn btn-primary btn-sm" onclick="app.saveScheduleEditor()">Save timeline</button>
@@ -1990,8 +1990,8 @@
   const FEED_PLAYER_LAST_TIME = {}; // effect -> last known playback position, so switching cube/sphere/field mid-song doesn't jump
   addEventListener('message', e=>{
     if(e.data?.type !== 'timeupdate') return;
-    const schedFrame = document.getElementById('feed-schedule-frame');
-    if(schedFrame && schedFrame.contentWindow === e.source){
+    const schedActiveFrame = scheduleFrameCurrentPage && scheduleFrame(scheduleFrameCurrentPage);
+    if(schedActiveFrame && schedActiveFrame.contentWindow === e.source){
       scheduleCurrentTime = e.data.currentTime;
       scheduleDuration = e.data.duration || scheduleDuration;
       renderScheduleTrack();
@@ -2178,16 +2178,45 @@
   let scheduleDragMarker = null;
   let scheduleFrameCurrentPage = null;
   let scheduleFiredIdx = -1;
-  function loadScheduleFramePage(page, shape, t, autoplay){
-    const frame = document.getElementById('feed-schedule-frame');
-    if(!frame || !scheduleUploadedMedia) return;
-    const base = FEED_EFFECT_PAGES[page];
-    const sep = base.endsWith('?') ? '' : '&';
-    let src = base + sep + 'song=' + encodeURIComponent(scheduleUploadedMedia.url) + '&driven=1&shape=' + shape + '&muted=0';
-    if(t > 0) src += '&t=' + t.toFixed(2);
-    src += '&active=' + (autoplay ? '1' : '0');
-    frame.src = src;
-    scheduleFrameCurrentPage = page;
+  function scheduleFrame(page){ return document.getElementById('feed-schedule-frame-' + page); }
+  // Both sphere and field preview frames load once and keep running in
+  // lockstep the whole time the editor is open — "switching" just swaps
+  // which one is visible/audible via postMessage, the same trick the real
+  // fullscreen player uses. Reloading a frame's src on every switch (the
+  // first version of this editor) meant restarting that page's audio
+  // decode/connect each time, which is exactly what caused the stutter.
+  function loadScheduleFrames(initialPage, initialShape){
+    if(!scheduleUploadedMedia) return;
+    ['sphere','field'].forEach(page=>{
+      const base = FEED_EFFECT_PAGES[page];
+      const sep = base.endsWith('?') ? '' : '&';
+      const shape = page === initialPage ? initialShape : 0;
+      const src = base + sep + 'song=' + encodeURIComponent(scheduleUploadedMedia.url) + '&driven=1&shape=' + shape + '&muted=1&active=0';
+      scheduleFrame(page).src = src;
+    });
+    scheduleFrameCurrentPage = initialPage;
+    document.querySelectorAll('.feed-schedule-frame').forEach(f=>{
+      f.dataset.active = (f.id === 'feed-schedule-frame-' + initialPage) ? 'true' : 'false';
+    });
+    // give both pages a beat to load before unmuting the starting one
+    setTimeout(()=> scheduleFrame(initialPage).contentWindow?.postMessage({ type:'mute', muted:false }, '*'), 300);
+  }
+  function switchSchedulePage(page, shape, instant){
+    if(page === scheduleFrameCurrentPage){
+      scheduleFrame(page).contentWindow?.postMessage({ type:'setShape', index:shape, instant }, '*');
+      return;
+    }
+    const outgoing = scheduleFrameCurrentPage, incoming = page;
+    if(outgoing) scheduleFrame(outgoing).contentWindow?.postMessage({ type:'mute', muted:true }, '*');
+    scheduleFrame(incoming).contentWindow?.postMessage({ type:'setShape', index:shape, instant:true }, '*');
+    scheduleFrame(incoming).contentWindow?.postMessage({ type:'mute', muted:false }, '*');
+    document.querySelectorAll('.feed-schedule-frame').forEach(f=>{
+      f.dataset.active = (f.id === 'feed-schedule-frame-' + incoming) ? 'true' : 'false';
+    });
+    scheduleFrameCurrentPage = incoming;
+  }
+  function scheduleBroadcast(msg){
+    ['sphere','field'].forEach(page=> scheduleFrame(page)?.contentWindow?.postMessage(msg, '*'));
   }
   // Rough energy-novelty pass over the actual audio: chunks the track into
   // 1s blocks, tracks each block's loudness against a rolling baseline of the
@@ -2238,11 +2267,7 @@
     if(idx === scheduleFiredIdx) return;
     scheduleFiredIdx = idx;
     const entry = sched[idx];
-    if(entry.page !== scheduleFrameCurrentPage){
-      loadScheduleFramePage(entry.page, entry.shape, scheduleCurrentTime, true);
-    } else {
-      document.getElementById('feed-schedule-frame').contentWindow?.postMessage({ type:'setShape', index: entry.shape, instant:false }, '*');
-    }
+    switchSchedulePage(entry.page, entry.shape, entry.page !== scheduleFrameCurrentPage);
   }
   function renderScheduleShapePalette(){
     const m = scheduleDraft?.markers[scheduleSelectedMarkerIdx];
@@ -2283,10 +2308,6 @@
         el.style.left = p + '%';
         const label = (SCHEDULE_SHAPE_NAMES[m.page]||[])[m.shape] || '';
         el.title = label + ' @ ' + fmtInlineTime(m.t);
-        const tag = document.createElement('span');
-        tag.className = 'feed-schedule-marker-tag';
-        tag.textContent = label;
-        el.appendChild(tag);
         el.addEventListener('pointerdown', ev=>{ ev.stopPropagation(); app.selectMarker(i); scheduleDragMarker = m; });
         track.appendChild(el);
       });
@@ -7722,19 +7743,18 @@
       if(!scheduleDraft) scheduleDraft = { markers: [{ t: 0, page: 'sphere', shape: 0 }] };
       scheduleSelectedMarkerIdx = 0;
       scheduleFiredIdx = -1;
-      scheduleFrameCurrentPage = null;
       schedulePlaying = false;
       document.getElementById('feed-schedule-play').textContent = '▶';
       document.getElementById('feed-schedule-modal').hidden = false;
       renderScheduleShapePalette();
-      loadScheduleFramePage(scheduleDraft.markers[0].page, scheduleDraft.markers[0].shape, 0, false);
+      loadScheduleFrames(scheduleDraft.markers[0].page, scheduleDraft.markers[0].shape);
       renderScheduleTrack();
     },
     closeScheduleEditor(){
       document.getElementById('feed-schedule-modal').hidden = true;
-      const frame = document.getElementById('feed-schedule-frame');
-      frame.contentWindow?.postMessage({ type: 'pause' }, '*');
-      frame.src = 'about:blank';
+      scheduleBroadcast({ type: 'pause' });
+      ['sphere','field'].forEach(page=> scheduleFrame(page).src = 'about:blank');
+      scheduleFrameCurrentPage = null;
       schedulePlaying = false;
     },
     saveScheduleEditor(){
@@ -7754,15 +7774,13 @@
       const t = pct * scheduleDuration;
       scheduleCurrentTime = t;
       scheduleFiredIdx = -1;
-      const frame = document.getElementById('feed-schedule-frame');
-      if(scheduleFrameCurrentPage) frame.contentWindow?.postMessage({ type:'seek', time: t }, '*');
+      scheduleBroadcast({ type:'seek', time: t });
       if(!schedulePlaying && scheduleDraft){
         // paused scrubbing still previews whichever shape is active at that time
         let idx = 0;
         for(let i=0;i<scheduleDraft.markers.length;i++){ if(scheduleDraft.markers[i].t <= t) idx = i; else break; }
         const entry = scheduleDraft.markers[idx];
-        if(entry.page !== scheduleFrameCurrentPage) loadScheduleFramePage(entry.page, entry.shape, t, false);
-        else frame.contentWindow?.postMessage({ type:'setShape', index: entry.shape, instant:true }, '*');
+        switchSchedulePage(entry.page, entry.shape, true);
       }
       renderScheduleTrack();
     },
@@ -7791,8 +7809,8 @@
       if(!m) return;
       scheduleCurrentTime = m.t;
       scheduleFiredIdx = -1;
-      if(!schedulePlaying) loadScheduleFramePage(m.page, m.shape, m.t, false);
-      else document.getElementById('feed-schedule-frame').contentWindow?.postMessage({ type:'seek', time: m.t }, '*');
+      if(!schedulePlaying) switchSchedulePage(m.page, m.shape, true);
+      scheduleBroadcast({ type:'seek', time: m.t });
       renderScheduleTrack();
     },
     nudgeMarkerTime(i, deltaSec){
@@ -7816,7 +7834,7 @@
       m.page = page; m.shape = 0;
       renderScheduleShapePalette();
       renderScheduleTrack();
-      if(!schedulePlaying) loadScheduleFramePage(m.page, m.shape, scheduleCurrentTime, false);
+      if(!schedulePlaying) switchSchedulePage(m.page, m.shape, true);
     },
     setSelectedMarkerShape(shapeIdx){
       const m = scheduleDraft?.markers[scheduleSelectedMarkerIdx];
@@ -7824,11 +7842,7 @@
       m.shape = shapeIdx;
       renderScheduleShapePalette();
       renderScheduleTrack();
-      if(!schedulePlaying){
-        const frame = document.getElementById('feed-schedule-frame');
-        if(m.page === scheduleFrameCurrentPage) frame.contentWindow?.postMessage({ type:'setShape', index: shapeIdx, instant: true }, '*');
-        else loadScheduleFramePage(m.page, m.shape, scheduleCurrentTime, false);
-      }
+      if(!schedulePlaying) switchSchedulePage(m.page, shapeIdx, true);
     },
     async suggestSwitchPoints(){
       if(!scheduleDraft || !scheduleUploadedMedia) return;
@@ -7860,15 +7874,14 @@
         console.error('suggestSwitchPoints failed:', e);
         toast('Could not analyze the audio — try adding switches by hand.');
       } finally {
-        btn.disabled = false; btn.textContent = '✨ Suggest switch points';
+        btn.disabled = false; btn.textContent = 'Suggest switch points';
       }
     },
     toggleSchedulePreview(){
       schedulePlaying = !schedulePlaying;
       document.getElementById('feed-schedule-play').textContent = schedulePlaying ? '⏸' : '▶';
-      const frame = document.getElementById('feed-schedule-frame');
-      if(schedulePlaying){ scheduleFiredIdx = -1; frame.contentWindow?.postMessage({ type:'play' }, '*'); }
-      else frame.contentWindow?.postMessage({ type:'pause' }, '*');
+      if(schedulePlaying){ scheduleFiredIdx = -1; scheduleBroadcast({ type:'play' }); }
+      else scheduleBroadcast({ type:'pause' });
     },
     async deleteFeedPost(id){
       if(!confirm('Delete this post?')) return;
