@@ -2403,6 +2403,11 @@
         // assigned can arrive before the fresh page's own listener exists
         // and gets silently dropped, same race the 'active' param avoids above.
         if(effect === activeEffect && feedPlayerActiveSchedule[0]) src += '&shape=' + feedPlayerActiveSchedule[0].shape;
+      } else {
+        // A viewer watching this post fullscreen never gets the uploader's
+        // own layer-mixing panel/bottom bar — only "Design the visuals"
+        // (loadScheduleFrame) should ever show those.
+        src += '&viewer=1';
       }
       const frame = feedPlayerFrame(effect);
       frame.src = src;
@@ -4485,12 +4490,12 @@
   // One shared Ableton-style grid: a bright line at every bar, a faint line at
   // every beat (1/4 bar). Every row — ruler, each track lane, master — gets this
   // exact same background so they read as one continuous grid, never their own.
-  function barsGridBg(barPx){
+  function barsGridBgValue(barPx){
     const beatPx = barPx / 4;
-    return `background-image:`
-      + `repeating-linear-gradient(to right, color-mix(in srgb, var(--muted) 45%, transparent) 0, color-mix(in srgb, var(--muted) 45%, transparent) 1px, transparent 1px, transparent ${barPx}px),`
-      + `repeating-linear-gradient(to right, color-mix(in srgb, var(--muted) 16%, transparent) 0, color-mix(in srgb, var(--muted) 16%, transparent) 1px, transparent 1px, transparent ${beatPx}px);`;
+    return `repeating-linear-gradient(to right, color-mix(in srgb, var(--muted) 45%, transparent) 0, color-mix(in srgb, var(--muted) 45%, transparent) 1px, transparent 1px, transparent ${barPx}px), `
+      + `repeating-linear-gradient(to right, color-mix(in srgb, var(--muted) 16%, transparent) 0, color-mix(in srgb, var(--muted) 16%, transparent) 1px, transparent 1px, transparent ${beatPx}px)`;
   }
+  function barsGridBg(barPx){ return `background-image:${barsGridBgValue(barPx)};`; }
   function rulerTicksHtml(bars, barPx, barSec){
     const everyN = barPx<10 ? 8 : (barPx<20 ? 4 : 1);
     let ticks = '';
@@ -4910,14 +4915,21 @@
     const bars = v.studio.bars || 16;
     const root = document.getElementById('timeline-content-'+vid);
     if(!root) return;
+    // Every row (ruler + each lane + master + sections) draws its own copy of the
+    // same bar/beat grid background — during a live zoom drag they all have to be
+    // resized AND re-painted with the new barPx together, or the ruler rescales
+    // while the rows underneath keep their old grid spacing frozen.
+    const gridValue = barsGridBgValue(barPx);
     const rulerTrack = root.querySelector('.ruler-track');
     if(rulerTrack){
       rulerTrack.style.width = (bars*barPx)+'px';
+      rulerTrack.style.backgroundImage = gridValue;
       rulerTrack.innerHTML = rulerTicksHtml(bars, barPx, (60/(v.studio.bpm||100))*4);
     }
     root.querySelectorAll('.lane-clip-track').forEach(trackEl=>{
       if(trackEl.classList.contains('ruler-track')) return;
       trackEl.style.width = (bars*barPx)+'px';
+      trackEl.style.backgroundImage = gridValue;
       const lane = (v.studio.lanes||[]).find(l=>l.id===trackEl.dataset.lane);
       if(!lane) return;
       (lane.clips||[]).forEach(c=>{
@@ -4925,12 +4937,6 @@
         if(clipEl){ clipEl.style.left = (c.startBar*barPx)+'px'; clipEl.style.width = (c.lengthBars*barPx)+'px'; }
       });
     });
-    const gridEl = document.getElementById('bar-grid-'+vid);
-    if(gridEl){
-      const everyN = barPx<10 ? 8 : (barPx<20 ? 4 : 1);
-      gridEl.style.width = (bars*barPx)+'px';
-      gridEl.style.backgroundImage = `repeating-linear-gradient(to right, color-mix(in srgb, var(--muted) 35%, transparent) 0, color-mix(in srgb, var(--muted) 35%, transparent) 1px, transparent 1px, transparent ${barPx*everyN}px)`;
-    }
     const lr = loopRegionFor(vid, bars);
     const loopEl = document.getElementById('loop-region-'+vid);
     if(loopEl){ loopEl.style.left = (LANE_SIDEBAR_PX + lr.start*barPx)+'px'; loopEl.style.width = (lr.len*barPx)+'px'; }

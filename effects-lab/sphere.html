@@ -31,16 +31,20 @@
   @keyframes prepspin{to{transform:rotate(360deg);}}
   #modeName{position:fixed;top:12px;left:12px;z-index:10;color:#f5f5f7;font-size:13px;font-weight:600;letter-spacing:.02em;background:rgba(10,10,14,.55);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:6px 12px;}
   body.kiosk #bar{padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));}
-  #controlPanel{position:fixed;top:12px;right:12px;z-index:10;display:flex;flex-direction:column;gap:6px;
-       background:rgba(10,10,14,.55);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12);
-       border-radius:10px;padding:10px 12px;max-width:200px;}
   .ctl-row{display:flex;flex-direction:column;gap:3px;}
   .ctl-label{color:rgba(255,255,255,.6);font-size:10px;text-transform:uppercase;letter-spacing:.03em;}
   .ctl-row input[type=range]{width:100%;accent-color:#8b9bff;}
   .ctl-row select, .ctl-row input[type=color]{width:100%;}
   #blendPanel{position:fixed;top:12px;right:12px;z-index:10;display:flex;flex-direction:column;gap:10px;
        background:rgba(10,10,14,.6);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12);
-       border-radius:10px;padding:10px 12px;max-width:210px;}
+       border-radius:10px;padding:10px 12px;max-width:210px;max-height:calc(100vh - 24px);overflow-y:auto;}
+  #blendPanel.collapsed{padding:8px 10px;max-width:none;overflow:visible;}
+  #blendPanel.collapsed .bp-body{display:none;}
+  .bp-head{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#f5f5f7;font-weight:600;cursor:pointer;user-select:none;}
+  .bp-head span{flex:1;}
+  .bp-collapse{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:#f5f5f7;
+       border-radius:6px;width:22px;height:22px;line-height:1;font-size:12px;cursor:pointer;flex:none;}
+  .bp-body{display:flex;flex-direction:column;gap:10px;}
   .layerRow{display:flex;flex-direction:column;gap:5px;padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,.08);}
   .layerRow:last-child{border-bottom:none;padding-bottom:0;}
   .layerRow .lr-head{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#f5f5f7;font-weight:600;}
@@ -60,7 +64,6 @@
 <div id="prep"><div class="spin"></div><div id="prepText">Preparing visuals… 0%</div></div>
 <div id="noSrc">waiting for audio…</div>
 <div id="loadSongWrap"><button id="loadSongBtn">🎵 Load a song</button><input id="loadSongFile" type="file" accept="audio/*" style="display:none"></div>
-<div id="controlPanel"></div>
 <div id="blendPanel"></div>
 <div id="modeName">Fluff</div>
 <div id="bar">
@@ -1050,7 +1053,14 @@ let onFrameExtra = null; // blended mode hooks its switch-point check here (decl
 
 // ================= MODE SELECT =================
 const layersEl = document.getElementById('layers');
-const driven = new URLSearchParams(location.search).get('driven') === '1';
+const urlParams = new URLSearchParams(location.search);
+const driven = urlParams.get('driven') === '1';
+// A public viewer (the feed's inline preview, or the fullscreen post
+// player) never gets the layer-mixing panel or bottom bar — those are the
+// uploader's own editing tools, from "Design the visuals" only. Without
+// this, blended mode's controls panel showed up on every viewer's screen,
+// including the tiny inline post preview.
+const isPublicViewer = urlParams.get('embed') === 'inline' || urlParams.get('viewer') === '1';
 let layers = [];
 
 if (driven) {
@@ -1066,7 +1076,6 @@ if (driven) {
   layer.setAutoBeat(false); // uploader/editor drives shape choice externally
   layers = [layer];
   document.getElementById('bar').style.display = 'none';
-  document.getElementById('controlPanel').style.display = 'none';
   document.getElementById('blendPanel').style.display = 'none';
   modeNameEl.textContent = SHAPE_NAMES[BANKS[bankIdx].ids[0]];
 
@@ -1216,6 +1225,29 @@ if (driven) {
   function renderBlendPanel(){
     const wrap = document.getElementById('blendPanel');
     wrap.innerHTML = '';
+    // Collapsible header — this panel used to permanently cover part of the
+    // screen with no way to shrink it out of the way while just watching.
+    // Collapsed, it's just this title bar.
+    const head = document.createElement('div');
+    head.className = 'bp-head';
+    head.innerHTML = `<span>Layers</span><button class="bp-collapse" title="Collapse">▾</button>`;
+    const body = document.createElement('div');
+    body.className = 'bp-body';
+    head.addEventListener('click', () => setBlendPanelCollapsed(!wrap.classList.contains('collapsed')));
+    wrap.appendChild(head);
+    wrap.appendChild(body);
+    // Switch-interval control used to be its own floating panel sitting at
+    // the exact same screen position as this one — pressing its toggle
+    // opened it directly underneath this panel where it was invisible. It's
+    // just a row in here now instead of a second overlapping panel.
+    const ctlRow = document.createElement('div');
+    ctlRow.className = 'ctl-row';
+    ctlRow.innerHTML = `<span class="ctl-label">switch every (max)</span>
+      <input id="switchIntervalCtl" type="range" min="4" max="30" step="1" value="14">`;
+    ctlRow.querySelector('input').addEventListener('input', e => {
+      layers.forEach(l => l.setInterval(+e.target.value));
+    });
+    body.appendChild(ctlRow);
     layers.forEach((layer, i) => {
       const row = document.createElement('div');
       row.className = 'layerRow';
@@ -1237,7 +1269,7 @@ if (driven) {
         row.querySelector('select').addEventListener('change', e=>{
           layer.setStyle(+e.target.value, true);
         });
-        wrap.appendChild(row);
+        body.appendChild(row);
         return;
       }
       const modeOpts = BLEND_MODES.map(m => `<option value="${m}"${m===layer.blend?' selected':''}>${m}</option>`).join('');
@@ -1260,7 +1292,7 @@ if (driven) {
         layer.scale = +e.target.value;
         layer.canvas.style.transform = `scale(${layer.scale})`;
       });
-      wrap.appendChild(row);
+      body.appendChild(row);
     });
   }
   renderBlendPanel();
@@ -1275,19 +1307,23 @@ if (driven) {
 }
 let autoBeatGlobal = true;
 
-// Controls panel: switch-interval slider — how long each layer waits before
-// forcing a change when the kick isn't firing one on its own. Hidden in
-// driven mode; in blended mode it scales all 3 layers' intervals together
-// (each keeps its own stagger multiplier so they don't lock-step).
-const panel = document.getElementById('controlPanel');
-panel.hidden = true;
-panel.innerHTML = `<div class="ctl-row"><span class="ctl-label">switch every (max)</span>
-  <input id="switchIntervalCtl" type="range" min="4" max="30" step="1" value="14"></div>`;
+// The bottom bar's ⚙ Controls button used to open a SEPARATE floating panel
+// sitting at the exact same screen position as the Layers panel — pressing
+// it opened content directly underneath the Layers panel where it was
+// completely covered and invisible ("nothing happens"). The switch-interval
+// slider now lives inside the Layers panel itself (see renderBlendPanel), so
+// ⚙ just collapses/expands that one panel — same action as its own header.
+function setBlendPanelCollapsed(collapsed){
+  const wrap = document.getElementById('blendPanel');
+  wrap.classList.toggle('collapsed', collapsed);
+  const chevron = wrap.querySelector('.bp-collapse');
+  if (chevron) chevron.textContent = collapsed ? '▸' : '▾';
+  document.getElementById('ctlBtn')?.classList.toggle('on', !collapsed);
+}
 const ctlBtn = document.getElementById('ctlBtn');
-ctlBtn.addEventListener('click', ()=>{ panel.hidden = !panel.hidden; ctlBtn.classList.toggle('on', !panel.hidden); });
-document.getElementById('switchIntervalCtl').addEventListener('input', e=>{
-  const v = +e.target.value;
-  layers.forEach(l => l.setInterval(v));
+ctlBtn.addEventListener('click', ()=>{
+  const wrap = document.getElementById('blendPanel');
+  setBlendPanelCollapsed(!wrap.classList.contains('collapsed'));
 });
 document.getElementById('fsBtn').addEventListener('click', ()=>{
   if (document.fullscreenElement) document.exitFullscreen();
@@ -1350,10 +1386,13 @@ const mutedParam = new URLSearchParams(location.search).get('muted') === '1';
 const startTimeParam = parseFloat(new URLSearchParams(location.search).get('t') || '0');
 const activeParam = new URLSearchParams(location.search).get('active') !== '0';
 if (songParam) loadSongUrl(decodeURIComponent(songParam), mutedParam, startTimeParam, activeParam);
-// Inline Feed preview: the parent page draws its own single transport bar
-// below the preview — this page's own bottom bar would be a second one.
-if (new URLSearchParams(location.search).get('embed') === 'inline') {
+// Public viewer (inline Feed preview, or a post opened fullscreen): the
+// layer-mixing panel and bottom bar are the uploader's own editing tools
+// from "Design the visuals" — a viewer just watching a published post
+// should only ever see the visual itself.
+if (isPublicViewer) {
   const bar = document.getElementById('bar'); if (bar) bar.style.display = 'none';
+  const bp = document.getElementById('blendPanel'); if (bp) bp.style.display = 'none';
 }
 // Standalone open (no ?song=, not the feed embed, not driven) never had any
 // way to actually pick a song — the whole page only ever expected one to
