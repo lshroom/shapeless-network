@@ -2050,33 +2050,45 @@
     if(box) box.hidden = true;
   }
   let _ffmpeg = null;
+  // Every step here (the two dynamic imports + every toBlobURL, which is a
+  // fetch() under the hood) hits unpkg with no built-in timeout — if that
+  // network call ever stalls, this whole function hangs forever with zero
+  // console error (looks exactly like a frozen tab, not a failure). Wrapping
+  // each awaited step in a timeout so a stall becomes a real, visible error
+  // instead of a silent hang.
+  function withTimeout(promise, ms, label){
+    return Promise.race([
+      promise,
+      new Promise((_, reject)=> setTimeout(()=> reject(new Error(label + ' timed out')), ms)),
+    ]);
+  }
   async function getFFmpeg(){
     if(_ffmpeg) return _ffmpeg;
     setProgress(0, 'Loading compressor…');
-    const { FFmpeg } = await import('https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js');
-    const { toBlobURL } = await import('https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js');
-    const ffmpeg = new FFmpeg();
-    ffmpeg.on('progress', ({ progress }) => {
-      const pct = Math.round(Math.max(0, Math.min(1, progress || 0)) * 100);
-      setProgress(pct, `Compressing… ${pct}%`);
-    });
-    ffmpeg.on('log', ({ message }) => console.log('[ffmpeg]', message));
-    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
     try {
-      await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      const { FFmpeg } = await withTimeout(import('https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js'), 20000, 'Loading compressor');
+      const { toBlobURL } = await withTimeout(import('https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js'), 20000, 'Loading compressor');
+      const ffmpeg = new FFmpeg();
+      ffmpeg.on('progress', ({ progress }) => {
+        const pct = Math.round(Math.max(0, Math.min(1, progress || 0)) * 100);
+        setProgress(pct, `Compressing… ${pct}%`);
+      });
+      ffmpeg.on('log', ({ message }) => console.log('[ffmpeg]', message));
+      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+      await withTimeout(ffmpeg.load({
+        coreURL: await withTimeout(toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'), 20000, 'Loading compressor core'),
+        wasmURL: await withTimeout(toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'), 30000, 'Loading compressor (wasm)'),
         // ffmpeg.wasm spawns its own internal worker from its own package URL —
         // browsers refuse `new Worker(crossOriginURL)` outright, so that also
         // needs blob-wrapping (classWorkerURL), same as the core JS/WASM above.
-        classWorkerURL: await toBlobURL('https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js', 'text/javascript'),
-      });
+        classWorkerURL: await withTimeout(toBlobURL('https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js', 'text/javascript'), 20000, 'Loading compressor worker'),
+      }), 20000, 'Starting compressor');
+      _ffmpeg = ffmpeg;
+      return ffmpeg;
     } catch(e){
       console.error('ffmpeg load failed:', e);
       throw new Error('Could not load the compressor (' + (e?.message || 'worker failed to start') + '). Try again, or on a different browser/connection.');
     }
-    _ffmpeg = ffmpeg;
-    return ffmpeg;
   }
   // Reads duration without ffmpeg (cheap) so we can size the target bitrate
   // to the clip's actual length — a fixed bitrate only fits short clips.
