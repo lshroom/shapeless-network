@@ -207,22 +207,23 @@ const CENTER_SHAPES = ['Fluff','Gyroid Lattice','Superformula','Mandelbulb Fract
 const SCENE_FRAG = `
 ${GLSL.snoise3}
 ${GLSL.palette}
-uniform int uCenterShape, uGlowBg;
-uniform float uCenterBass, uCenterMid, uCenterHigh, uCenterRms, uCenterSize;
+uniform int uShapeType[5], uGlowBg;
+uniform vec3 uShapePos[5];
+uniform float uShapeBass[5], uShapeMid[5], uShapeHigh[5], uShapeRms[5], uShapeSize[5];
 uniform float uPlateBass, uPlateMid, uPlateSize;
 uniform float uOrbitRms, uOrbitHigh, uOrbitSize;
 uniform float uGlowMid, uGlowRms;
 
 float sdfSmin(float a,float b,float k){ float h=clamp(0.5+0.5*(b-a)/k,0.0,1.0); return mix(b,a,h)-k*h*(1.0-h); }
-float deFluffC(vec3 p){
+float deFluffC(vec3 p, float bass, float mid, float high, float rms, float size){
   float n = snoise(p*2.2+uTime*0.15) + 0.5*snoise(p*4.4-uTime*0.1);
-  return length(p) - uCenterSize*(1.1 + n*0.2*(0.4+uCenterBass));
+  return length(p) - size*(1.1 + n*0.2*(0.4+bass));
 }
-float deGyroidC(vec3 p){
-  float s=(3.2+uCenterBass*1.8)/max(0.35,uCenterSize); vec3 q=p*s;
+float deGyroidC(vec3 p, float bass, float mid, float high, float rms, float size){
+  float s=(3.2+bass*1.8)/max(0.35,size); vec3 q=p*s;
   float g=dot(sin(q),cos(q.yzx));
-  float lattice=(abs(g)-0.14*(1.0+uCenterMid))/s;
-  float ball=length(p)-1.5*uCenterSize;
+  float lattice=(abs(g)-0.14*(1.0+mid))/s;
+  float ball=length(p)-1.5*size;
   return max(lattice,ball);
 }
 float sfRC(float angle, float m, float n1){
@@ -230,74 +231,88 @@ float sfRC(float angle, float m, float n1){
   float t2=pow(abs(sin(m*angle/4.0)),1.7);
   return pow(t1+t2,-1.0/n1);
 }
-float deSuperformulaC(vec3 p){
-  float m=6.0+uCenterMid*3.0, n1=0.5+uCenterBass;
+float deSuperformulaC(vec3 p, float bass, float mid, float high, float rms, float size){
+  float m=6.0+mid*3.0, n1=0.5+bass;
   float len=max(length(p),0.0001);
   float theta=atan(p.z,p.x), phi=asin(clamp(p.y/len,-1.0,1.0));
-  float rad=uCenterSize*1.6*sfRC(theta,m,n1)*sfRC(phi,m,n1);
+  float rad=size*1.6*sfRC(theta,m,n1)*sfRC(phi,m,n1);
   return len-rad;
 }
-float deMandelbulbC(vec3 p){
-  vec3 z=p*(1.1/max(0.35,uCenterSize)); float dr=1.0; float r=0.0;
-  float pw=8.0+sin(uTime*0.3)*1.0+uCenterBass*2.0;
+float deMandelbulbC(vec3 p, float bass, float mid, float high, float rms, float size){
+  vec3 z=p*(1.1/max(0.35,size)); float dr=1.0; float r=0.0;
+  float pw=8.0+sin(uTime*0.3)*1.0+bass*2.0;
   for(int i=0;i<8;i++){
     r=length(z); if(r>2.0)break;
     float th=acos(z.z/r); float ph=atan(z.y,z.x);
     dr=pow(r,pw-1.0)*pw*dr+1.0;
     float zr=pow(r,pw); th*=pw; ph*=pw;
-    z=zr*vec3(sin(th)*cos(ph),sin(ph)*sin(th),cos(th))+p*(1.1/max(0.35,uCenterSize));
+    z=zr*vec3(sin(th)*cos(ph),sin(ph)*sin(th),cos(th))+p*(1.1/max(0.35,size));
   }
-  return (0.5*log(r)*r/dr) / (1.1/max(0.35,uCenterSize)) * uCenterSize;
+  return (0.5*log(r)*r/dr) / (1.1/max(0.35,size)) * size;
 }
 // "The bubble thing" — 6 metaball blobs blended with sdfSmin. Radius now
 // driven mainly by bass (was mid in the original) so it visibly bubbles
 // bigger on bass hits, per "it should bubble with the bass".
-float deSdfMorphC(vec3 p){
+float deSdfMorphC(vec3 p, float bass, float mid, float high, float rms, float size){
   float d=10.0;
   for(int i=0;i<6;i++){
     float fi=float(i);
-    vec3 c=vec3(sin(uTime*0.5+fi*2.1),cos(uTime*0.4+fi*1.7),sin(uTime*0.3+fi*1.3))*(1.1+uCenterBass*0.8)*uCenterSize;
-    float r=(0.35+0.28*sin(uTime+fi)+uCenterBass*0.4+uCenterMid*0.15)*uCenterSize;
-    d=sdfSmin(d,length(p-c)-r,0.7*uCenterSize);
+    vec3 c=vec3(sin(uTime*0.5+fi*2.1),cos(uTime*0.4+fi*1.7),sin(uTime*0.3+fi*1.3))*(1.1+bass*0.8)*size;
+    float r=(0.35+0.28*sin(uTime+fi)+bass*0.4+mid*0.15)*size;
+    d=sdfSmin(d,length(p-c)-r,0.7*size);
   }
   return d;
 }
-float deWaveFieldC(vec3 p){
+float deWaveFieldC(vec3 p, float bass, float mid, float high, float rms, float size){
   float v=0.0;
   for(int s=0;s<3;s++){
     float ang=uTime*0.5+float(s)*2.0943951;
-    float sx=cos(ang)*1.6*uCenterSize, sz=sin(ang)*1.6*uCenterSize;
+    float sx=cos(ang)*1.6*size, sz=sin(ang)*1.6*size;
     float d=length(vec2(p.x-sx,p.z-sz));
-    v += sin(d*6.5*(1.0+uCenterMid*0.5)-uTime*4.0)/(1.0+d*0.5);
+    v += sin(d*6.5*(1.0+mid*0.5)-uTime*4.0)/(1.0+d*0.5);
   }
-  float h = v*1.0*(0.5+uCenterBass)*0.4*uCenterSize;
-  return max(p.y - h, length(p)-2.1*uCenterSize);
+  float h = v*1.0*(0.5+bass)*0.4*size;
+  return max(p.y - h, length(p)-2.1*size);
 }
-float deChladniFieldC(vec3 p){
-  float ext=2.6*uCenterSize;
-  float m=4.0+uCenterMid*3.0, n=3.0+uCenterHigh*2.0;
+float deChladniFieldC(vec3 p, float bass, float mid, float high, float rms, float size){
+  float ext=2.6*size;
+  float m=4.0+mid*3.0, n=3.0+high*2.0;
   float u=p.x/ext+0.5, v=p.z/ext+0.5;
-  float h=(sin(m*3.14159265*u)*sin(n*3.14159265*v)-sin(n*3.14159265*u)*sin(m*3.14159265*v))*0.7*(0.5+uCenterBass)*uCenterSize;
-  return max(p.y - h, length(p)-2.1*uCenterSize);
+  float h=(sin(m*3.14159265*u)*sin(n*3.14159265*v)-sin(n*3.14159265*u)*sin(m*3.14159265*v))*0.7*(0.5+bass)*size;
+  return max(p.y - h, length(p)-2.1*size);
 }
-float deWebFieldC(vec3 p){
+float deWebFieldC(vec3 p, float bass, float mid, float high, float rms, float size){
   float rad=length(p.xz), ang=atan(p.z,p.x);
   float spoke=pow(abs(cos(ang*7.0)),10.0);
-  float ring=pow(abs(cos(rad*3.6/max(0.35,uCenterSize)-uTime*0.6)),10.0);
-  float h=(max(spoke,ring)*0.6-0.12)*(0.4+uCenterRms*2.0)*uCenterSize;
-  return max(p.y - h, length(p)-2.1*uCenterSize);
+  float ring=pow(abs(cos(rad*3.6/max(0.35,size)-uTime*0.6)),10.0);
+  float h=(max(spoke,ring)*0.6-0.12)*(0.4+rms*2.0)*size;
+  return max(p.y - h, length(p)-2.1*size);
 }
-float deCenter(vec3 p){
-  vec3 q = p - vec3(0.0, 0.15, 0.0);
-  if(uCenterShape==0) return deFluffC(q);
-  if(uCenterShape==1) return deGyroidC(q);
-  if(uCenterShape==2) return deSuperformulaC(q);
-  if(uCenterShape==3) return deMandelbulbC(q);
-  if(uCenterShape==4) return deSdfMorphC(q);
-  if(uCenterShape==5) return deWaveFieldC(q);
-  if(uCenterShape==6) return deChladniFieldC(q);
-  if(uCenterShape==7) return deWebFieldC(q);
+float deShape(int type, vec3 p, float bass, float mid, float high, float rms, float size){
+  if(type==0) return deFluffC(p,bass,mid,high,rms,size);
+  if(type==1) return deGyroidC(p,bass,mid,high,rms,size);
+  if(type==2) return deSuperformulaC(p,bass,mid,high,rms,size);
+  if(type==3) return deMandelbulbC(p,bass,mid,high,rms,size);
+  if(type==4) return deSdfMorphC(p,bass,mid,high,rms,size);
+  if(type==5) return deWaveFieldC(p,bass,mid,high,rms,size);
+  if(type==6) return deChladniFieldC(p,bass,mid,high,rms,size);
+  if(type==7) return deWebFieldC(p,bass,mid,high,rms,size);
   return 1000.0; // 8 = Crystal Burst — real instanced geometry, not an SDF; see below
+}
+// Up to 5 shape-bearing stems (kick/cymbals/bass/vocals/harmony) render
+// simultaneously now, each at its own ring position — previously only one
+// could occupy "Center" at a time, which is why turning several on left
+// most of them invisible ("only 2 out of 7 showing").
+float deShapes(vec3 p){
+  float d = 1000.0;
+  for(int i=0;i<5;i++){
+    if(uShapeType[i] >= 0){
+      vec3 q = p - uShapePos[i] - vec3(0.0, 0.15, 0.0);
+      float sd = deShape(uShapeType[i], q, uShapeBass[i], uShapeMid[i], uShapeHigh[i], uShapeRms[i], uShapeSize[i]);
+      d = min(d, sd);
+    }
+  }
+  return d;
 }
 // Plate and Orbit are plain fixed looks (no per-shape picker) — whichever
 // stem is assigned there just drives this one look's motion/size.
@@ -318,20 +333,31 @@ float deOrbit(vec3 p){
   return length(q) - rad - n;
 }
 float de(vec3 p){
-  float d = deCenter(p);
+  float d = deShapes(p);
   d = min(d, dePlate(p));
   d = sdfSmin(d, deOrbit(p), 0.35);
   return d;
 }
 vec3 colorAt(vec3 p, vec3 n){
-  // three light-color zones blended by proximity: center=warm, plate=cool,
-  // orbit=bright — plus the glow-slot's stem tinting everything, so the
-  // whole scene visibly breathes with that track even where it isn't the
-  // dominant shape.
-  vec3 centerCol = spectral(0.06 + uCenterHigh*0.1 + uTime*0.015);
+  // each active shape gets its own hue (spread across the palette by slot
+  // index) blended by proximity, plus plate=cool, orbit=bright — plus the
+  // glow-slot's stem tinting everything, so the whole scene visibly
+  // breathes with that track even where it isn't the dominant shape.
+  vec3 shapesCol = vec3(0.0); float wShapes = 0.0; float dC = 1000.0;
+  for(int i=0;i<5;i++){
+    if(uShapeType[i] >= 0){
+      vec3 q = p - uShapePos[i] - vec3(0.0, 0.15, 0.0);
+      float sd = deShape(uShapeType[i], q, uShapeBass[i], uShapeMid[i], uShapeHigh[i], uShapeRms[i], uShapeSize[i]);
+      float w = 1.0/(0.08+abs(sd));
+      shapesCol += spectral(0.06 + float(i)*0.16 + uShapeHigh[i]*0.1 + uTime*0.015) * w;
+      wShapes += w;
+      dC = min(dC, sd);
+    }
+  }
+  vec3 centerCol = wShapes>0.0 ? shapesCol/wShapes : spectral(0.06);
   vec3 plateCol = spectral(0.55 + uPlateMid*0.1);
   vec3 orbitCol = spectral(0.9 - uOrbitHigh*0.15);
-  float dC = deCenter(p), dP = dePlate(p), dO = deOrbit(p);
+  float dP = dePlate(p), dO = deOrbit(p);
   float wC = 1.0/(0.08+abs(dC)), wP = 1.0/(0.08+abs(dP)), wO = 1.0/(0.08+abs(dO));
   float wSum = wC+wP+wO;
   vec3 base = (centerCol*wC + plateCol*wP + orbitCol*wO) / wSum;
@@ -415,7 +441,9 @@ vec3 render(vec3 ro, vec3 rd){
 }`;
 
 const { mesh, uniforms } = raymarchQuad(SCENE_FRAG, {
-  uCenterShape:{value:0}, uCenterBass:{value:0}, uCenterMid:{value:0}, uCenterHigh:{value:0}, uCenterRms:{value:0}, uCenterSize:{value:1},
+  uShapeType:{value:[-1,-1,-1,-1,-1]},
+  uShapePos:{value:[new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3()]},
+  uShapeBass:{value:[0,0,0,0,0]}, uShapeMid:{value:[0,0,0,0,0]}, uShapeHigh:{value:[0,0,0,0,0]}, uShapeRms:{value:[0,0,0,0,0]}, uShapeSize:{value:[1,1,1,1,1]},
   uPlateBass:{value:0}, uPlateMid:{value:0}, uPlateSize:{value:1},
   uOrbitRms:{value:0}, uOrbitHigh:{value:0}, uOrbitSize:{value:1},
   uGlowBg:{value:0}, uGlowMid:{value:0}, uGlowRms:{value:0},
@@ -474,14 +502,16 @@ function updateCrystalBurst(t, stem, size){
   crystalMesh.rotation.y = t*0.15;
 }
 
-// ---- per-layer config: which stem drives which slot, how big, which Center
-// shape (see index.html — each stem offers at most one fixed Center choice
-// it was picked for, not a menu). glowBg (0=None/flat tint, 1=Stellar
-// Nebula, 2=Aurora Borealis, 3=Cloudscape) is the enclosing background style
-// for whichever stem holds "glow" — see bgColor() above. ?cfg=<url-encoded
-// JSON> — { slots:{center,plate,orbit,glow}, sizes:{center,plate,orbit}, centerShape:0-8, glowBg:0-3 }
+// ---- per-layer config: up to 5 stems (kick/cymbals/bass/vocals/harmony)
+// can each show their own shape SIMULTANEOUSLY now (spread on a ring, or
+// centered when only one is on) — previously only one could occupy
+// "Center" at a time. plate/orbit/glow stay single-owner (they're plain,
+// undifferentiated looks, not per-stem shapes). glowBg (0=None/flat tint,
+// 1=Stellar Nebula, 2=Aurora Borealis, 3=Cloudscape) is the enclosing
+// background style for whichever stem holds "glow" — see bgColor() above.
+// ?cfg=<url-encoded JSON> — { shapes:[{stem,shape,size}...], plate, plateSize, orbit, orbitSize, glow, glowBg }
 const GLOW_BG_NAMES = ['None','Stellar Nebula','Aurora Borealis','Cloudscape'];
-const DEFAULT_CFG = { slots:{ center:'kick', plate:'bass', orbit:'vocals', glow:'harmony' }, sizes:{ center:1, plate:1, orbit:1 }, centerShape:0, glowBg:0 };
+const DEFAULT_CFG = { shapes:[{stem:'kick', shape:0, size:1}], plate:'bass', plateSize:1, orbit:'vocals', orbitSize:1, glow:'harmony', glowBg:0 };
 let sceneCfg = DEFAULT_CFG;
 {
   const raw = new URLSearchParams(location.search).get('cfg');
@@ -489,16 +519,28 @@ let sceneCfg = DEFAULT_CFG;
     try {
       const parsed = JSON.parse(decodeURIComponent(raw));
       sceneCfg = {
-        slots: Object.assign({}, DEFAULT_CFG.slots, parsed.slots||{}),
-        sizes: Object.assign({}, DEFAULT_CFG.sizes, parsed.sizes||{}),
-        centerShape: (typeof parsed.centerShape === 'number') ? parsed.centerShape : DEFAULT_CFG.centerShape,
+        shapes: Array.isArray(parsed.shapes) ? parsed.shapes.slice(0,5) : DEFAULT_CFG.shapes,
+        plate: parsed.plate || DEFAULT_CFG.plate,
+        plateSize: (typeof parsed.plateSize === 'number') ? parsed.plateSize : DEFAULT_CFG.plateSize,
+        orbit: parsed.orbit || DEFAULT_CFG.orbit,
+        orbitSize: (typeof parsed.orbitSize === 'number') ? parsed.orbitSize : DEFAULT_CFG.orbitSize,
+        glow: parsed.glow || DEFAULT_CFG.glow,
         glowBg: (typeof parsed.glowBg === 'number') ? parsed.glowBg : DEFAULT_CFG.glowBg,
       };
     } catch(_){ /* malformed cfg — fall back to the default mapping rather than breaking the scene */ }
   }
 }
+// fixed ring positions per active shape — centered when solo, spread evenly
+// around a ring when several are on, computed once (the set doesn't change
+// during playback).
+const shapeCount = sceneCfg.shapes.length;
+const SHAPE_RING_R = shapeCount <= 1 ? 0 : 1.9;
+sceneCfg.shapes.forEach((sh, i)=>{
+  const ang = (i / Math.max(1,shapeCount)) * Math.PI*2;
+  sh.pos = new THREE.Vector3(Math.cos(ang)*SHAPE_RING_R, 0, Math.sin(ang)*SHAPE_RING_R);
+});
 const labelWrap = document.getElementById('stemLabels');
-if(labelWrap) labelWrap.innerHTML = `<span><b>●</b> ${sceneCfg.slots.center} → center (${CENTER_SHAPES[sceneCfg.centerShape]||'?'})</span><span><b>●</b> ${sceneCfg.slots.plate} → plate</span><span><b>●</b> ${sceneCfg.slots.orbit} → orbit</span><span><b>●</b> ${sceneCfg.slots.glow} → glow (${GLOW_BG_NAMES[sceneCfg.glowBg]||'?'})</span>`;
+if(labelWrap) labelWrap.innerHTML = (sceneCfg.shapes.map(sh=>`<span><b>●</b> ${sh.stem} → shape (${CENTER_SHAPES[sh.shape]||'?'})</span>`).join('')) + `<span><b>●</b> ${sceneCfg.plate} → plate</span><span><b>●</b> ${sceneCfg.orbit} → orbit</span><span><b>●</b> ${sceneCfg.glow} → glow (${GLOW_BG_NAMES[sceneCfg.glowBg]||'?'})</span>`;
 
 // Kick's Fluff (shape 0) briefly deforms into Gyroid Lattice (shape 1) on a
 // snare hit, then eases back — "fluff is kick and should deform to snare
@@ -514,28 +556,40 @@ const clock = new THREE.Clock();
 function loop(){
   const t = clock.getElapsedTime();
   sampleAll();
-  const centerStem = stems[sceneCfg.slots.center] || stems.drums;
-  const plateStem = stems[sceneCfg.slots.plate] || stems.bass;
-  const orbitStem = stems[sceneCfg.slots.orbit] || stems.vocals;
-  const glowStem = stems[sceneCfg.slots.glow] || stems.harmony;
+  const plateStem = stems[sceneCfg.plate] || stems.bass;
+  const orbitStem = stems[sceneCfg.orbit] || stems.vocals;
+  const glowStem = stems[sceneCfg.glow] || stems.harmony;
 
-  let shapeToShow = sceneCfg.centerShape;
-  if(shapeToShow === 0){
-    if(stems.snare.kick > 0.85 && prevSnareHit <= 0.85) snareFlashUntil = t + 0.3;
-    if(t < snareFlashUntil) shapeToShow = 1;
-  }
+  // kick's Fluff (shape 0) briefly flashes to Gyroid Lattice (shape 1) on a
+  // snare hit — independent of slot assignment, stems.snare is always
+  // sampled from the drums track.
+  if(stems.snare.kick > 0.85 && prevSnareHit <= 0.85) snareFlashUntil = t + 0.3;
   prevSnareHit = stems.snare.kick;
+  const kickIdx = sceneCfg.shapes.findIndex(sh=>sh.stem==='kick');
 
-  const isCrystal = shapeToShow === 8;
+  let isCrystal = false, crystalStem = null, crystalPos = null, crystalSize = 1;
+  sceneCfg.shapes.forEach((sh, i)=>{
+    if(i >= 5) return;
+    const st = stems[sh.stem] || stems.drums;
+    let shapeType = sh.shape;
+    if(i === kickIdx && shapeType === 0 && t < snareFlashUntil) shapeType = 1;
+    if(shapeType === 8){ isCrystal = true; crystalStem = st; crystalPos = sh.pos; crystalSize = sh.size || 1; shapeType = -1; }
+    uniforms.uShapeType.value[i] = shapeType;
+    uniforms.uShapePos.value[i].copy(sh.pos);
+    uniforms.uShapeBass.value[i] = st.bass; uniforms.uShapeMid.value[i] = st.mid; uniforms.uShapeHigh.value[i] = st.high; uniforms.uShapeRms.value[i] = st.rms;
+    uniforms.uShapeSize.value[i] = sh.size || 1;
+  });
+  for(let i=sceneCfg.shapes.length;i<5;i++) uniforms.uShapeType.value[i] = -1;
+
   crystalMesh.visible = isCrystal;
   crystalLight.visible = isCrystal;
-  if(isCrystal) updateCrystalBurst(t, centerStem, sceneCfg.sizes.center);
+  if(isCrystal){
+    crystalMesh.position.copy(crystalPos);
+    updateCrystalBurst(t, crystalStem, crystalSize);
+  }
 
-  uniforms.uCenterShape.value = shapeToShow;
-  uniforms.uCenterBass.value = centerStem.bass; uniforms.uCenterMid.value = centerStem.mid; uniforms.uCenterHigh.value = centerStem.high; uniforms.uCenterRms.value = centerStem.rms;
-  uniforms.uCenterSize.value = sceneCfg.sizes.center;
-  uniforms.uPlateBass.value = plateStem.bass; uniforms.uPlateMid.value = plateStem.mid; uniforms.uPlateSize.value = sceneCfg.sizes.plate;
-  uniforms.uOrbitRms.value = orbitStem.rms; uniforms.uOrbitHigh.value = orbitStem.high; uniforms.uOrbitSize.value = sceneCfg.sizes.orbit;
+  uniforms.uPlateBass.value = plateStem.bass; uniforms.uPlateMid.value = plateStem.mid; uniforms.uPlateSize.value = sceneCfg.plateSize;
+  uniforms.uOrbitRms.value = orbitStem.rms; uniforms.uOrbitHigh.value = orbitStem.high; uniforms.uOrbitSize.value = sceneCfg.orbitSize;
   uniforms.uGlowBg.value = sceneCfg.glowBg || 0;
   uniforms.uGlowMid.value = glowStem.mid; uniforms.uGlowRms.value = glowStem.rms;
   uniforms.uTime.value = t;
@@ -572,7 +626,28 @@ if(qp.get('embed') === 'inline'){
   document.getElementById('fsBtn').style.display = 'none';
 }
 
+function applySceneCfg(cfg){
+  sceneCfg = {
+    shapes: Array.isArray(cfg.shapes) ? cfg.shapes.slice(0,5) : DEFAULT_CFG.shapes,
+    plate: cfg.plate || DEFAULT_CFG.plate,
+    plateSize: (typeof cfg.plateSize === 'number') ? cfg.plateSize : DEFAULT_CFG.plateSize,
+    orbit: cfg.orbit || DEFAULT_CFG.orbit,
+    orbitSize: (typeof cfg.orbitSize === 'number') ? cfg.orbitSize : DEFAULT_CFG.orbitSize,
+    glow: cfg.glow || DEFAULT_CFG.glow,
+    glowBg: (typeof cfg.glowBg === 'number') ? cfg.glowBg : DEFAULT_CFG.glowBg,
+  };
+  const n = sceneCfg.shapes.length;
+  const r = n <= 1 ? 0 : 1.9;
+  sceneCfg.shapes.forEach((sh, i)=>{
+    const ang = (i / Math.max(1,n)) * Math.PI*2;
+    sh.pos = new THREE.Vector3(Math.cos(ang)*r, 0, Math.sin(ang)*r);
+  });
+  if(labelWrap) labelWrap.innerHTML = (sceneCfg.shapes.map(sh=>`<span><b>●</b> ${sh.stem} → shape (${CENTER_SHAPES[sh.shape]||'?'})</span>`).join('')) + `<span><b>●</b> ${sceneCfg.plate} → plate</span><span><b>●</b> ${sceneCfg.orbit} → orbit</span><span><b>●</b> ${sceneCfg.glow} → glow (${GLOW_BG_NAMES[sceneCfg.glowBg]||'?'})</span>`;
+}
+window._sceneApplyCfg = applySceneCfg;
+
 addEventListener('message', e=>{
+  if(e.data?.type === 'cfg' && e.data.cfg){ applySceneCfg(e.data.cfg); }
   if(e.data?.type === 'stems' && e.data.urls){
     Object.keys(e.data.urls).forEach(role=>{
       const mappedRole = role === 'other' ? 'harmony' : role;
