@@ -537,13 +537,13 @@ function applyCfgObj(parsed){
     glow: parsed.glow || null,
     glowBg: (typeof parsed.glowBg === 'number') ? parsed.glowBg : 0,
   };
-  // fixed ring positions per active shape — centered when solo, spread
-  // evenly around a ring when several are on.
-  const n = sceneCfg.shapes.length;
-  const r = n <= 1 ? 0 : 1.9;
-  sceneCfg.shapes.forEach((sh, i)=>{
-    const ang = (i / Math.max(1,n)) * Math.PI*2;
-    sh.pos = new THREE.Vector3(Math.cos(ang)*r, 0, Math.sin(ang)*r);
+  // each shape carries its own explicit X/Y/Z from the composer's position
+  // sliders — draggable per stem, not an automatic layout — falls back to
+  // the origin only if an older/malformed cfg is missing it.
+  sceneCfg.shapes.forEach(sh=>{
+    sh.pos = (sh.pos && typeof sh.pos.x === 'number')
+      ? new THREE.Vector3(sh.pos.x, sh.pos.y||0, sh.pos.z||0)
+      : new THREE.Vector3();
   });
   const lw = document.getElementById('stemLabels');
   if(lw){

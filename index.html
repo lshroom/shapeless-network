@@ -1250,6 +1250,8 @@
             <select class="fsl-shape" hidden onchange="app.setStemShape('kick', this.value)"></select>
             <span class="fsl-snare-label" hidden>on snare hit, shift to</span>
             <select class="fsl-kick-snare" hidden onchange="app.setKickSnareShape(this.value)"><option value="">(no morph)</option></select>
+            <span class="fsl-pos-label" hidden>X</span><input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('kick','x',this.value)">
+            <span class="fsl-pos-label" hidden>Z</span><input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('kick','z',this.value)">
             <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('kick', this.value)" hidden>
             <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
               <option value="0">None (color tint only)</option>
@@ -1268,6 +1270,8 @@
               <option value="glow">Background glow</option>
             </select>
             <select class="fsl-shape" hidden onchange="app.setStemShape('cymbals', this.value)"></select>
+            <span class="fsl-pos-label" hidden>X</span><input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('cymbals','x',this.value)">
+            <span class="fsl-pos-label" hidden>Z</span><input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('cymbals','z',this.value)">
             <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('cymbals', this.value)" hidden>
             <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
               <option value="0">None (color tint only)</option>
@@ -1286,6 +1290,8 @@
               <option value="glow">Background glow</option>
             </select>
             <select class="fsl-shape" hidden onchange="app.setStemShape('bass', this.value)"></select>
+            <span class="fsl-pos-label" hidden>X</span><input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('bass','x',this.value)">
+            <span class="fsl-pos-label" hidden>Z</span><input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('bass','z',this.value)">
             <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('bass', this.value)" hidden>
             <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
               <option value="0">None (color tint only)</option>
@@ -1304,6 +1310,8 @@
               <option value="glow">Background glow</option>
             </select>
             <select class="fsl-shape" hidden onchange="app.setStemShape('vocals', this.value)"></select>
+            <span class="fsl-pos-label" hidden>X</span><input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('vocals','x',this.value)">
+            <span class="fsl-pos-label" hidden>Z</span><input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('vocals','z',this.value)">
             <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('vocals', this.value)" hidden>
             <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
               <option value="0">None (color tint only)</option>
@@ -1322,6 +1330,8 @@
               <option value="glow">Background glow</option>
             </select>
             <select class="fsl-shape" hidden onchange="app.setStemShape('harmony', this.value)"></select>
+            <span class="fsl-pos-label" hidden>X</span><input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('harmony','x',this.value)">
+            <span class="fsl-pos-label" hidden>Z</span><input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('harmony','z',this.value)">
             <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('harmony', this.value)" hidden>
             <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
               <option value="0">None (color tint only)</option>
@@ -2387,8 +2397,19 @@
   // initial shape each stem's dropdown opens on (still changeable) — the
   // exact picks from the original per-stem assignment, now just a default:
   const CENTER_SHAPE_FOR_STEM = { kick:0, cymbals:8, bass:4, vocals:7, harmony:6 };
+  // default X/Z placement — 5 fixed positions spread evenly on a ring, one
+  // per shape-capable stem, independent of how many are actually on, so
+  // turning on any subset already looks spread apart. Draggable per stem
+  // from there (app.setStemPos) — "move them in space wherever I want".
+  const SHAPE_STEM_ORDER = ['kick','cymbals','bass','vocals','harmony'];
+  const DEFAULT_POS = {};
+  SHAPE_STEM_ORDER.forEach((stem,i)=>{
+    const ang = (i/SHAPE_STEM_ORDER.length) * Math.PI*2;
+    DEFAULT_POS[stem] = { x: Math.round(Math.cos(ang)*1.9*10)/10, z: Math.round(Math.sin(ang)*1.9*10)/10 };
+  });
   const DEFAULT_ASSIGN = { drums:'off', kick:'off', cymbals:'off', bass:'off', vocals:'off', harmony:'off' };
-  const stemLayerCfg = { assign: Object.assign({}, DEFAULT_ASSIGN), sizes: { drums:1, kick:1, cymbals:1, bass:1, vocals:1, harmony:1 }, shapeChoice: Object.assign({}, CENTER_SHAPE_FOR_STEM), kickSnareShape: null, glowBg: 0 };
+  function clonePos(){ const o={}; SHAPE_STEM_ORDER.forEach(s=>o[s]=Object.assign({},DEFAULT_POS[s])); return o; }
+  const stemLayerCfg = { assign: Object.assign({}, DEFAULT_ASSIGN), sizes: { drums:1, kick:1, cymbals:1, bass:1, vocals:1, harmony:1 }, shapeChoice: Object.assign({}, CENTER_SHAPE_FOR_STEM), kickSnareShape: null, pos: clonePos(), glowBg: 0 };
   function populateShapeSelects(){
     document.querySelectorAll('.fsl-shape').forEach(sel=>{
       sel.innerHTML = SHAPE_NAMES.map((n,i)=>`<option value="${i}">${n}</option>`).join('');
@@ -2411,6 +2432,7 @@
     return {
       effect: row.querySelector('.fsl-effect'), size: row.querySelector('.fsl-size'), bg: row.querySelector('.fsl-bg'),
       shape: row.querySelector('.fsl-shape'), snareLabel: row.querySelector('.fsl-snare-label'), snareShape: row.querySelector('.fsl-kick-snare'),
+      posX: row.querySelector('.fsl-pos-x'), posZ: row.querySelector('.fsl-pos-z'), posLabels: row.querySelectorAll('.fsl-pos-label'),
     };
   }
   function resetStemLayerCfg(){
@@ -2418,9 +2440,10 @@
     stemLayerCfg.sizes = { drums:1, kick:1, cymbals:1, bass:1, vocals:1, harmony:1 };
     stemLayerCfg.shapeChoice = Object.assign({}, CENTER_SHAPE_FOR_STEM);
     stemLayerCfg.kickSnareShape = null;
+    stemLayerCfg.pos = clonePos();
     stemLayerCfg.glowBg = 0;
     STEMS.forEach(stem=>{
-      const { effect, size, bg, shape, snareLabel, snareShape } = stemLayerRowEls(stem);
+      const { effect, size, bg, shape, snareLabel, snareShape, posX, posZ, posLabels } = stemLayerRowEls(stem);
       const val = stemLayerCfg.assign[stem];
       if(effect) effect.value = val;
       if(size){ size.value = 1; size.hidden = (val === 'off' || val === 'glow'); }
@@ -2428,6 +2451,9 @@
       if(shape){ shape.value = String(stemLayerCfg.shapeChoice[stem] || 0); shape.hidden = (val !== 'center'); }
       if(snareShape){ snareShape.value = ''; snareShape.hidden = (val !== 'center'); }
       if(snareLabel) snareLabel.hidden = (val !== 'center');
+      if(posX && DEFAULT_POS[stem]){ posX.value = DEFAULT_POS[stem].x; posX.hidden = (val !== 'center'); }
+      if(posZ && DEFAULT_POS[stem]){ posZ.value = DEFAULT_POS[stem].z; posZ.hidden = (val !== 'center'); }
+      if(posLabels) posLabels.forEach(l=>{ l.hidden = (val !== 'center'); });
     });
   }
   function deriveSceneCfg(){
@@ -2442,7 +2468,8 @@
       if(!slotName || slotName === 'off') return;
       if(slotName === 'center'){
         if(shapes.length < 5){
-          const entry = { stem, shape: (stemLayerCfg.shapeChoice[stem] != null ? stemLayerCfg.shapeChoice[stem] : 0), size: stemLayerCfg.sizes[stem] };
+          const p = stemLayerCfg.pos[stem] || {x:0,z:0};
+          const entry = { stem, shape: (stemLayerCfg.shapeChoice[stem] != null ? stemLayerCfg.shapeChoice[stem] : 0), size: stemLayerCfg.sizes[stem], pos: { x:p.x, y:0, z:p.z } };
           if(stem === 'kick' && stemLayerCfg.kickSnareShape != null) entry.snareShape = stemLayerCfg.kickSnareShape;
           shapes.push(entry);
         }
@@ -8171,16 +8198,20 @@
         });
       }
       stemLayerCfg.assign[stem] = val;
-      const { size, bg, shape, snareLabel, snareShape } = stemLayerRowEls(stem);
+      const { size, bg, shape, snareLabel, snareShape, posX, posZ, posLabels } = stemLayerRowEls(stem);
       if(size) size.hidden = (val === 'off' || val === 'glow');
       if(bg) bg.hidden = (val !== 'glow');
       if(shape) shape.hidden = (val !== 'center');
       if(snareLabel) snareLabel.hidden = (val !== 'center');
       if(snareShape) snareShape.hidden = (val !== 'center');
+      if(posX) posX.hidden = (val !== 'center');
+      if(posZ) posZ.hidden = (val !== 'center');
+      if(posLabels) posLabels.forEach(l=>{ l.hidden = (val !== 'center'); });
       pushPreviewCfg();
     },
     setStemEffectSize(stem, val){ stemLayerCfg.sizes[stem] = parseFloat(val); pushPreviewCfg(); },
     setStemShape(stem, val){ stemLayerCfg.shapeChoice[stem] = parseInt(val, 10); pushPreviewCfg(); },
+    setStemPos(stem, axis, val){ if(!stemLayerCfg.pos[stem]) stemLayerCfg.pos[stem] = {x:0,z:0}; stemLayerCfg.pos[stem][axis] = parseFloat(val); pushPreviewCfg(); },
     setKickSnareShape(val){ stemLayerCfg.kickSnareShape = (val === '' ? null : parseInt(val, 10)); pushPreviewCfg(); },
     setGlowBg(val){ stemLayerCfg.glowBg = parseInt(val, 10); pushPreviewCfg(); },
     async openScenePreview(){
