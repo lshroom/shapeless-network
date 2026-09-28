@@ -89,7 +89,10 @@ import { GLSL, raymarchQuad, pushAudio } from '/h5555/core.js';
 // ---- renderer / scene / camera ----
 const canvas = document.getElementById('stage');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+// Confirmed heavy in real use once shape count went from 8 to 21 — capping
+// pixel ratio lower cuts every per-pixel cost (raymarch steps × normal
+// samples × shape dispatch) roughly quadratically with resolution.
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
 renderer.setClearColor(0x05060a, 1);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(55, 1, 0.01, 200);
@@ -201,6 +204,7 @@ ${GLSL.palette}
 uniform int uCur, uNext;
 uniform float uMorph;
 uniform vec3 uJitter;
+uniform int uMaxSteps, uNormalSamples;
 
 float deFluff(vec3 p){
   float n = snoise(p*2.2+uTime*0.15) + 0.5*snoise(p*4.4-uTime*0.1);
@@ -452,31 +456,29 @@ vec3 shapeColor(int id){
 }
 vec3 render(vec3 ro, vec3 rd){
   float t=0.0; vec3 col=vec3(0.0);
-  for(int i=0;i<100;i++){
+  // ANGLE (Chrome's Windows GLSL->HLSL->D3D11 translator) is documented to
+  // aggressively unroll loops whose trip count it can prove at compile time
+  // — for a loop whose body contains a 21-way branch, a 64x constant-bound
+  // loop means the compiler may be duplicating ALL 21 shapes' code 64 times
+  // over. Looping against a uniform instead of a literal removes that proof,
+  // which is the standard fix raymarchers use for exactly this. This is
+  // very likely the dominant real cost, bigger than the earlier call-site
+  // fix (that one only touched the 4-6 normal samples, not this 64x outer
+  // loop that wraps the entire shape dispatch).
+  for(int i=0;i<uMaxSteps;i++){
     vec3 p=ro+rd*t; float d=de(p);
-    if(d<0.0015){
-      // 6 individual de(p+e...) call sites is a documented WebGL compile-time
-      // bomb for exactly this shader shape (a big branchy distance function
-      // called from several unique spots) — one real writeup measured 2s to
-      // 0.2s just from moving this into a loop with a single call site. Same
-      // 6 samples, one call site instead of six.
-      float nx=0.0, ny=0.0, nz=0.0;
-      for(int gi=0;gi<6;gi++){
-        vec3 e=vec3(0.0); float sgn=1.0;
-        if(gi==0){ e=vec3(0.002,0.0,0.0); sgn=1.0; }
-        else if(gi==1){ e=vec3(0.002,0.0,0.0); sgn=-1.0; }
-        else if(gi==2){ e=vec3(0.0,0.002,0.0); sgn=1.0; }
-        else if(gi==3){ e=vec3(0.0,0.002,0.0); sgn=-1.0; }
-        else if(gi==4){ e=vec3(0.0,0.0,0.002); sgn=1.0; }
-        else { e=vec3(0.0,0.0,0.002); sgn=-1.0; }
-        float dsamp=de(p+sgn*e);
-        if(gi==0||gi==1) nx+=dsamp*sgn; else if(gi==2||gi==3) ny+=dsamp*sgn; else nz+=dsamp*sgn;
+    if(d<0.002){
+      vec3 n=vec3(0.0);
+      vec3 t0=vec3(1.0,1.0,1.0), t1=vec3(1.0,-1.0,-1.0), t2=vec3(-1.0,1.0,-1.0), t3=vec3(-1.0,-1.0,1.0);
+      for(int gi=0;gi<uNormalSamples;gi++){
+        vec3 e = (gi==0)?t0 : (gi==1)?t1 : (gi==2)?t2 : t3;
+        n += e * de(p+e*0.002);
       }
-      vec3 n=normalize(vec3(nx,ny,nz));
+      n=normalize(n);
       float diff=max(dot(n,normalize(vec3(0.6,0.8,0.5))),0.0);
       float fres=pow(1.0-max(dot(n,-rd),0.0),2.5);
       vec3 baseCol=mix(shapeColor(uCur),shapeColor(uNext),smoothstep(0.0,1.0,uMorph));
-      float ao=1.0-float(i)/100.0;
+      float ao=1.0-float(i)/float(uMaxSteps);
       col=baseCol*(0.28+0.72*diff)*ao+fres*0.4*baseCol;
       break;
     }
@@ -497,7 +499,7 @@ ctlBtn.addEventListener('click', ()=>{ panel.hidden = !panel.hidden; ctlBtn.clas
 let switchIntervalSec = 14;
 document.getElementById('switchIntervalCtl').addEventListener('input', e=>{ switchIntervalSec = +e.target.value; });
 
-const { mesh, uniforms } = raymarchQuad(MORPH_FRAG, { uCur:{value:0}, uNext:{value:0}, uMorph:{value:0}, uJitter:{value:new THREE.Vector3()} });
+const { mesh, uniforms } = raymarchQuad(MORPH_FRAG, { uCur:{value:0}, uNext:{value:0}, uMorph:{value:0}, uJitter:{value:new THREE.Vector3()}, uMaxSteps:{value:64}, uNormalSamples:{value:4} });
 scene.add(mesh);
 camera.position.set(0, 0, 6);
 const BASE_FOV = 55;
@@ -603,9 +605,19 @@ function loop(){
 // Unresponsive" risk — for however long the real compile takes on this
 // device, instead of a silent frozen canvas. Falls back to the blocking
 // compile() on anything that doesn't support it.
+// compileAsync's returned promise never resolving at all — seen on a real
+// browser where the extension either isn't available or three's fallback
+// path stalls — left this stuck on "Preparing visuals…" forever even
+// though everything else (audio) had already started, since nothing here
+// was waiting on this promise. A hard timeout guarantees the page always
+// moves on: first real frame just pays whatever the compile cost is then,
+// same as the old always-worked lazy-compile-on-first-frame behavior.
+let precompileSettled = false;
+const startOnce = () => { if (precompileSettled) return; precompileSettled = true; document.getElementById('prep').classList.add('hidden'); loop(); };
 (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera)))
   .catch(e => console.error('shader precompile failed:', e))
-  .finally(() => { document.getElementById('prep').classList.add('hidden'); loop(); });
+  .finally(startOnce);
+setTimeout(startOnce, 4000);
 
 // ---- feed embed: ?song=<url>[&muted=1] + postMessage({type:'song'|'setActive'|'mute'}) ----
 const songParam = new URLSearchParams(location.search).get('song');
