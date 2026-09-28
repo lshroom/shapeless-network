@@ -421,6 +421,12 @@
   .feed-stem-picker{ display:flex; flex-direction:column; gap:4px; font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
   .feed-stem-picker input{ font-size:11px; color:var(--ink); max-width:150px; }
   #feed-post-stems-status{ flex-basis:100%; }
+  .feed-stems-auto{ flex-basis:100%; display:flex; align-items:center; gap:8px; }
+  .feed-stems-layers{ flex-basis:100%; display:flex; flex-direction:column; gap:6px; margin-top:4px; padding-top:8px; border-top:1px solid var(--line); }
+  .feed-stems-layer-row{ display:grid; grid-template-columns:88px 1fr 1fr 80px; align-items:center; gap:6px; }
+  .fsl-label{ font-size:11px; color:var(--muted); }
+  .feed-stems-layer-row select{ background:var(--surface-2); border:1px solid var(--line); border-radius:6px; padding:5px 6px; color:var(--text); font-size:11.5px; font-family:inherit; }
+  .feed-stems-layer-row input[type=range]{ accent-color:var(--accent); width:100%; }
   .feed-item{ position:relative; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
   .feed-item-activity{ cursor:pointer; border-left:3px solid var(--accent); }
   .feed-item-head{ display:flex; align-items:center; gap:9px; margin-bottom:8px; }
@@ -1173,11 +1179,50 @@
         <label class="feed-stems-toggle"><input type="checkbox" id="feed-post-stems-toggle" onchange="app.toggleStemsMode(this.checked)"> Full (4 stems)</label>
       </div>
       <div class="feed-stems-pickers" id="feed-post-stems-pickers" hidden>
+        <div class="feed-stems-auto" id="feed-stems-auto" hidden>
+          <button class="btn btn-ghost btn-sm" id="feed-stems-auto-btn" onclick="app.autoSplitStems()">Split automatically (local)</button>
+          <span class="pad-hint" id="feed-stems-auto-status"></span>
+        </div>
         <label class="feed-stem-picker">Vocals<input type="file" accept="audio/*" id="feed-stem-vocals" onchange="app.previewStemFile(this)"></label>
         <label class="feed-stem-picker">Drums<input type="file" accept="audio/*" id="feed-stem-drums" onchange="app.previewStemFile(this)"></label>
         <label class="feed-stem-picker">Bass<input type="file" accept="audio/*" id="feed-stem-bass" onchange="app.previewStemFile(this)"></label>
         <label class="feed-stem-picker">Harmony<input type="file" accept="audio/*" id="feed-stem-other" onchange="app.previewStemFile(this)"></label>
-        <span class="pad-hint" id="feed-post-stems-status">split the song into vocals/drums/bass/harmony first (your stem-splitter app), then add all 4 here</span>
+        <span class="pad-hint" id="feed-post-stems-status">split the song into vocals/drums/bass/harmony first (your stem-splitter app, or the button above if it's running), then add all 4 here</span>
+        <div class="feed-stems-layers" id="feed-stems-layers">
+          <div class="feed-stems-layer-row">
+            <span class="fsl-label">Center shape</span>
+            <select id="fsl-slot-center" onchange="app.setStemLayerSlot('center', this.value)">
+              <option value="drums">Drums</option><option value="bass">Bass</option><option value="vocals">Vocals</option><option value="harmony">Harmony</option>
+            </select>
+            <select id="fsl-shape-center" onchange="app.setStemLayerShape(this.value)">
+              <option value="auto">Auto-morphs on hits</option><option value="0">Fluff</option><option value="1">Gyroid</option><option value="2">Mandelbulb</option>
+            </select>
+            <input type="range" id="fsl-size-center" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemLayerSize('center', this.value)">
+          </div>
+          <div class="feed-stems-layer-row">
+            <span class="fsl-label">Plate</span>
+            <select id="fsl-slot-plate" onchange="app.setStemLayerSlot('plate', this.value)">
+              <option value="bass">Bass</option><option value="drums">Drums</option><option value="vocals">Vocals</option><option value="harmony">Harmony</option>
+            </select>
+            <span></span>
+            <input type="range" id="fsl-size-plate" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemLayerSize('plate', this.value)">
+          </div>
+          <div class="feed-stems-layer-row">
+            <span class="fsl-label">Orbit</span>
+            <select id="fsl-slot-orbit" onchange="app.setStemLayerSlot('orbit', this.value)">
+              <option value="vocals">Vocals</option><option value="drums">Drums</option><option value="bass">Bass</option><option value="harmony">Harmony</option>
+            </select>
+            <span></span>
+            <input type="range" id="fsl-size-orbit" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemLayerSize('orbit', this.value)">
+          </div>
+          <div class="feed-stems-layer-row">
+            <span class="fsl-label">Background glow</span>
+            <select id="fsl-slot-glow" onchange="app.setStemLayerSlot('glow', this.value)">
+              <option value="harmony">Harmony</option><option value="drums">Drums</option><option value="bass">Bass</option><option value="vocals">Vocals</option>
+            </select>
+            <span></span><span></span>
+          </div>
+        </div>
       </div>
       <div class="feed-post-progress" id="feed-post-progress" hidden>
         <div class="feed-post-progress-track"><div class="feed-post-progress-bar" id="feed-post-progress-bar"></div></div>
@@ -1971,6 +2016,7 @@
         + '&bass=' + encodeURIComponent(p.media.stems.bass)
         + '&other=' + encodeURIComponent(p.media.stems.other)
         + '&muted=1&embed=inline';
+      if(p.media.stemsCfg) src += '&cfg=' + encodeURIComponent(JSON.stringify(p.media.stemsCfg));
     } else {
       const sched = Array.isArray(p.media.effectSchedule) && p.media.effectSchedule.length ? p.media.effectSchedule : null;
       const effect = sched ? sched[0].page : (['sphere','field'].includes(p.media.effect) ? p.media.effect : 'cube');
@@ -2202,6 +2248,79 @@
     if(!el) return;
     const n = stemsPickedCount();
     el.textContent = n === 4 ? 'all 4 stems ready' : `${n}/4 stems added — vocals, drums, bass, and harmony (the rest of the song) all need a file`;
+  }
+  // Per-layer scene config — which stem feeds which visual slot, how big each
+  // one renders, and which shape the center uses. Defaults match scene.html's
+  // own DEFAULT_CFG so an unmodified post looks the same either way.
+  const stemLayerCfg = { slots:{ center:'drums', plate:'bass', orbit:'vocals', glow:'harmony' }, sizes:{ center:1, plate:1, orbit:1 }, centerShape:'auto' };
+  function resetStemLayerCfg(){
+    stemLayerCfg.slots = { center:'drums', plate:'bass', orbit:'vocals', glow:'harmony' };
+    stemLayerCfg.sizes = { center:1, plate:1, orbit:1 };
+    stemLayerCfg.centerShape = 'auto';
+    ['center','plate','orbit','glow'].forEach(slot=>{ const el = document.getElementById('fsl-slot-'+slot); if(el) el.value = stemLayerCfg.slots[slot]; });
+    ['center','plate','orbit'].forEach(slot=>{ const el = document.getElementById('fsl-size-'+slot); if(el) el.value = 1; });
+    const shapeEl = document.getElementById('fsl-shape-center'); if(shapeEl) shapeEl.value = 'auto';
+  }
+  // The local stem-splitter (tools/stem_server.py) — runs Demucs on the
+  // uploader's own machine at http://127.0.0.1:5599, per shapeless-1974's
+  // "🔪 Stems" button. If it's running, offer to use it here too instead of
+  // making people split the song by hand and upload 4 files themselves.
+  const STEM_SERVER = 'http://127.0.0.1:5599';
+  async function checkLocalStemServer(){
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(()=>ctrl.abort(), 1200);
+      const res = await fetch(STEM_SERVER + '/health', { signal: ctrl.signal });
+      clearTimeout(timer);
+      return res.ok;
+    } catch(_){ return false; }
+  }
+  // Demucs' htdemucs_6s model splits into 6 stems (vocals/drums/bass/guitar/
+  // piano/other) — guitar+piano+other are mixed down client-side into one
+  // "harmony" track via an OfflineAudioContext, since that's the 4th part the
+  // scene actually wants and there's no reason to make the user do that mix
+  // by hand.
+  async function decodeAudioUrl(actx, url){
+    const resp = await fetch(url);
+    const buf = await resp.arrayBuffer();
+    return actx.decodeAudioData(buf);
+  }
+  async function mixBuffersToWavFile(buffers, filename){
+    const channels = Math.max(...buffers.map(b=>b.numberOfChannels));
+    const length = Math.max(...buffers.map(b=>b.length));
+    const sampleRate = buffers[0].sampleRate;
+    const octx = new OfflineAudioContext(channels, length, sampleRate);
+    buffers.forEach(buf=>{
+      const src = octx.createBufferSource();
+      src.buffer = buf;
+      src.connect(octx.destination);
+      src.start(0);
+    });
+    const mixed = await octx.startRendering();
+    return new File([audioBufferToWav(mixed)], filename, { type:'audio/wav' });
+  }
+  function audioBufferToWav(buf){
+    const numCh = buf.numberOfChannels, len = buf.length, sr = buf.sampleRate;
+    const bytesPerSample = 2, blockAlign = numCh*bytesPerSample;
+    const dataSize = len*blockAlign;
+    const out = new ArrayBuffer(44+dataSize);
+    const view = new DataView(out);
+    const writeStr = (off,s)=>{ for(let i=0;i<s.length;i++) view.setUint8(off+i, s.charCodeAt(i)); };
+    writeStr(0,'RIFF'); view.setUint32(4, 36+dataSize, true); writeStr(8,'WAVE');
+    writeStr(12,'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+    view.setUint16(22, numCh, true); view.setUint32(24, sr, true);
+    view.setUint32(28, sr*blockAlign, true); view.setUint16(32, blockAlign, true); view.setUint16(34, 16, true);
+    writeStr(36,'data'); view.setUint32(40, dataSize, true);
+    const chans = []; for(let c=0;c<numCh;c++) chans.push(buf.getChannelData(c));
+    let off = 44;
+    for(let i=0;i<len;i++){
+      for(let c=0;c<numCh;c++){
+        const s = Math.max(-1, Math.min(1, chans[c][i]));
+        view.setInt16(off, s < 0 ? s*0x8000 : s*0x7FFF, true);
+        off += 2;
+      }
+    }
+    return out;
   }
   let scheduleSelectedMarkerIdx = 0;
   let scheduleDuration = 0;
@@ -7689,21 +7808,84 @@
         document.getElementById('feed-post-stems-toggle').checked = false;
         document.getElementById('feed-post-stems-pickers').hidden = true;
         document.getElementById('feed-post-schedule-btn').hidden = false;
+        resetStemLayerCfg();
       }
     },
-    toggleStemsMode(on){
+    async toggleStemsMode(on){
       stemsMode = on;
       document.getElementById('feed-post-stems-pickers').hidden = !on;
       // Stems mode replaces the switch-point timeline entirely — the 4-stem
       // scene plays all 4 at once, there's nothing to schedule switches on.
       document.getElementById('feed-post-schedule-btn').hidden = on;
       renderStemsStatus();
+      if(!on) return;
+      const autoRow = document.getElementById('feed-stems-auto');
+      const autoStatus = document.getElementById('feed-stems-auto-status');
+      autoStatus.textContent = 'checking for your local splitter…';
+      autoRow.hidden = false;
+      const found = await checkLocalStemServer();
+      if(found){
+        autoStatus.textContent = 'local splitter found — one click instead of 4 files';
+      } else {
+        autoRow.hidden = true;
+      }
     },
     previewStemFile(input){
       const role = input.id.replace('feed-stem-', '');
       stemFiles[role] = input.files[0] || null;
       renderStemsStatus();
     },
+    async autoSplitStems(){
+      const songFile = document.getElementById('feed-post-song').files[0];
+      if(!songFile){ toast('Pick the song file first.'); return; }
+      const btn = document.getElementById('feed-stems-auto-btn');
+      const status = document.getElementById('feed-stems-auto-status');
+      btn.disabled = true;
+      try {
+        status.textContent = 'sending to your local splitter…';
+        const form = new FormData();
+        form.append('audio', songFile);
+        const sepRes = await fetch(STEM_SERVER + '/separate', { method:'POST', body: form });
+        if(!sepRes.ok) throw new Error('local splitter refused the file');
+        const { job_id } = await sepRes.json();
+        let job;
+        for(;;){
+          await new Promise(r=>setTimeout(r, 1500));
+          const statusRes = await fetch(STEM_SERVER + '/status/' + job_id);
+          job = await statusRes.json();
+          if(job.status === 'done') break;
+          if(job.status === 'error') throw new Error(job.error || 'splitting failed');
+          status.textContent = `splitting… ${Math.round((job.progress||0)*100)}%`;
+        }
+        status.textContent = 'mixing harmony track…';
+        const byName = {}; job.stems.forEach(s=>{ byName[s.name] = STEM_SERVER + s.url; });
+        const need = ['vocals','drums','bass','guitar','piano','other'];
+        if(need.some(n=>!byName[n])) throw new Error('the local splitter did not return all 6 stems');
+        const actx = new (window.AudioContext || window.webkitAudioContext)();
+        try {
+          const [vocalsBuf, drumsBuf, bassBuf, guitarBuf, pianoBuf, otherBuf] = await Promise.all(
+            need.map(n=>decodeAudioUrl(actx, byName[n]))
+          );
+          const base = songFile.name.replace(/\.[^.]+$/, '');
+          stemFiles.vocals = new File([audioBufferToWav(vocalsBuf)], base+'_vocals.wav', { type:'audio/wav' });
+          stemFiles.drums = new File([audioBufferToWav(drumsBuf)], base+'_drums.wav', { type:'audio/wav' });
+          stemFiles.bass = new File([audioBufferToWav(bassBuf)], base+'_bass.wav', { type:'audio/wav' });
+          stemFiles.other = await mixBuffersToWavFile([guitarBuf, pianoBuf, otherBuf], base+'_harmony.wav');
+        } finally { actx.close(); }
+        renderStemsStatus();
+        status.textContent = 'split complete — all 4 stems ready below';
+        toast('Split locally into 4 stems.');
+      } catch(e){
+        console.error('autoSplitStems failed:', e);
+        status.textContent = '';
+        toast('Local split failed: ' + (e?.message || 'unknown error') + ' — add the 4 files by hand instead.');
+      } finally {
+        btn.disabled = false;
+      }
+    },
+    setStemLayerSlot(slot, role){ stemLayerCfg.slots[slot] = role; },
+    setStemLayerShape(val){ stemLayerCfg.centerShape = val === 'auto' ? 'auto' : parseInt(val, 10); },
+    setStemLayerSize(slot, val){ stemLayerCfg.sizes[slot] = parseFloat(val); },
     async submitFeedPost(){
       if(!requireAuth()) return;
       const text = (document.getElementById('feed-post-input').value||'').trim();
@@ -7724,7 +7906,7 @@
             const uploaded = await SB.uploadMedia(uploadFile);
             stemUrls[role] = uploaded.url;
           }
-          media = { kind:'audio', url: stemUrls.drums, name: stemFiles.drums.name, effect:'scene', stems: stemUrls };
+          media = { kind:'audio', url: stemUrls.drums, name: stemFiles.drums.name, effect:'scene', stems: stemUrls, stemsCfg: JSON.parse(JSON.stringify(stemLayerCfg)) };
         } else if(file){
           // The timeline editor already uploaded this exact file to get a
           // real URL for its own preview — reuse that instead of uploading twice.
@@ -7762,6 +7944,7 @@
         document.getElementById('feed-post-stems-toggle').checked = false;
         document.getElementById('feed-post-stems-pickers').hidden = true;
         ['feed-stem-vocals','feed-stem-drums','feed-stem-bass','feed-stem-other'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+        resetStemLayerCfg();
         hideProgress();
         renderFeed();
         toast('Posted.');
@@ -8059,6 +8242,7 @@
           + '&bass=' + encodeURIComponent(p.media.stems.bass)
           + '&other=' + encodeURIComponent(p.media.stems.other)
           + '&active=1';
+        if(p.media.stemsCfg) src += '&cfg=' + encodeURIComponent(JSON.stringify(p.media.stemsCfg));
         if(feedPlayerStartTime > 1) src += '&t=' + feedPlayerStartTime.toFixed(2);
         sceneFrame.src = src;
         sceneFrame.hidden = false;
