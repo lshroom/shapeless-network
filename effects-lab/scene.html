@@ -210,6 +210,7 @@ ${GLSL.palette}
 uniform int uShapeType[5], uGlowBg;
 uniform vec3 uShapePos[5];
 uniform float uShapeBass[5], uShapeMid[5], uShapeHigh[5], uShapeRms[5], uShapeSize[5];
+uniform bool uPlateOn, uOrbitOn;
 uniform float uPlateBass, uPlateMid, uPlateSize;
 uniform float uOrbitRms, uOrbitHigh, uOrbitSize;
 uniform float uGlowMid, uGlowRms;
@@ -317,6 +318,7 @@ float deShapes(vec3 p){
 // Plate and Orbit are plain fixed looks (no per-shape picker) — whichever
 // stem is assigned there just drives this one look's motion/size.
 float dePlate(vec3 p){
+  if(!uPlateOn) return 1000.0;
   vec3 q = p - vec3(0.0, -1.55, 0.0);
   float d = length(q.xz)/max(0.35,uPlateSize);
   float h = sin(d*5.0 - uTime*3.0*(0.5+uPlateBass)) / (1.0+d*0.6);
@@ -324,6 +326,7 @@ float dePlate(vec3 p){
   return max(q.y - h, d - 2.0);
 }
 float deOrbit(vec3 p){
+  if(!uOrbitOn) return 1000.0;
   float orbitR = 1.6 + uOrbitRms*0.6;
   float ang = uTime*0.6;
   vec3 c = vec3(cos(ang)*orbitR, 1.3+sin(uTime*1.7)*0.15+uOrbitRms*0.5, sin(ang)*orbitR);
@@ -444,8 +447,8 @@ const { mesh, uniforms } = raymarchQuad(SCENE_FRAG, {
   uShapeType:{value:[-1,-1,-1,-1,-1]},
   uShapePos:{value:[new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3()]},
   uShapeBass:{value:[0,0,0,0,0]}, uShapeMid:{value:[0,0,0,0,0]}, uShapeHigh:{value:[0,0,0,0,0]}, uShapeRms:{value:[0,0,0,0,0]}, uShapeSize:{value:[1,1,1,1,1]},
-  uPlateBass:{value:0}, uPlateMid:{value:0}, uPlateSize:{value:1},
-  uOrbitRms:{value:0}, uOrbitHigh:{value:0}, uOrbitSize:{value:1},
+  uPlateOn:{value:false}, uPlateBass:{value:0}, uPlateMid:{value:0}, uPlateSize:{value:1},
+  uOrbitOn:{value:false}, uOrbitRms:{value:0}, uOrbitHigh:{value:0}, uOrbitSize:{value:1},
   uGlowBg:{value:0}, uGlowMid:{value:0}, uGlowRms:{value:0},
 });
 scene.add(mesh);
@@ -509,45 +512,50 @@ function updateCrystalBurst(t, stem, size){
 // undifferentiated looks, not per-stem shapes). glowBg (0=None/flat tint,
 // 1=Stellar Nebula, 2=Aurora Borealis, 3=Cloudscape) is the enclosing
 // background style for whichever stem holds "glow" — see bgColor() above.
-// ?cfg=<url-encoded JSON> — { shapes:[{stem,shape,size}...], plate, plateSize, orbit, orbitSize, glow, glowBg }
+// ?cfg=<url-encoded JSON> — { shapes:[{stem,shape,snareShape?,size}...], plate, plateSize, orbit, orbitSize, glow, glowBg }
+// "off" means literally nothing — no fallback defaults. A stem's shape
+// entry can carry snareShape: while that stem's row is Kick, picking a
+// second shape morphs the SAME object into it on every snare hit, then
+// eases back — kick and snare share one shape, not two separate objects.
 const GLOW_BG_NAMES = ['None','Stellar Nebula','Aurora Borealis','Cloudscape'];
-const DEFAULT_CFG = { shapes:[{stem:'kick', shape:0, size:1}], plate:'bass', plateSize:1, orbit:'vocals', orbitSize:1, glow:'harmony', glowBg:0 };
+const DEFAULT_CFG = { shapes:[], plate:null, plateSize:1, orbit:null, orbitSize:1, glow:null, glowBg:0 };
 let sceneCfg = DEFAULT_CFG;
 {
   const raw = new URLSearchParams(location.search).get('cfg');
   if(raw){
-    try {
-      const parsed = JSON.parse(decodeURIComponent(raw));
-      sceneCfg = {
-        shapes: Array.isArray(parsed.shapes) ? parsed.shapes.slice(0,5) : DEFAULT_CFG.shapes,
-        plate: parsed.plate || DEFAULT_CFG.plate,
-        plateSize: (typeof parsed.plateSize === 'number') ? parsed.plateSize : DEFAULT_CFG.plateSize,
-        orbit: parsed.orbit || DEFAULT_CFG.orbit,
-        orbitSize: (typeof parsed.orbitSize === 'number') ? parsed.orbitSize : DEFAULT_CFG.orbitSize,
-        glow: parsed.glow || DEFAULT_CFG.glow,
-        glowBg: (typeof parsed.glowBg === 'number') ? parsed.glowBg : DEFAULT_CFG.glowBg,
-      };
-    } catch(_){ /* malformed cfg — fall back to the default mapping rather than breaking the scene */ }
+    try { applyCfgObj(JSON.parse(decodeURIComponent(raw))); }
+    catch(_){ /* malformed cfg — leave the scene empty rather than guessing */ }
   }
 }
-// fixed ring positions per active shape — centered when solo, spread evenly
-// around a ring when several are on, computed once (the set doesn't change
-// during playback).
-const shapeCount = sceneCfg.shapes.length;
-const SHAPE_RING_R = shapeCount <= 1 ? 0 : 1.9;
-sceneCfg.shapes.forEach((sh, i)=>{
-  const ang = (i / Math.max(1,shapeCount)) * Math.PI*2;
-  sh.pos = new THREE.Vector3(Math.cos(ang)*SHAPE_RING_R, 0, Math.sin(ang)*SHAPE_RING_R);
-});
-const labelWrap = document.getElementById('stemLabels');
-if(labelWrap) labelWrap.innerHTML = (sceneCfg.shapes.map(sh=>`<span><b>●</b> ${sh.stem} → shape (${CENTER_SHAPES[sh.shape]||'?'})</span>`).join('')) + `<span><b>●</b> ${sceneCfg.plate} → plate</span><span><b>●</b> ${sceneCfg.orbit} → orbit</span><span><b>●</b> ${sceneCfg.glow} → glow (${GLOW_BG_NAMES[sceneCfg.glowBg]||'?'})</span>`;
+function applyCfgObj(parsed){
+  sceneCfg = {
+    shapes: Array.isArray(parsed.shapes) ? parsed.shapes.slice(0,5) : [],
+    plate: parsed.plate || null,
+    plateSize: (typeof parsed.plateSize === 'number') ? parsed.plateSize : 1,
+    orbit: parsed.orbit || null,
+    orbitSize: (typeof parsed.orbitSize === 'number') ? parsed.orbitSize : 1,
+    glow: parsed.glow || null,
+    glowBg: (typeof parsed.glowBg === 'number') ? parsed.glowBg : 0,
+  };
+  // fixed ring positions per active shape — centered when solo, spread
+  // evenly around a ring when several are on.
+  const n = sceneCfg.shapes.length;
+  const r = n <= 1 ? 0 : 1.9;
+  sceneCfg.shapes.forEach((sh, i)=>{
+    const ang = (i / Math.max(1,n)) * Math.PI*2;
+    sh.pos = new THREE.Vector3(Math.cos(ang)*r, 0, Math.sin(ang)*r);
+  });
+  const lw = document.getElementById('stemLabels');
+  if(lw){
+    const parts = sceneCfg.shapes.map(sh=>`<span><b>●</b> ${sh.stem} → shape (${CENTER_SHAPES[sh.shape]||'?'}${sh.snareShape!=null?' ⇄ '+CENTER_SHAPES[sh.snareShape]:''})</span>`);
+    if(sceneCfg.plate) parts.push(`<span><b>●</b> ${sceneCfg.plate} → plate</span>`);
+    if(sceneCfg.orbit) parts.push(`<span><b>●</b> ${sceneCfg.orbit} → orbit</span>`);
+    if(sceneCfg.glow) parts.push(`<span><b>●</b> ${sceneCfg.glow} → glow (${GLOW_BG_NAMES[sceneCfg.glowBg]||'?'})</span>`);
+    lw.innerHTML = parts.join('') || '<span>nothing on yet — turn something on in the composer</span>';
+  }
+}
+applyCfgObj(sceneCfg);
 
-// Kick's Fluff (shape 0) briefly deforms into Gyroid Lattice (shape 1) on a
-// snare hit, then eases back — "fluff is kick and should deform to snare
-// when snare hits, to another sphere option". Independent of which stem is
-// actually assigned anywhere: stems.snare is always sampled from the drums
-// track (see sampleDrumParts), so this fires whenever the song's snare
-// hits, regardless of the composer's slot choices.
 let snareFlashUntil = 0;
 let prevSnareHit = 0;
 
@@ -556,23 +564,19 @@ const clock = new THREE.Clock();
 function loop(){
   const t = clock.getElapsedTime();
   sampleAll();
-  const plateStem = stems[sceneCfg.plate] || stems.bass;
-  const orbitStem = stems[sceneCfg.orbit] || stems.vocals;
-  const glowStem = stems[sceneCfg.glow] || stems.harmony;
+  const plateStem = sceneCfg.plate ? (stems[sceneCfg.plate]||{bass:0,mid:0}) : {bass:0,mid:0};
+  const orbitStem = sceneCfg.orbit ? (stems[sceneCfg.orbit]||{rms:0,high:0}) : {rms:0,high:0};
+  const glowStem = sceneCfg.glow ? (stems[sceneCfg.glow]||{mid:0,rms:0}) : {mid:0,rms:0};
 
-  // kick's Fluff (shape 0) briefly flashes to Gyroid Lattice (shape 1) on a
-  // snare hit — independent of slot assignment, stems.snare is always
-  // sampled from the drums track.
   if(stems.snare.kick > 0.85 && prevSnareHit <= 0.85) snareFlashUntil = t + 0.3;
   prevSnareHit = stems.snare.kick;
-  const kickIdx = sceneCfg.shapes.findIndex(sh=>sh.stem==='kick');
 
   let isCrystal = false, crystalStem = null, crystalPos = null, crystalSize = 1;
   sceneCfg.shapes.forEach((sh, i)=>{
     if(i >= 5) return;
     const st = stems[sh.stem] || stems.drums;
     let shapeType = sh.shape;
-    if(i === kickIdx && shapeType === 0 && t < snareFlashUntil) shapeType = 1;
+    if(sh.snareShape != null && t < snareFlashUntil) shapeType = sh.snareShape;
     if(shapeType === 8){ isCrystal = true; crystalStem = st; crystalPos = sh.pos; crystalSize = sh.size || 1; shapeType = -1; }
     uniforms.uShapeType.value[i] = shapeType;
     uniforms.uShapePos.value[i].copy(sh.pos);
@@ -588,7 +592,9 @@ function loop(){
     updateCrystalBurst(t, crystalStem, crystalSize);
   }
 
+  uniforms.uPlateOn.value = !!sceneCfg.plate;
   uniforms.uPlateBass.value = plateStem.bass; uniforms.uPlateMid.value = plateStem.mid; uniforms.uPlateSize.value = sceneCfg.plateSize;
+  uniforms.uOrbitOn.value = !!sceneCfg.orbit;
   uniforms.uOrbitRms.value = orbitStem.rms; uniforms.uOrbitHigh.value = orbitStem.high; uniforms.uOrbitSize.value = sceneCfg.orbitSize;
   uniforms.uGlowBg.value = sceneCfg.glowBg || 0;
   uniforms.uGlowMid.value = glowStem.mid; uniforms.uGlowRms.value = glowStem.rms;
@@ -626,28 +632,10 @@ if(qp.get('embed') === 'inline'){
   document.getElementById('fsBtn').style.display = 'none';
 }
 
-function applySceneCfg(cfg){
-  sceneCfg = {
-    shapes: Array.isArray(cfg.shapes) ? cfg.shapes.slice(0,5) : DEFAULT_CFG.shapes,
-    plate: cfg.plate || DEFAULT_CFG.plate,
-    plateSize: (typeof cfg.plateSize === 'number') ? cfg.plateSize : DEFAULT_CFG.plateSize,
-    orbit: cfg.orbit || DEFAULT_CFG.orbit,
-    orbitSize: (typeof cfg.orbitSize === 'number') ? cfg.orbitSize : DEFAULT_CFG.orbitSize,
-    glow: cfg.glow || DEFAULT_CFG.glow,
-    glowBg: (typeof cfg.glowBg === 'number') ? cfg.glowBg : DEFAULT_CFG.glowBg,
-  };
-  const n = sceneCfg.shapes.length;
-  const r = n <= 1 ? 0 : 1.9;
-  sceneCfg.shapes.forEach((sh, i)=>{
-    const ang = (i / Math.max(1,n)) * Math.PI*2;
-    sh.pos = new THREE.Vector3(Math.cos(ang)*r, 0, Math.sin(ang)*r);
-  });
-  if(labelWrap) labelWrap.innerHTML = (sceneCfg.shapes.map(sh=>`<span><b>●</b> ${sh.stem} → shape (${CENTER_SHAPES[sh.shape]||'?'})</span>`).join('')) + `<span><b>●</b> ${sceneCfg.plate} → plate</span><span><b>●</b> ${sceneCfg.orbit} → orbit</span><span><b>●</b> ${sceneCfg.glow} → glow (${GLOW_BG_NAMES[sceneCfg.glowBg]||'?'})</span>`;
-}
-window._sceneApplyCfg = applySceneCfg;
+window._sceneApplyCfg = applyCfgObj;
 
 addEventListener('message', e=>{
-  if(e.data?.type === 'cfg' && e.data.cfg){ applySceneCfg(e.data.cfg); }
+  if(e.data?.type === 'cfg' && e.data.cfg){ applyCfgObj(e.data.cfg); }
   if(e.data?.type === 'stems' && e.data.urls){
     Object.keys(e.data.urls).forEach(role=>{
       const mappedRole = role === 'other' ? 'harmony' : role;
