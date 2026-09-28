@@ -1,7 +1,11 @@
 <!doctype html>
 <!-- effect #2 for the Feed player: a "sphere" that cycles between 4 sub-effects —
      fluff (deformed icosahedron), gyroid lattice, superformula shape, mandelbulb —
-     auto-switching on the kick, or manually via the dots. Orbit-controllable (drag/scroll). -->
+     auto-switching on the kick, or manually via the dots. Orbit-controllable (drag/scroll).
+     Standalone/manual opens render all three 8-shape banks at once as separate
+     blended layers (see "LAYER FACTORY" below) — driven mode (the feed/post
+     player and schedule editor) keeps the exact single-bank behavior it always
+     had, untouched. -->
 <html lang="en"><head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
@@ -9,13 +13,11 @@
 <style>
   html,body{margin:0;padding:0;height:100%;background:#05060a;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;}
   canvas{display:block;touch-action:none;}
-  #stage{position:fixed;inset:0;z-index:1;}
+  #layers{position:fixed;inset:0;z-index:1;}
+  .layerCanvas{position:absolute;inset:0;width:100%;height:100%;transform-origin:50% 50%;}
   #bar{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;
        padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
        background:linear-gradient(to top,rgba(0,0,0,.75),transparent);}
-  .dot{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.35);
-       cursor:pointer;padding:0;transition:background .15s,transform .15s;}
-  .dot.on{background:#8b9bff;border-color:#8b9bff;transform:scale(1.25);}
   #beatBtn,#ctlBtn,#fsBtn{background:rgba(255,255,255,.08);color:#f5f5f7;border:1px solid rgba(255,255,255,.18);border-radius:99px;
        padding:6px 12px;font-size:11px;cursor:pointer;margin-left:10px;}
   #beatBtn.on{background:rgba(139,155,255,.28);border-color:#8b9bff;color:#cdd4ff;}
@@ -36,25 +38,27 @@
   .ctl-label{color:rgba(255,255,255,.6);font-size:10px;text-transform:uppercase;letter-spacing:.03em;}
   .ctl-row input[type=range]{width:100%;accent-color:#8b9bff;}
   .ctl-row select, .ctl-row input[type=color]{width:100%;}
-  #bankBar{display:flex;gap:6px;margin-right:10px;}
-  .bankBtn{background:rgba(255,255,255,.08);color:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.18);border-radius:99px;
-       padding:6px 12px;font-size:11px;cursor:pointer;}
-  .bankBtn.on{background:rgba(139,155,255,.28);border-color:#8b9bff;color:#cdd4ff;}
+  #blendPanel{position:fixed;top:12px;right:12px;z-index:10;display:flex;flex-direction:column;gap:10px;
+       background:rgba(10,10,14,.6);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12);
+       border-radius:10px;padding:10px 12px;max-width:210px;}
+  .layerRow{display:flex;flex-direction:column;gap:5px;padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,.08);}
+  .layerRow:last-child{border-bottom:none;padding-bottom:0;}
+  .layerRow .lr-head{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#f5f5f7;font-weight:600;}
+  .layerRow .lr-head input[type=checkbox]{accent-color:#8b9bff;}
+  .layerRow select{background:rgba(255,255,255,.08);color:#f5f5f7;border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:3px 6px;font-size:11px;width:100%;}
+  .layerRow .lr-size{display:flex;align-items:center;gap:6px;}
+  .layerRow .lr-size span{font-size:9.5px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.03em;min-width:26px;}
+  .layerRow input[type=range]{width:100%;accent-color:#8b9bff;}
 </style>
 </head>
 <body>
-<canvas id="stage"></canvas>
+<div id="layers"></div>
 <div id="prep"><div class="spin"></div><div>Preparing visuals…</div></div>
 <div id="noSrc">waiting for audio…</div>
 <div id="controlPanel"></div>
+<div id="blendPanel"></div>
 <div id="modeName">Fluff</div>
 <div id="bar">
-  <div id="bankBar">
-    <button class="bankBtn on" data-b="0">Classic</button>
-    <button class="bankBtn" data-b="1">Organic</button>
-    <button class="bankBtn" data-b="2">Flow &amp; Field</button>
-  </div>
-  <div id="dots"></div>
   <button id="beatBtn" class="on">⚡ Auto: ON</button>
   <button id="ctlBtn" title="Controls">⚙</button>
   <button id="fsBtn" title="Fullscreen">⛶</button>
@@ -75,37 +79,11 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GLSL, pushAudio, audioUniforms } from '/h5555/core.js';
 
-// ---- renderer / scene / camera ----
-const canvas = document.getElementById('stage');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
-// Confirmed heavy in real use once shape count went from 8 to 21 — capping
-// pixel ratio lower cuts every per-pixel cost (raymarch steps × normal
-// samples × shape dispatch) roughly quadratically with resolution.
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
-renderer.setClearColor(0x05060a, 1);
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(55, 1, 0.01, 200);
-camera.position.set(0, 0, 6);
-const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true; controls.dampingFactor = 0.08;
-
-const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.45, 0.7, 0.85);
-composer.addPass(bloom);
-composer.addPass(new OutputPass());
-
-function resize() {
-  const w = innerWidth, h = innerHeight;
-  renderer.setSize(w, h); composer.setSize(w, h);
-  camera.aspect = w / h; camera.updateProjectionMatrix();
-  bloom.resolution.set(w, h);
-}
-addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
 
-// ---- audio ----
-const audio = { bass:0, mid:0, high:0, rms:0, beatEnv:0, kick:0 };
+// ---- audio (shared across every layer — one song, one analyser, so all
+// layers react to the exact same beat instead of drifting out of sync) ----
+const audio = { bass:0, mid:0, high:0, rms:0, beatEnv:0, kick:0, hit:false };
 let actx, analyser, freqData, timeData, srcNode;
 let audioEl = null;
 function ensureCtx() {
@@ -173,30 +151,15 @@ function sampleAudio() {
   audio.hit = hit; // true for exactly the one sampleAudio() call the onset lands on — used to trigger one-shot beat flourishes, as opposed to audio.kick which stays >0 for several frames while its envelope decays
 }
 
-// ---- all 8 shapes (the original 5 solids + the 3 former "field" cymatics
-// patterns), as ONE raymarched SDF field ----
-// Instead of separate engines that get torn down and rebuilt on switch (a
-// hard cut), every shape — solid or plate — is a distance function inside a
-// single shader. Switching plays a real liquid morph: uMorph ramps 0→1 and
-// de() blends the outgoing and incoming distance fields together with mix()
-// — since a distance field IS the shape, blending the fields blends the
-// geometry itself, so the surface genuinely deforms from one shape into the
-// next instead of cutting or fading. The cymatics patterns used to live on
-// their own vertex-displaced plane in a separate page (field.html) — here
-// they're the exact same height functions, just expressed as a heightfield
-// SDF (`p.y - h(x,z)`, the standard raymarched-terrain trick) so they blend
-// through the same de()/liquid-bulge machinery as the solids instead of
-// requiring a hard page-to-page cut.
-const SHAPE_NAMES = ['Fluff','Gyroid Lattice','Superformula Shape','Mandelbulb Fractal','SDF Morph Field','Wave Interference Field','Chladni Plate','Resonant Spiderweb','Sea Anemone','Anemone Spiral','Sand Dunes','Slime Mold','Aurora Curtains','Catenoid Helicoid','Vector Field','Ripple Tank',"Jacob's Ladder",'Virus Capsid','Soap Bubbles','Hilbert Curve','Spin Wave'];
-
 // ---- shape registry: each shape's SDF kept as its own source string so a
-// shader build only has to declare the 8 shapes in the ACTIVE bank, not all
-// 21. Compiling all 21 into one switch()/one program at once is what caused
-// real 60-120s whole-browser GPU-driver locks in testing; 8-at-a-time is the
+// shader build only has to declare the 8 shapes in one bank, not all 21.
+// Compiling all 21 into one switch()/one program at once is what caused real
+// 60-120s whole-browser GPU-driver locks in testing; 8-at-a-time is the
 // config that's actually confirmed fast (it's the original shape count).
-// Shapes within a bank still liquid-morph into each other exactly as before;
-// switching banks is a deliberate user pick that pays one recompile, same
-// cost as loading a different page — never triggered automatically mid-song.
+// Rather than cram more shapes into one program to get more variety, the
+// three banks below now render as separate simultaneous layers (see "LAYER
+// FACTORY"), each still only ever compiling its own 8 shapes.
+const SHAPE_NAMES = ['Fluff','Gyroid Lattice','Superformula Shape','Mandelbulb Fractal','SDF Morph Field','Wave Interference Field','Chladni Plate','Resonant Spiderweb','Sea Anemone','Anemone Spiral','Sand Dunes','Slime Mold','Aurora Curtains','Catenoid Helicoid','Vector Field','Ripple Tank',"Jacob's Ladder",'Virus Capsid','Soap Bubbles','Hilbert Curve','Spin Wave'];
 const SHAPE_FN = {};
 SHAPE_FN[0] = { fn:'deFluff', src:`float deFluff(vec3 p){
   float n = snoise(p*2.2+uTime*0.15) + 0.5*snoise(p*4.4-uTime*0.1);
@@ -308,7 +271,7 @@ SHAPE_FN[11] = { fn:'deSlimeMold', src:`float deSlimeMold(vec3 p){
   float r=(0.1+0.05*sin(uTime*1.5))*(0.6+uBass*0.8);
   float d=deTendril(p, vec3(sin(uTime*0.35)*0.7,sin(uTime*0.28)*0.5,cos(uTime*0.31)*0.7)*(0.65+uMid*0.5), normalize(vec3(sin(uTime*0.2),0.7,sin(1.1-uTime*0.15))), r);
   d=sdfSmin(d, deTendril(p, vec3(sin(uTime*0.35+1.9)*0.7,sin(uTime*0.28+2.7)*0.5,cos(uTime*0.31+1.4)*0.7)*(0.65+uMid*0.5), normalize(vec3(sin(3.1+uTime*0.2),cos(2.3),sin(1.1*2.0-uTime*0.15))), r), 0.35);
-  d=sdfSmin(d, deTendril(p, vec3(sin(uTime*0.35+3.8)*0.7,sin(uTime*0.28+5.4)*0.5,cos(uTime*0.31+2.8)*0.7)*(0.65+uMid*0.5), normalize(vec3(sin(6.2+uTime*0.2),cos(4.6),sin(3.3-uTime*0.15))), r), 0.35);
+  d=sdfSmin(d, deTendril(p, vec3(sin(uTime*0.35+3.8)*0.7,sin(uTime*0.28+5.4)*0.7,cos(uTime*0.31+2.8)*0.7)*(0.65+uMid*0.5), normalize(vec3(sin(6.2+uTime*0.2),cos(4.6),sin(3.3-uTime*0.15))), r), 0.35);
   return d;
 }` };
 SHAPE_FN[12] = { fn:'deAurora', src:`float deAurora(vec3 p){
@@ -409,9 +372,10 @@ float sdBoxH(vec3 p, vec3 b){ vec3 q=abs(p)-b; return length(max(q,0.0))+min(max
 `;
 
 // 8 shapes compiled together at a time — the config actually confirmed fast.
-// Each bank still liquid-morphs freely within itself; switching banks is a
-// deliberate user pick (one-time recompile, same cost as loading a fresh
-// page), never something that happens mid-song.
+// Each bank still liquid-morphs freely within itself; switching banks (driven
+// mode only, via ?bank=) pays one recompile, same cost as loading a different
+// page, never something that happens mid-song. In blended mode all three
+// banks are just always live as separate layers instead.
 const BANKS = [
   { label: 'Classic', ids: [0,1,2,3,4,5,6,7] },
   { label: 'Organic', ids: [8,9,10,11,12,13,17,18] },
@@ -456,8 +420,7 @@ float de(vec3 p){
   // ending up permanently misoriented. uPulse is a real geometry swell, not
   // a camera trick: evaluating the SDF in space scaled by (1+uPulse) and
   // scaling the returned distance back makes the shape itself visibly
-  // grow/breathe on the beat — this is what actually reacts internally when
-  // it ISN'T switching shapes, on top of the position/rotation jitter.
+  // grow/breathe on the beat.
   float pulseS = 1.0 + uPulse;
   vec3 q = (uJitterRot * (p - uJitter)) / pulseS;
   float dA=deShape(uCur,q) * pulseS;
@@ -479,8 +442,12 @@ vec3 shapeColor(int id){
   else if(id==4) hue=0.9; else if(id==5) hue=0.58; else if(id==6) hue=0.82; else hue=0.62;
   return spectral(hue + uTime*0.02 + uHueKick*0.2);
 }
-vec3 render(vec3 ro, vec3 rd){
-  float t=0.0; vec3 col=vec3(0.0);
+// Returns (color, hit) — hit=0 for a ray that never found a surface. Used so
+// non-base layers can render with alpha=0 background instead of an opaque
+// black square, which is what lets CSS mix-blend-mode (multiply especially)
+// composite the actual shapes instead of just darkening everything to black.
+vec4 renderRM(vec3 ro, vec3 rd){
+  float t=0.0; vec3 col=vec3(0.0); float hit=0.0;
   for(int i=0;i<uMaxSteps;i++){
     vec3 p=ro+rd*t; float d=de(p);
     if(d<0.002){
@@ -496,25 +463,14 @@ vec3 render(vec3 ro, vec3 rd){
       vec3 baseCol=mix(shapeColor(uCur),shapeColor(uNext),smoothstep(0.0,1.0,uMorph));
       float ao=1.0-float(i)/float(uMaxSteps);
       col=baseCol*(0.28+0.72*diff)*ao+fres*0.4*baseCol;
+      hit=1.0;
       break;
     }
     t+=d; if(t>16.0)break;
   }
-  return col;
+  return vec4(col,hit);
 }`;
 }
-
-// Controls panel: off by default, toggled by the gear button — just the one
-// timing slider for now (how long auto-switch waits before forcing a change
-// when the kick isn't firing one on its own).
-const panel = document.getElementById('controlPanel');
-panel.hidden = true;
-panel.innerHTML = `<div class="ctl-row"><span class="ctl-label">switch every (max)</span>
-  <input id="switchIntervalCtl" type="range" min="4" max="30" step="1" value="14"></div>`;
-const ctlBtn = document.getElementById('ctlBtn');
-ctlBtn.addEventListener('click', ()=>{ panel.hidden = !panel.hidden; ctlBtn.classList.toggle('on', !panel.hidden); });
-let switchIntervalSec = 14;
-document.getElementById('switchIntervalCtl').addEventListener('input', e=>{ switchIntervalSec = +e.target.value; });
 
 // Built directly here (not via core.js's shared raymarchQuad) so this page
 // alone can use GLSL ES 3.00 — needed for a real switch(id) statement in
@@ -536,6 +492,7 @@ function buildMaterial(bankIdx){
   const u = makeUniforms();
   const m = new THREE.ShaderMaterial({
     glslVersion: THREE.GLSL3,
+    transparent: true,
     uniforms: u,
     vertexShader: `out vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }`,
     fragmentShader: `
@@ -549,9 +506,9 @@ function buildMaterial(bankIdx){
         vec2 p=(vUv*2.0-1.0); p.x*=uRes.x/uRes.y;
         vec3 rd=normalize((uCamMat*vec4(p,-1.5,0.0)).xyz);
         vec3 ro=uCamPos;
-        vec3 col=render(ro,rd);
-        col=pow(clamp(col,0.0,1.0),vec3(0.4545));
-        fragColor=vec4(col,1.0);
+        vec4 rc=renderRM(ro,rd);
+        vec3 col=pow(clamp(rc.rgb,0.0,1.0),vec3(0.4545));
+        fragColor=vec4(col,rc.a);
       }`,
     depthWrite: false,
     depthTest: false,
@@ -559,231 +516,404 @@ function buildMaterial(bankIdx){
   return { material: m, uniforms: u };
 }
 
-// Read ?bank= up front, before the first shader build, so the initially
-// compiled program is the requested bank — not bank 0 compiled first and
-// then swapped, which would let the wrong bank pay the first compile cost
-// (uncovered by the "Preparing visuals…" overlay) and the right one compile
-// silently on the first real frame instead.
-let currentBankIdx = 0;
-{
-  const bp = parseInt(new URLSearchParams(location.search).get('bank'), 10);
-  if (Number.isInteger(bp) && bp >= 0 && bp < BANKS.length) currentBankIdx = bp;
-}
-let uniforms, mat;
-{ const built = buildMaterial(currentBankIdx); mat = built.material; uniforms = built.uniforms; }
-const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
-mesh.frustumCulled = false;
-mesh.renderOrder = -1;
-scene.add(mesh);
-camera.position.set(0, 0, 6);
-const BASE_FOV = 55;
+// ================= LAYER FACTORY =================
+// One independent renderer/scene/camera/mesh/controls per layer, each
+// compiling only its own 8-shape bank (the compile-time-safe config). A
+// layer owns its own shape-switching, jitter, rotation-wobble and pulse
+// state so the 3 layers in blended mode drift out of phase with each other
+// instead of all doing the same thing in lockstep — driven mode just never
+// creates more than one of these.
+function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1 }){
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha, powerPreference:'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
+  renderer.setClearColor(0x05060a, alpha ? 0 : 1);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(55, 1, 0.01, 200);
+  camera.position.set(0, 0, 6);
+  const controls = new OrbitControls(camera, canvas);
+  controls.enableDamping = true; controls.dampingFactor = 0.08;
+  controls.autoRotate = true; controls.autoRotateSpeed = 0.5;
+  let userDragging = false, lastUserInteractT = -99;
+  controls.addEventListener('start', () => { userDragging = true; controls.autoRotate = false; });
+  controls.addEventListener('end', () => { userDragging = false; lastUserInteractT = clock.getElapsedTime(); });
 
-// Bank switch: rebuild the material/uniforms for the newly-picked 8-shape
-// bank, swap it onto the existing mesh, dispose the old one, and re-compile —
-// shows the same "Preparing visuals…" overlay a fresh page load would.
-function switchBank(idx){
-  if (idx === currentBankIdx) return;
-  currentBankIdx = idx;
-  const prep = document.getElementById('prep');
-  prep.classList.remove('hidden');
-  const old = mat;
-  const built = buildMaterial(idx);
-  mat = built.material; uniforms = built.uniforms;
-  mesh.material = mat;
-  old.dispose();
-  active = 0; morphTarget = 0; morphing = false;
-  uniforms.uCur.value = 0; uniforms.uNext.value = 0; uniforms.uMorph.value = 0;
-  renderDots();
-  document.getElementById('modeName').textContent = SHAPE_NAMES[BANKS[idx].ids[0]];
-  document.querySelectorAll('.bankBtn').forEach((b,bi)=>b.classList.toggle('on', bi===idx));
-  let settled = false;
-  const done = () => { if (settled) return; settled = true; prep.classList.add('hidden'); };
-  (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera)))
-    .catch(e => console.error('bank shader compile failed:', e))
-    .finally(done);
-  setTimeout(done, 4000);
-}
-document.querySelectorAll('.bankBtn').forEach(b=>b.addEventListener('click', ()=>switchBank(+b.dataset.b)));
-
-// Auto camera: slow orbit + gentle wander so the frame never sits dead still
-// during a quiet stretch, but a real drag/pinch from the viewer always wins —
-// autorotate pauses the moment they touch it and only creeps back after they
-// let go for a few seconds.
-controls.autoRotate = true;
-controls.autoRotateSpeed = 0.5;
-let userDragging = false, lastUserInteractT = -99;
-controls.addEventListener('start', () => { userDragging = true; controls.autoRotate = false; });
-controls.addEventListener('end', () => { userDragging = false; lastUserInteractT = clock.getElapsedTime(); });
-
-// Rhythmic jitter: the whole shape nudges/bounces on a kick (a spring that
-// gets a kick-sized push and decays back to center) plus a small perpetual
-// sway even with no kicks at all — "travels in space" instead of sitting
-// static through quiet-but-still-has-a-beat sections.
-const jitterVel = new THREE.Vector3(), jitterPos = new THREE.Vector3();
-// Beat-move flourishes: on every detected onset (audio.hit, a one-frame edge
-// — not audio.kick, which stays >0 for several frames while its envelope
-// decays), roll a random flourish from a small pool so a long quiet-switching
-// stretch never just sits there — orbit direction/speed changes, a bigger
-// jitter burst, a bounded shape-rotation impulse, an FOV whip, or a color
-// pulse. Each has its own decaying state so it reads as a distinct "hit"
-// rather than a permanent change.
-const rotVel = new THREE.Vector3(), rotOffset = new THREE.Vector3();
-let spinDir = 1, fovPunch = 0, pulseVel = 0, pulseVal = 0;
-function onBeatMove(){
-  // Pulse (the shape itself swelling/breathing) fires on EVERY beat — it's
-  // the one flourish that's actually geometry, not camera, so it's the main
-  // thing carrying "still alive while not switching shapes." The rest are
-  // occasional variety on top of that, picked randomly each hit.
-  pulseVel += 1.6 + audio.bass * 0.8;
-  const roll = Math.random();
-  if (roll < 0.22) {
-    spinDir *= -1;
-    controls.autoRotateSpeed = (0.4 + audio.bass * 1.1) * (1.4 + Math.random()) * spinDir;
-  } else if (roll < 0.44) {
-    rotVel.set((Math.random()-0.5)*3.2, (Math.random()-0.5)*3.2, (Math.random()-0.5)*3.2);
-  } else if (roll < 0.66) {
-    jitterVel.set((Math.random()-0.5)*1.1, (Math.random()-0.5)*0.95, (Math.random()-0.5)*0.7);
-  } else if (roll < 0.85) {
-    fovPunch = 10 + Math.random() * 10;
-  } else {
-    uniforms.uHueKick.value = 1;
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.42, 0.7, 0.85);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+  function resize() {
+    const w = innerWidth, h = innerHeight;
+    renderer.setSize(w, h); composer.setSize(w, h);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+    bloom.resolution.set(w, h);
   }
+  addEventListener('resize', resize); resize();
+
+  let bank = bankIdx;
+  let mat, uniforms;
+  { const built = buildMaterial(bank); mat = built.material; uniforms = built.uniforms; }
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
+  mesh.frustumCulled = false;
+  mesh.renderOrder = -1;
+  scene.add(mesh);
+  const BASE_FOV = 55;
+
+  const jitterVel = new THREE.Vector3(), jitterPos = new THREE.Vector3();
+  const rotVel = new THREE.Vector3(), rotOffset = new THREE.Vector3();
+  let spinDir = 1, fovPunch = 0, pulseVel = 0, pulseVal = 0;
+  let active = 0, morphTarget = 0, morphing = false, morphStartT = 0;
+  let lastSwitch = Math.random() * 3; // staggered starts so layers don't all switch on the same beat
+  let switchIntervalSec = 14 * intervalMult;
+  let autoBeat = true, enabled = true;
+  const MORPH_SECONDS = 1.6;
+
+  function label(i){ if (onLabel) onLabel(SHAPE_NAMES[BANKS[bank].ids[i]]); }
+  function setShapeInstant(i){
+    active = i; morphTarget = i; morphing = false;
+    uniforms.uCur.value = i; uniforms.uNext.value = i; uniforms.uMorph.value = 0;
+    label(i);
+  }
+  function startMorphTo(i, tNow){
+    if (i === active && !morphing) return;
+    uniforms.uCur.value = active; uniforms.uNext.value = i;
+    morphTarget = i; morphing = true; morphStartT = tNow;
+    label(i);
+  }
+  function onBeatMove(){
+    // Pulse (the shape itself swelling/breathing) fires on EVERY beat — it's
+    // the one flourish that's actually geometry, not camera. The rest are
+    // occasional variety on top of that, picked randomly each hit.
+    pulseVel += 1.6 + audio.bass * 0.8;
+    const roll = Math.random();
+    if (roll < 0.22) {
+      spinDir *= -1;
+      controls.autoRotateSpeed = (0.4 + audio.bass * 1.1) * (1.4 + Math.random()) * spinDir;
+    } else if (roll < 0.44) {
+      rotVel.set((Math.random()-0.5)*3.2, (Math.random()-0.5)*3.2, (Math.random()-0.5)*3.2);
+    } else if (roll < 0.66) {
+      jitterVel.set((Math.random()-0.5)*1.1, (Math.random()-0.5)*0.95, (Math.random()-0.5)*0.7);
+    } else if (roll < 0.85) {
+      fovPunch = 10 + Math.random() * 10;
+    } else {
+      uniforms.uHueKick.value = 1;
+    }
+  }
+
+  function step(dt, t){
+    if (!enabled) return;
+    if (autoBeat) {
+      const effInterval = switchIntervalSec * (0.55 + Math.min(1, audio.rms * 3));
+      if (!morphing && (t - lastSwitch) > 1.8 && (audio.kick > 0.6 || (t - lastSwitch) > effInterval)) {
+        lastSwitch = t;
+        startMorphTo((active + 1) % BANKS[bank].ids.length, t);
+      }
+    }
+    if (audio.hit) onBeatMove();
+    if (morphing) {
+      const p = Math.min(1, (t - morphStartT) / MORPH_SECONDS);
+      uniforms.uMorph.value = p;
+      if (p >= 1) { active = morphTarget; uniforms.uCur.value = active; uniforms.uMorph.value = 0; morphing = false; }
+    }
+    if (audio.kick > 0.6) {
+      jitterVel.set((Math.random()-0.5)*0.6, (Math.random()-0.5)*0.5, (Math.random()-0.5)*0.35);
+    }
+    jitterVel.multiplyScalar(Math.pow(0.85, dt*60));
+    jitterPos.addScaledVector(jitterVel, dt);
+    jitterPos.x += Math.sin(t*0.9)*0.006*(0.3+audio.mid);
+    jitterPos.y += Math.cos(t*0.7)*0.006*(0.3+audio.rms);
+    jitterPos.multiplyScalar(Math.pow(0.9, dt*60));
+    uniforms.uJitter.value.copy(jitterPos);
+    // Decay rates below are per REAL SECOND (Math.pow(k, dt), not dt*60) so
+    // these flourishes read clearly for a beat or more instead of vanishing
+    // within a single frame.
+    rotVel.multiplyScalar(Math.pow(0.2, dt));
+    rotOffset.addScaledVector(rotVel, dt);
+    rotOffset.multiplyScalar(Math.pow(0.25, dt));
+    uniforms.uJitterRot.value.setFromMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rotOffset.x, rotOffset.y, rotOffset.z)));
+    uniforms.uHueKick.value *= Math.pow(0.2, dt);
+    fovPunch *= Math.pow(0.15, dt);
+    pulseVel *= Math.pow(0.25, dt);
+    pulseVal += pulseVel * dt;
+    pulseVal *= Math.pow(0.35, dt);
+    const idleBreath = Math.sin(t*0.55)*0.028 + Math.sin(t*1.3+1.7)*0.016;
+    uniforms.uPulse.value = Math.max(-0.35, Math.min(0.9, pulseVal + idleBreath));
+    if (!userDragging && !controls.autoRotate && (t - lastUserInteractT) > 3.5) controls.autoRotate = true;
+    const baseRotSpeed = (0.4 + audio.bass * 1.1) * spinDir;
+    controls.autoRotateSpeed += (baseRotSpeed - controls.autoRotateSpeed) * Math.min(1, dt * 1.5);
+    camera.fov = BASE_FOV + audio.beatEnv * 3.5 + fovPunch;
+    camera.updateProjectionMatrix();
+    pushAudio(uniforms, audio, t);
+    uniforms.uRes.value.set(innerWidth, innerHeight);
+    uniforms.uCamPos.value.copy(camera.position);
+    uniforms.uCamMat.value.copy(camera.matrixWorld);
+    controls.update(dt);
+    composer.render();
+  }
+
+  function precompile(){
+    return (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera)))
+      .catch(e => console.error('layer precompile failed:', e));
+  }
+
+  return {
+    canvas, controls,
+    get bank(){ return bank; },
+    setShapeInstant, startMorphTo, step, precompile,
+    setAutoBeat(v){ autoBeat = v; },
+    setEnabled(v){ enabled = v; canvas.style.display = v ? 'block' : 'none'; },
+    setInterval(base){ switchIntervalSec = base * intervalMult; },
+  };
 }
 
-let active = 0, morphTarget = 0, morphing = false, morphStartT = 0, autoBeat = true, lastSwitch = 0;
-const MORPH_SECONDS = 1.6; // the liquid-blend duration — long enough to actually read as one shape dissolving into the next
+// ================= BACKGROUND LAYER =================
+// A 4th, much cheaper layer that sits behind the three raymarched banks: a
+// slow-drifting noise/color field, not a raymarched shape, so it costs
+// almost nothing to compile or render — one noise lookup per pixel, no
+// raymarch loop at all. Gives the composite a constantly-shifting base even
+// under whichever shape layers are switched off, and reacts to the same
+// shared audio signal (hue drifts with the mids, a small beat-synced glow).
+function createBackgroundLayer({ canvas }){
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:false, alpha:false, powerPreference:'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
+  renderer.setClearColor(0x05060a, 1);
+  const scene = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  function resize(){ renderer.setSize(innerWidth, innerHeight); }
+  addEventListener('resize', resize); resize();
 
-// Dots are rendered per-bank (each bank only has 8 shapes) rather than a
-// static 21-button list — regenerated on init and every switchBank().
-function renderDots(){
-  const dotsEl = document.getElementById('dots');
-  const bank = BANKS[currentBankIdx];
-  dotsEl.innerHTML = bank.ids.map((gid,li) => `<button class="dot" data-i="${li}" title="${SHAPE_NAMES[gid]}"></button>`).join('');
-  dotsEl.querySelectorAll('.dot').forEach(d=>d.addEventListener('click', ()=>{
-    autoBeat=false; syncBeatBtn(); startMorphTo(+d.dataset.i, clock.getElapsedTime());
-  }));
-  dotsEl.querySelectorAll('.dot')[active]?.classList.add('on');
-}
-renderDots();
-document.querySelectorAll('.bankBtn').forEach((b,bi)=>b.classList.toggle('on', bi===currentBankIdx));
-document.getElementById('modeName').textContent = SHAPE_NAMES[BANKS[currentBankIdx].ids[0]];
+  const uniforms = Object.assign(audioUniforms(), {
+    uRes: { value: new THREE.Vector2(1, 1) },
+    uDrift: { value: new THREE.Vector2(0, 0) },
+  });
+  const mat = new THREE.ShaderMaterial({
+    glslVersion: THREE.GLSL3,
+    uniforms,
+    vertexShader: `out vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }`,
+    fragmentShader: `
+      precision highp float;
+      in vec2 vUv;
+      out vec4 fragColor;
+      uniform vec2 uRes, uDrift;
+      uniform float uTime,uBass,uMid,uHigh,uRms,uBeat;
+      ${GLSL.snoise3}
+      ${GLSL.palette}
+      void main(){
+        vec2 uv=(vUv*2.0-1.0); uv.x*=uRes.x/uRes.y;
+        vec2 q = uv*1.2 + uDrift;
+        float n1 = snoise(vec3(q*0.6, uTime*0.035));
+        float n2 = snoise(vec3(q*1.4+11.0, uTime*0.06+5.0));
+        float field = n1*0.65 + n2*0.35;
+        float hue = fract(field*0.5 + uTime*0.01 + uMid*0.08);
+        vec3 col = spectral(hue) * (0.14 + 0.10*(0.5+0.5*field) + uBeat*0.10 + uBass*0.05);
+        fragColor = vec4(col, 1.0);
+      }`,
+    depthWrite:false, depthTest:false,
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
+  scene.add(mesh);
 
-function startMorphTo(i, tNow){
-  if (i === active && !morphing) return;
-  uniforms.uCur.value = active;
-  uniforms.uNext.value = i;
-  morphTarget = i;
-  morphing = true;
-  morphStartT = tNow;
-  document.getElementById('modeName').textContent = SHAPE_NAMES[BANKS[currentBankIdx].ids[i]];
-  document.querySelectorAll('#dots .dot').forEach((d,di)=>d.classList.toggle('on', di===i));
+  let enabled = true;
+  const drift = new THREE.Vector2(0, 0);
+  function step(dt, t){
+    if (!enabled) return;
+    // Slow constant drift plus a little extra push tied to the mids/rms, so
+    // the background is always slowly shifting even through a quiet stretch
+    // with no shape switch happening at all.
+    drift.x += dt * (0.015 + audio.mid * 0.01);
+    drift.y += dt * (0.008 + audio.rms * 0.01);
+    uniforms.uDrift.value.copy(drift);
+    uniforms.uRes.value.set(innerWidth, innerHeight);
+    pushAudio(uniforms, audio, t);
+    renderer.render(scene, camera);
+  }
+  function precompile(){
+    return (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera)))
+      .catch(e => console.error('background layer precompile failed:', e));
+  }
+  return {
+    canvas, label: 'Background', blend: 'normal', scale: 1.0,
+    step, precompile,
+    setEnabled(v){ enabled = v; canvas.style.display = v ? 'block' : 'none'; },
+    setAutoBeat(){}, setInterval(){}, // no-ops — kept so shared loop/UI code can treat every layer the same way
+  };
 }
-function syncBeatBtn(){
-  const btn = document.getElementById('beatBtn');
-  btn.classList.toggle('on', autoBeat);
-  btn.textContent = autoBeat ? '⚡ Auto: ON' : '⏸ Auto: OFF';
+
+// ================= MODE SELECT =================
+const layersEl = document.getElementById('layers');
+const driven = new URLSearchParams(location.search).get('driven') === '1';
+let layers = [];
+
+if (driven) {
+  // ---- exact previous single-bank behavior — the feed/post player and
+  // schedule editor iframe always land here, untouched by blended mode. ----
+  const canvas = document.createElement('canvas');
+  canvas.className = 'layerCanvas'; canvas.style.zIndex = '1';
+  layersEl.appendChild(canvas);
+  let bankIdx = 0;
+  { const bp = parseInt(new URLSearchParams(location.search).get('bank'), 10); if (Number.isInteger(bp) && bp >= 0 && bp < BANKS.length) bankIdx = bp; }
+  const modeNameEl = document.getElementById('modeName');
+  const layer = createLayer({ canvas, bankIdx, alpha:false, onLabel:(name)=>{ modeNameEl.textContent = name; } });
+  layer.setAutoBeat(false); // uploader/editor drives shape choice externally
+  layers = [layer];
+  document.getElementById('bar').style.display = 'none';
+  document.getElementById('controlPanel').style.display = 'none';
+  document.getElementById('blendPanel').style.display = 'none';
+  modeNameEl.textContent = SHAPE_NAMES[BANKS[bankIdx].ids[0]];
+
+  // shape= (global id 0-20) resolves to the loaded bank's local index — never
+  // switched mid-song, since a bank swap pays a real recompile and could
+  // reintroduce the freeze this whole system exists to avoid. Out-of-bank
+  // ids are ignored with a console warning instead of forcing a recompile.
+  const shapeParam = parseInt(new URLSearchParams(location.search).get('shape'), 10);
+  if (Number.isInteger(shapeParam)) {
+    const loc = findBankAndLocal(shapeParam);
+    if (loc && loc.bank === bankIdx) layer.setShapeInstant(loc.local);
+    else if (loc) console.warn(`sphere: ?shape=${shapeParam} is in bank ${loc.bank} ("${BANKS[loc.bank].label}") but bank ${bankIdx} is loaded — pass &bank=${loc.bank} instead. Ignoring.`);
+  }
+
+  addEventListener('message', e=>{
+    if (e.data?.type === 'song') loadSongUrl(e.data.url || null, e.data.muted);
+    if (e.data?.type === 'setShape' && Number.isInteger(e.data.index)) {
+      const loc = findBankAndLocal(e.data.index);
+      if (!loc) return;
+      if (loc.bank !== bankIdx) {
+        console.warn(`sphere: setShape index=${e.data.index} needs bank ${loc.bank} but bank ${bankIdx} is loaded — load with &bank=${loc.bank}. Ignoring.`);
+        return;
+      }
+      if (e.data.instant) layer.setShapeInstant(loc.local);
+      else layer.startMorphTo(loc.local, clock.getElapsedTime());
+    }
+    if (e.data?.type === 'setActive') {
+      if (e.data.active) {
+        if (audioEl && isFinite(e.data.time) && Math.abs(audioEl.currentTime - e.data.time) > 0.4) audioEl.currentTime = e.data.time;
+        actx?.resume().catch(()=>{}); audioEl?.play().catch(()=>{});
+      }
+      else audioEl?.pause();
+    }
+    if (e.data?.type === 'mute' && audioEl) {
+      audioEl.muted = !!e.data.muted;
+      if (!e.data.muted) { actx?.resume().catch(()=>{}); audioEl.play().catch(()=>{}); }
+    }
+    if (e.data?.type === 'play' && audioEl) { actx?.resume().catch(()=>{}); audioEl.play().catch(()=>{}); }
+    if (e.data?.type === 'pause' && audioEl) audioEl.pause();
+    if (e.data?.type === 'seek' && audioEl && isFinite(e.data.time)) audioEl.currentTime = e.data.time;
+    if (e.data?.type === 'volume' && audioEl) {
+      audioEl.volume = e.data.value; audioEl.muted = e.data.value <= 0;
+      if (e.data.value > 0) { actx?.resume().catch(()=>{}); audioEl.play().catch(()=>{}); }
+    }
+  });
+} else {
+  // ---- blended: all three 8-shape banks render simultaneously as separate
+  // layers, composited with CSS mix-blend-mode + a per-layer size scale —
+  // each layer still only ever compiles its own 8 shapes (the confirmed-fast
+  // config), so this gets the "all 21 shapes worth of variety, always moving"
+  // request without recompiling more shapes into any single shader. ----
+  document.getElementById('modeName').style.display = 'none';
+  // Background first (z:0, opaque) so the 3 shape layers above it can all be
+  // transparent outside their actual shape — otherwise an opaque black quad
+  // would just cover the background wherever a shape isn't.
+  const bgCanvas = document.createElement('canvas');
+  bgCanvas.className = 'layerCanvas'; bgCanvas.style.zIndex = '0'; bgCanvas.style.mixBlendMode = 'normal';
+  layersEl.appendChild(bgCanvas);
+  const bgLayer = createBackgroundLayer({ canvas: bgCanvas });
+
+  const LAYER_DEFS = [
+    { bank:0, blend:'normal',     scale:1.0,  z:1, mult:1.0 },
+    { bank:1, blend:'screen',     scale:0.8,  z:2, mult:1.3 },
+    { bank:2, blend:'difference', scale:0.6,  z:3, mult:0.85 },
+  ];
+  const shapeLayers = LAYER_DEFS.map(def => {
+    const canvas = document.createElement('canvas');
+    canvas.className = 'layerCanvas';
+    canvas.style.zIndex = String(def.z);
+    canvas.style.mixBlendMode = def.blend;
+    canvas.style.transform = `scale(${def.scale})`;
+    layersEl.appendChild(canvas);
+    const layer = createLayer({ canvas, bankIdx: def.bank, alpha: true, intervalMult: def.mult });
+    layer.blend = def.blend;
+    layer.scale = def.scale;
+    layer.label = BANKS[def.bank].label;
+    return layer;
+  });
+  layers = [bgLayer, ...shapeLayers];
+
+  const BLEND_MODES = ['normal','multiply','screen','difference','exclusion','overlay','lighten','darken'];
+  function renderBlendPanel(){
+    const wrap = document.getElementById('blendPanel');
+    wrap.innerHTML = '';
+    layers.forEach((layer, i) => {
+      const row = document.createElement('div');
+      row.className = 'layerRow';
+      const modeOpts = BLEND_MODES.map(m => `<option value="${m}"${m===layer.blend?' selected':''}>${m}</option>`).join('');
+      row.innerHTML = `
+        <div class="lr-head">
+          <input type="checkbox" checked>
+          <span>${layer.label}</span>
+        </div>
+        <select>${modeOpts}</select>
+        <div class="lr-size"><span>size</span><input type="range" min="0.3" max="1.8" step="0.05" value="${layer.scale}"></div>
+      `;
+      row.querySelector('input[type=checkbox]').addEventListener('change', e=>{
+        layer.setEnabled(e.target.checked);
+      });
+      row.querySelector('select').addEventListener('change', e=>{
+        layer.blend = e.target.value;
+        layer.canvas.style.mixBlendMode = e.target.value;
+      });
+      row.querySelector('input[type=range]').addEventListener('input', e=>{
+        layer.scale = +e.target.value;
+        layer.canvas.style.transform = `scale(${layer.scale})`;
+      });
+      wrap.appendChild(row);
+    });
+  }
+  renderBlendPanel();
+
+  document.getElementById('beatBtn').addEventListener('click', ()=>{
+    autoBeatGlobal = !autoBeatGlobal;
+    const btn = document.getElementById('beatBtn');
+    btn.classList.toggle('on', autoBeatGlobal);
+    btn.textContent = autoBeatGlobal ? '⚡ Auto: ON' : '⏸ Auto: OFF';
+    layers.forEach(l => l.setAutoBeat(autoBeatGlobal));
+  });
 }
-document.getElementById('beatBtn').addEventListener('click', ()=>{ autoBeat=!autoBeat; syncBeatBtn(); });
+let autoBeatGlobal = true;
+
+// Controls panel: switch-interval slider — how long each layer waits before
+// forcing a change when the kick isn't firing one on its own. Hidden in
+// driven mode; in blended mode it scales all 3 layers' intervals together
+// (each keeps its own stagger multiplier so they don't lock-step).
+const panel = document.getElementById('controlPanel');
+panel.hidden = true;
+panel.innerHTML = `<div class="ctl-row"><span class="ctl-label">switch every (max)</span>
+  <input id="switchIntervalCtl" type="range" min="4" max="30" step="1" value="14"></div>`;
+const ctlBtn = document.getElementById('ctlBtn');
+ctlBtn.addEventListener('click', ()=>{ panel.hidden = !panel.hidden; ctlBtn.classList.toggle('on', !panel.hidden); });
+document.getElementById('switchIntervalCtl').addEventListener('input', e=>{
+  const v = +e.target.value;
+  layers.forEach(l => l.setInterval(v));
+});
 document.getElementById('fsBtn').addEventListener('click', ()=>{
   if (document.fullscreenElement) document.exitFullscreen();
   else document.documentElement.requestFullscreen?.().catch(()=>{});
 });
 
-// ---- render loop ----
+// ---- render loop (shared clock/audio driving every layer) ----
 function loop(){
   const dt = clock.getDelta(), t = clock.getElapsedTime();
   sampleAudio();
-  // kick-triggered switch, but never stuck: force-advance if no kick has
-  // fired in a while (quiet mix / no sharp bass transients in this track).
-  // A quiet-but-steady stretch has low audio.rms, so shrink the fallback
-  // interval down toward ~half its slider value there — long dead stretches
-  // with a low but present beat used to just sit on one shape for the full
-  // 14s+ default; now they still breathe, just less abruptly than a real kick.
-  const effInterval = switchIntervalSec * (0.55 + Math.min(1, audio.rms * 3));
-  if (autoBeat && !morphing && (t - lastSwitch) > 1.8 && (audio.kick > 0.6 || (t - lastSwitch) > effInterval)) {
-    lastSwitch = t;
-    startMorphTo((active + 1) % BANKS[currentBankIdx].ids.length, t);
-  }
-  // beat-move flourish on every real onset, switching or not — this is what
-  // keeps a stretch that ISN'T switching shapes from going dead/boring.
-  if (audio.hit) onBeatMove();
-  if (morphing) {
-    const p = Math.min(1, (t - morphStartT) / MORPH_SECONDS);
-    uniforms.uMorph.value = p;
-    if (p >= 1) { active = morphTarget; uniforms.uCur.value = active; uniforms.uMorph.value = 0; morphing = false; }
-  }
-  // rhythmic jitter — a kick gives the spring a random shove, a light
-  // perpetual sway keeps it alive even through kick-free stretches, and
-  // damping always pulls it back toward center so it never drifts away.
-  if (audio.kick > 0.6) {
-    jitterVel.set((Math.random()-0.5)*0.6, (Math.random()-0.5)*0.5, (Math.random()-0.5)*0.35);
-  }
-  jitterVel.multiplyScalar(Math.pow(0.85, dt*60));
-  jitterPos.addScaledVector(jitterVel, dt);
-  jitterPos.x += Math.sin(t*0.9)*0.006*(0.3+audio.mid);
-  jitterPos.y += Math.cos(t*0.7)*0.006*(0.3+audio.rms);
-  jitterPos.multiplyScalar(Math.pow(0.9, dt*60));
-  uniforms.uJitter.value.copy(jitterPos);
-  // bounded shape-rotation impulse from onBeatMove(), always spring-decaying
-  // back toward identity so it never leaves the shape permanently misoriented.
-  // Decay rates here are per REAL SECOND (Math.pow(k, dt), not dt*60) — the
-  // dt*60 pattern used for the translation jitter above decays a burst to
-  // nothing within ~0.3s, which is right for a percussive snap but made
-  // these flourishes disappear before they were ever visible. These need to
-  // read clearly for a beat or more.
-  rotVel.multiplyScalar(Math.pow(0.2, dt));
-  rotOffset.addScaledVector(rotVel, dt);
-  rotOffset.multiplyScalar(Math.pow(0.25, dt));
-  uniforms.uJitterRot.value.setFromMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rotOffset.x, rotOffset.y, rotOffset.z)));
-  uniforms.uHueKick.value *= Math.pow(0.2, dt);
-  fovPunch *= Math.pow(0.15, dt);
-  // Pulse: a beat-triggered swell (pulseVel/pulseVal, a real spring against
-  // the shape's own geometry via uPulse — see de() in the shader) plus a
-  // slow, always-on idle breathing term so the shape is never fully static
-  // even through a stretch with no clear onsets at all.
-  pulseVel *= Math.pow(0.25, dt);
-  pulseVal += pulseVel * dt;
-  pulseVal *= Math.pow(0.35, dt);
-  const idleBreath = Math.sin(t*0.55)*0.028 + Math.sin(t*1.3+1.7)*0.016;
-  uniforms.uPulse.value = Math.max(-0.35, Math.min(0.9, pulseVal + idleBreath));
-  // camera: resume the slow auto-orbit a few seconds after the viewer lets
-  // go, speed up a touch on the beat (direction can flip via onBeatMove), and
-  // give the FOV a small kick-punch on top of the steady beatEnv pulse — all
-  // no-ops while they're actively dragging (controls.autoRotate is off for
-  // the whole duration of that gesture, set in the 'start' listener).
-  if (!userDragging && !controls.autoRotate && (t - lastUserInteractT) > 3.5) controls.autoRotate = true;
-  const baseRotSpeed = (0.4 + audio.bass * 1.1) * spinDir;
-  controls.autoRotateSpeed += (baseRotSpeed - controls.autoRotateSpeed) * Math.min(1, dt * 1.5);
-  camera.fov = BASE_FOV + audio.beatEnv * 3.5 + fovPunch;
-  camera.updateProjectionMatrix();
-  pushAudio(uniforms, audio, t);
-  uniforms.uRes.value.set(innerWidth, innerHeight);
-  uniforms.uCamPos.value.copy(camera.position);
-  uniforms.uCamMat.value.copy(camera.matrixWorld);
-  controls.update(dt);
-  composer.render();
+  layers.forEach(l => l.step(dt, t));
   requestAnimationFrame(loop);
 }
-// Compile the shader with a visible "Preparing visuals…" state already
-// painted before this starts. compileAsync (three r160+) polls
-// KHR_parallel_shader_compile's non-blocking completion status instead of a
-// hard-blocking compile call, so the tab stays responsive — no "Page
-// Unresponsive" risk — for however long the real compile takes on this
-// device, instead of a silent frozen canvas. Falls back to the blocking
-// compile() on anything that doesn't support it.
-// compileAsync's returned promise never resolving at all — seen on a real
-// browser where the extension either isn't available or three's fallback
-// path stalls — left this stuck on "Preparing visuals…" forever even
-// though everything else (audio) had already started, since nothing here
-// was waiting on this promise. A hard timeout guarantees the page always
-// moves on: first real frame just pays whatever the compile cost is then,
-// same as the old always-worked lazy-compile-on-first-frame behavior.
-let precompileSettled = false;
-const startOnce = () => { if (precompileSettled) return; precompileSettled = true; document.getElementById('prep').classList.add('hidden'); loop(); };
-(renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera)))
-  .catch(e => console.error('shader precompile failed:', e))
-  .finally(startOnce);
-setTimeout(startOnce, 4000);
+// Compile every active layer's shader with the "Preparing visuals…" overlay
+// up before this starts, same non-blocking compileAsync + hard-timeout
+// pattern as before, just fanned out across however many layers exist.
+let prepSettled = false;
+const settlePrep = () => { if (prepSettled) return; prepSettled = true; document.getElementById('prep').classList.add('hidden'); };
+Promise.all(layers.map(l => l.precompile())).finally(settlePrep);
+setTimeout(settlePrep, driven ? 4000 : 7000);
+loop();
 
 // ---- feed embed: ?song=<url>[&muted=1] + postMessage({type:'song'|'setActive'|'mute'}) ----
 const songParam = new URLSearchParams(location.search).get('song');
@@ -796,72 +926,6 @@ if (songParam) loadSongUrl(decodeURIComponent(songParam), mutedParam, startTimeP
 if (new URLSearchParams(location.search).get('embed') === 'inline') {
   const bar = document.getElementById('bar'); if (bar) bar.style.display = 'none';
 }
-// "driven" mode: an uploader-defined timeline (or this page's own live editor
-// preview) is choosing the shape externally via postMessage — the built-in
-// kick-autoswitch and manual bar/controls are someone else's job now.
-// shape= (global id 0-20, matching SHAPE_NAMES) is resolved to the already-
-// loaded bank's local index (bank was picked via ?bank= before the first
-// compile, above) — never switched mid-song, since a runtime bank swap pays
-// a real recompile and could reintroduce the freeze this system exists to
-// avoid. A ?shape= that isn't in the loaded bank is ignored with a console
-// warning rather than silently triggering an unrequested recompile.
-const drivenParam = new URLSearchParams(location.search).get('driven') === '1';
-if (drivenParam) {
-  autoBeat = false;
-  const bar = document.getElementById('bar'); if (bar) bar.style.display = 'none';
-  document.getElementById('controlPanel').style.display = 'none';
-  const shapeParam = parseInt(new URLSearchParams(location.search).get('shape'), 10);
-  if (Number.isInteger(shapeParam)) {
-    const loc = findBankAndLocal(shapeParam);
-    if (loc && loc.bank === currentBankIdx) {
-      active = loc.local; morphTarget = loc.local;
-      uniforms.uCur.value = loc.local; uniforms.uNext.value = loc.local;
-      document.getElementById('modeName').textContent = SHAPE_NAMES[shapeParam];
-    } else if (loc) {
-      console.warn(`sphere: ?shape=${shapeParam} is in bank ${loc.bank} ("${BANKS[loc.bank].label}") but bank ${currentBankIdx} is loaded — pass &bank=${loc.bank} instead. Ignoring.`);
-    }
-  }
-}
-addEventListener('message', e=>{
-  if (e.data?.type === 'song') loadSongUrl(e.data.url || null, e.data.muted);
-  if (e.data?.type === 'setShape' && Number.isInteger(e.data.index)) {
-    const loc = findBankAndLocal(e.data.index);
-    if (!loc) return;
-    if (loc.bank !== currentBankIdx) {
-      console.warn(`sphere: setShape index=${e.data.index} needs bank ${loc.bank} but bank ${currentBankIdx} is loaded — load with &bank=${loc.bank}. Ignoring.`);
-      return;
-    }
-    const i = loc.local;
-    if (e.data.instant) {
-      active = i; morphTarget = i; morphing = false;
-      uniforms.uCur.value = i; uniforms.uNext.value = i; uniforms.uMorph.value = 0;
-      document.getElementById('modeName').textContent = SHAPE_NAMES[e.data.index];
-    } else {
-      startMorphTo(i, clock.getElapsedTime());
-    }
-  }
-  if (e.data?.type === 'setActive') {
-    if (e.data.active) {
-      // Sync to the switch-time position sent by the parent — this frame has
-      // been sitting paused since it loaded, so without this it resumes from
-      // a stale time and the song visibly jumps on every effect switch.
-      if (audioEl && isFinite(e.data.time) && Math.abs(audioEl.currentTime - e.data.time) > 0.4) audioEl.currentTime = e.data.time;
-      actx?.resume().catch(()=>{}); audioEl?.play().catch(()=>{});
-    }
-    else audioEl?.pause();
-  }
-  if (e.data?.type === 'mute' && audioEl) {
-    audioEl.muted = !!e.data.muted;
-    if (!e.data.muted) { actx?.resume().catch(()=>{}); audioEl.play().catch(()=>{}); }
-  }
-  if (e.data?.type === 'play' && audioEl) { actx?.resume().catch(()=>{}); audioEl.play().catch(()=>{}); }
-  if (e.data?.type === 'pause' && audioEl) audioEl.pause();
-  if (e.data?.type === 'seek' && audioEl && isFinite(e.data.time)) audioEl.currentTime = e.data.time;
-  if (e.data?.type === 'volume' && audioEl) {
-    audioEl.volume = e.data.value; audioEl.muted = e.data.value <= 0;
-    if (e.data.value > 0) { actx?.resume().catch(()=>{}); audioEl.play().catch(()=>{}); }
-  }
-});
 // Fallback: a real tap/drag directly on this canvas (orbiting, switching modes)
 // is a genuine gesture in THIS frame. AudioContext.resume() alone isn't
 // enough — the <audio> element's own play() call is a SEPARATE autoplay gate
