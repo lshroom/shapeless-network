@@ -13,8 +13,9 @@
 <style>
   html,body{margin:0;padding:0;height:100%;background:#05060a;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;}
   canvas{display:block;touch-action:none;}
-  #layers{position:fixed;inset:0;z-index:1;}
+  #layers{position:fixed;inset:0;z-index:1;transform-origin:50% 50%;}
   .layerCanvas{position:absolute;inset:0;width:100%;height:100%;transform-origin:50% 50%;}
+  #kickFlash{position:fixed;inset:0;z-index:2;background:#fff;opacity:0;pointer-events:none;mix-blend-mode:overlay;}
   #bar{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;
        padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
        background:linear-gradient(to top,rgba(0,0,0,.75),transparent);}
@@ -57,6 +58,7 @@
 </head>
 <body>
 <div id="layers"></div>
+<div id="kickFlash"></div>
 <div id="prep"><div class="spin"></div><div id="prepText">Preparing visuals… 0%</div></div>
 <div id="noSrc">waiting for audio…</div>
 <div id="loadSongWrap"><button id="loadSongBtn">🎵 Load a song</button><input id="loadSongFile" type="file" accept="audio/*" style="display:none"></div>
@@ -142,7 +144,7 @@ let prevFreq = null, fluxFast=0, fluxSlow=0, drumRefractory=0, drumPulse=0;
 // double-firing on one hit.
 let bassFast=0, bassSlow=0, bassRefractory=0, bassPulse=0;
 let midFast=0, midSlow=0, midRefractory=0, midPulse=0;
-let hiFast=0, hiSlow=0, hiRefractory=0, hiPulse=0;
+let hiFast=0, hiSlow=0, hiRefractory=0, hiPulse=0, harmonyCooldownUntil=0;
 function onset(fast, slow, mult, add, refractoryT, minGap, now){
   return fast > slow * mult + add && (now - refractoryT) > minGap;
 }
@@ -194,8 +196,12 @@ function sampleAudio() {
   audio.vocalHit = vocalHit; audio.vocalPulse = midPulse;
 
   hiFast += (h - hiFast) * 0.5; hiSlow += (h - hiSlow) * 0.04;
-  const harmonyHit = onset(hiFast, hiSlow, 1.3, 0.05, hiRefractory, 0.25, now);
-  if (harmonyHit) hiRefractory = now;
+  // The glitch this drives is a rare accent, not ambient texture — a 0.25s
+  // refractory let it re-fire almost every second on a bright mix, which read
+  // as "always the same glitch." A long randomized cooldown on top of the
+  // normal onset refractory spreads real bursts out across the whole song.
+  let harmonyHit = onset(hiFast, hiSlow, 1.3, 0.05, hiRefractory, 0.25, now) && now > harmonyCooldownUntil;
+  if (harmonyHit) { hiRefractory = now; harmonyCooldownUntil = now + 3.5 + Math.random() * 5.5; }
   hiPulse = Math.max(hiPulse * 0.85, harmonyHit ? 1 : 0);
   audio.harmonyHit = harmonyHit; audio.harmonyPulse = hiPulse;
 }
@@ -776,6 +782,7 @@ function createBackgroundLayer({ canvas }){
     uMorph: { value: 0 }, // crossfade 0..1 between uStyle and uStyle2 during a style switch
     uStyle2: { value: 0 },
     uGlitch: { value: 0 }, // the background is the harmony layer — this is its harmony-driven glitch
+    uGlitchType: { value: 0 },
     uHarmony: { value: 0 },
   });
   const BG_STYLE_NAMES = ['Plasma drift', 'Flowing waves', 'Pulse rings', 'Starfield'];
@@ -789,32 +796,34 @@ function createBackgroundLayer({ canvas }){
       out vec4 fragColor;
       uniform vec2 uRes, uDrift;
       uniform float uTime,uBass,uMid,uHigh,uRms,uBeat;
-      uniform int uStyle, uStyle2;
+      uniform int uStyle, uStyle2, uGlitchType;
       uniform float uMorph, uGlitch, uHarmony;
       ${GLSL.snoise3}
       ${GLSL.palette}
       vec3 styleColor(int style, vec2 uv, vec2 q){
         if (style == 0) {
-          // Plasma drift — soft rolling noise field.
+          // Plasma drift — soft rolling noise field. Dimmer/less saturated
+          // than before — the colorful styles are meant to read as brief
+          // accents against the mostly-dark starfield, not an equal partner.
           float n1 = snoise(vec3(q*0.6, uTime*0.035));
           float n2 = snoise(vec3(q*1.4+11.0, uTime*0.06+5.0));
           float field = n1*0.65 + n2*0.35;
           float hue = fract(field*0.5 + uTime*0.01 + uMid*0.08);
-          return spectral(hue) * (0.34 + 0.26*(0.5+0.5*field) + uBeat*0.24 + uBass*0.16);
+          return spectral(hue) * (0.2 + 0.17*(0.5+0.5*field) + uBeat*0.16 + uBass*0.1);
         } else if (style == 1) {
           // Flowing waves — horizontal bands undulating and scrolling.
           float w1 = sin(uv.x*2.2 + q.y*1.6 + uTime*0.5 + uMid*2.0);
           float w2 = sin(uv.x*3.7 - q.y*2.1 - uTime*0.32 + uHigh*1.5);
           float field = w1*0.6 + w2*0.4;
           float hue = fract(uv.x*0.15 + uTime*0.03 + field*0.12 + uMid*0.1);
-          return spectral(hue) * (0.3 + 0.28*(0.5+0.5*field) + uBeat*0.26 + uBass*0.14);
+          return spectral(hue) * (0.18 + 0.18*(0.5+0.5*field) + uBeat*0.18 + uBass*0.09);
         } else if (style == 2) {
           // Pulsing rings — concentric rings expanding from center, snapping on the beat.
           float r = length(uv);
           float ring = sin(r*9.0 - uTime*1.1 - uBeat*3.0);
           float pulse = smoothstep(0.0, 1.0, 0.5+0.5*ring);
           float hue = fract(r*0.3 - uTime*0.025 + uMid*0.15);
-          return spectral(hue) * (0.28 + 0.34*pulse + uBeat*0.3 + uBass*0.18);
+          return spectral(hue) * (0.17 + 0.22*pulse + uBeat*0.2 + uBass*0.11);
         } else {
           // Starfield — sparse twinkling points drifting past, denser/brighter on highs.
           vec2 gv = q*6.0;
@@ -839,13 +848,23 @@ function createBackgroundLayer({ canvas }){
         vec2 uv=(vUv*2.0-1.0); uv.x*=uRes.x/uRes.y;
         // Background IS the harmony stem's own layer — a harmony onset (chord
         // change / texture shift, approximated since we can't run real pitch
-        // tracking in-browser) triggers a scanline-slice glitch instead of a
-        // geometry flourish, which is what the raymarched layers get instead.
+        // tracking in-browser) triggers one of several distinct glitch types
+        // instead of a geometry flourish, which is what the raymarched layers
+        // get instead. uGlitchType picks which one so it doesn't look like
+        // the same effect looping all song.
         vec2 guv = uv;
-        if (uGlitch > 0.002) {
+        bool glitching = uGlitch > 0.002;
+        // Type 0: scanline-slice horizontal tearing (rows shear sideways).
+        if (glitching && uGlitchType == 0) {
           float slice = floor(vUv.y*40.0);
           float sliceRnd = fract(sin(slice*91.71 + floor(uTime*13.0))*43758.5453);
           guv.x += (sliceRnd - 0.5) * uGlitch * 0.55;
+        }
+        // Type 1: vertical tearing (columns shear up/down, VHS-tracking style).
+        if (glitching && uGlitchType == 1) {
+          float slice = floor(vUv.x*24.0);
+          float sliceRnd = fract(sin(slice*57.31 + floor(uTime*9.0))*24634.6345);
+          guv.y += (sliceRnd - 0.5) * uGlitch * 0.5;
         }
         vec2 q = guv*1.2 + uDrift;
         vec3 colA = styleColor(uStyle, guv, q);
@@ -854,13 +873,31 @@ function createBackgroundLayer({ canvas }){
           vec3 colB = styleColor(uStyle2, guv, q);
           col = mix(colA, colB, uMorph);
         }
-        if (uGlitch > 0.002) {
-          vec2 qr = q + vec2(uGlitch*0.04, 0.0);
-          vec2 qb = q - vec2(uGlitch*0.04, 0.0);
-          col.r = mix(col.r, styleColor(uStyle, guv, qr).r, uGlitch);
-          col.b = mix(col.b, styleColor(uStyle, guv, qb).b, uGlitch);
+        // Type 2: chromatic-aberration ripple — RGB channels split radially.
+        if (glitching && uGlitchType == 2) {
+          vec2 dir = normalize(uv + 0.0001) * uGlitch * 0.05;
+          col.r = mix(col.r, styleColor(uStyle, guv, q+dir).r, uGlitch);
+          col.b = mix(col.b, styleColor(uStyle, guv, q-dir).b, uGlitch);
+        }
+        // Type 3: block-hold datamosh — random blocks freeze on a stale color.
+        if (glitching && uGlitchType == 3) {
+          vec2 bg = floor(vUv*vec2(9.0,14.0));
+          float bRnd = fract(sin(dot(bg, vec2(41.3,71.9)) + floor(uTime*3.0))*9821.233);
+          if (bRnd > 1.0 - uGlitch*0.5) {
+            vec3 stale = styleColor(uStyle, guv, floor(q*4.0)/4.0);
+            col = mix(col, stale, uGlitch);
+          }
+        }
+        // Type 4: invert-flash flicker — brief pixel-inverted strobe blocks.
+        if (glitching && uGlitchType == 4) {
+          float fRnd = fract(sin(floor(uTime*24.0)*12.73 + vUv.y*3.0)*5871.13);
+          if (fRnd > 1.0 - uGlitch*0.4) col = mix(col, vec3(1.0)-col, uGlitch);
+        }
+        // Every type also gets a light common block-noise flicker so a glitch
+        // never reads as "just one clean effect" regardless of which type.
+        if (glitching) {
           float blockRnd = fract(sin(dot(floor(vUv*vec2(11.0,17.0) + floor(uTime*19.0)), vec2(12.9898,78.233)))*43758.5453);
-          if (blockRnd > 1.0 - uGlitch*0.35) col = mix(col, vec3(1.0), 0.5*uGlitch);
+          if (blockRnd > 1.0 - uGlitch*0.22) col = mix(col, vec3(1.0), 0.4*uGlitch);
         }
         fragColor = vec4(col, 1.0);
       }`,
@@ -870,7 +907,8 @@ function createBackgroundLayer({ canvas }){
   scene.add(mesh);
 
   let enabled = true;
-  let style = 0, morphTarget = -1, morphT = 0;
+  let style = 3, morphTarget = -1, morphT = 0; // start on Starfield — the dark one
+  uniforms.uStyle.value = 3;
   const MORPH_DUR = 1.4;
   function setStyle(idx, instant){
     idx = ((idx % BG_STYLE_NAMES.length) + BG_STYLE_NAMES.length) % BG_STYLE_NAMES.length;
@@ -880,7 +918,20 @@ function createBackgroundLayer({ canvas }){
     uniforms.uStyle.value = style; uniforms.uStyle2.value = idx;
   }
   let styleTimer = 8 + Math.random() * 6;
-  let glitchAmt = 0;
+  let glitchAmt = 0, glitchDecay = 0.12;
+  // Starfield (idx 3) reads as the "dark, interesting" one — weighted heavily
+  // in its favor, with the 3 colorful styles as brief accents rather than
+  // equal-share rotation, and it sticks around longer once picked.
+  const STYLE_WEIGHTS = [0.16, 0.16, 0.16, 0.52];
+  function pickNextStyle(){
+    let idx;
+    do {
+      const r = Math.random();
+      let acc = 0; idx = STYLE_WEIGHTS.length - 1;
+      for (let i = 0; i < STYLE_WEIGHTS.length; i++) { acc += STYLE_WEIGHTS[i]; if (r < acc) { idx = i; break; } }
+    } while (idx === style);
+    return idx;
+  }
   const drift = new THREE.Vector2(0, 0);
   function step(dt, t){
     if (!enabled) return;
@@ -891,14 +942,20 @@ function createBackgroundLayer({ canvas }){
     // changing" next to the other 3 layers' constant switching.
     styleTimer -= dt;
     if (morphTarget < 0 && (styleTimer <= 0 || (audio.harmonyHit && Math.random() < 0.2))) {
-      setStyle(style + 1 + Math.floor(Math.random()*(BG_STYLE_NAMES.length-1)));
-      styleTimer = 9 + Math.random() * 7;
+      const next = pickNextStyle();
+      setStyle(next);
+      styleTimer = next === 3 ? (16 + Math.random() * 12) : (5 + Math.random() * 4);
     }
-    // Glitch burst on every harmony onset, plus a gentle baseline glitch
-    // during sustained harmonic energy so it's not silent between onsets.
-    if (audio.harmonyHit) glitchAmt = 1;
-    glitchAmt *= Math.pow(0.12, dt);
-    uniforms.uGlitch.value = Math.max(glitchAmt, audio.harmony * 0.22);
+    // A glitch is a rare, distinct accent (not ambient texture) — each burst
+    // picks a random type and its own intensity/decay so no two bursts in a
+    // 4-minute song look or feel the same.
+    if (audio.harmonyHit) {
+      glitchAmt = 0.7 + Math.random() * 0.5;
+      glitchDecay = 0.05 + Math.random() * 0.35; // lower = snappier, higher = lingers
+      uniforms.uGlitchType.value = Math.floor(Math.random() * 5);
+    }
+    glitchAmt *= Math.pow(glitchDecay, dt);
+    uniforms.uGlitch.value = glitchAmt;
     uniforms.uHarmony.value = audio.harmony;
     if (morphTarget >= 0) {
       morphT += dt / MORPH_DUR;
@@ -963,6 +1020,24 @@ function stepCamera(dt, t) {
 function cameraBeatFlourish() {
   if (Math.random() < 0.5) spinDir *= -1;
   else fovPunch += 6 + audio.bass * 4;
+}
+
+// ================= KICK PUNCH =================
+// The per-layer flourishes were too subtle to read as "the kick is doing
+// something" — this is a deliberately unsubtle, unconditional reaction that
+// fires on EVERY drum hit regardless of which layer/band it belongs to: a
+// fast whole-screen zoom-punch plus a white flash, both gone within ~150ms.
+const kickFlashEl = document.getElementById('kickFlash');
+const kickTargetEl = document.getElementById('layers');
+let kickAmt = 0;
+function kickPunch() {
+  kickAmt = 1;
+  fovPunch += 10 + audio.bass * 6;
+}
+function stepKick(dt) {
+  kickAmt *= Math.pow(0.015, dt);
+  kickFlashEl.style.opacity = String(Math.min(0.5, kickAmt * 0.5));
+  kickTargetEl.style.transform = `scale(${1 + kickAmt * 0.045})`;
 }
 let onFrameExtra = null; // blended mode hooks its switch-point check here (declared before MODE SELECT so its assignment there sticks)
 
@@ -1215,8 +1290,9 @@ document.getElementById('fsBtn').addEventListener('click', ()=>{
 function loop(){
   const dt = clock.getDelta(), t = clock.getElapsedTime();
   sampleAudio();
-  if (audio.hit) cameraBeatFlourish();
+  if (audio.hit) { cameraBeatFlourish(); kickPunch(); }
   stepCamera(dt, t);
+  stepKick(dt);
   layers.forEach(l => l.step(dt, t));
   onFrameExtra?.(); // blended mode hooks its switch-point check in here
   requestAnimationFrame(loop);
