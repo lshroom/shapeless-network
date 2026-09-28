@@ -1177,15 +1177,12 @@
     <div class="feed-schedule-modal" id="feed-schedule-modal" hidden>
       <div class="feed-schedule-panel">
         <div class="feed-schedule-head">
-          <span id="feed-schedule-head-label">Schedule the switches</span>
-          <button class="btn btn-ghost btn-sm" id="feed-schedule-blend-toggle" onclick="app.toggleBlendedPreview()" style="margin-left:auto;margin-right:8px;">🌈 Blended preview</button>
+          <span id="feed-schedule-head-label">Blended preview</span>
           <button class="feed-schedule-close" onclick="app.closeScheduleEditor()">✕</button>
         </div>
         <div class="feed-schedule-preview">
           <iframe id="feed-schedule-frame-sphere" class="feed-schedule-frame" data-active="true" allow="autoplay"></iframe>
         </div>
-        <div class="feed-schedule-banks" id="feed-schedule-banks"></div>
-        <div class="feed-schedule-shapes" id="feed-schedule-shapes"></div>
         <div class="feed-schedule-transport">
           <button id="feed-schedule-play" onclick="app.toggleSchedulePreview()">▶</button>
           <span id="feed-schedule-time">0:00</span>
@@ -1200,7 +1197,7 @@
           <button class="btn btn-ghost btn-sm" id="feed-schedule-suggest-btn" style="flex:1" onclick="app.suggestSwitchPoints()">Suggest switch points</button>
         </div>
         <div class="feed-schedule-marker-list" id="feed-schedule-marker-list"></div>
-        <div class="feed-schedule-hint">Tap the timeline to move to that moment (it plays there so you can hear it). Tap <b>+ Add a switch here</b> to drop a marker at the playhead, or drag an existing one to fine-tune it. Tap a row below to select it, nudge its time, or remove it. <b>Suggest switch points</b> listens to the song and drops markers on its own.</div>
+        <div class="feed-schedule-hint">Tap the timeline to move to that moment (it plays there so you can hear it). <b>Suggest switch points</b> listens to the waveform and drops markers where the song noticeably changes — every layer switches together at each one. Tap <b>+ Add a switch here</b> to drop one by hand, or drag/nudge/remove existing ones below.</div>
         <div class="feed-schedule-actions">
           <button class="btn btn-ghost btn-sm" onclick="app.closeScheduleEditor()">Cancel</button>
           <button class="btn btn-primary btn-sm" onclick="app.saveScheduleEditor()">Save timeline</button>
@@ -1952,8 +1949,12 @@
   const FEED_INLINE_SEEK_DRAG = new Set(); // postIds mid-drag on their seek slider — don't let timeupdate fight the user's thumb
   const FEED_INLINE_LAST_TIME = {}; // postId -> last known playback position, so opening fullscreen can continue instead of restarting
   function feedInlinePlayerHtml(p){
-    const sched = Array.isArray(p.media.effectSchedule) && p.media.effectSchedule.length ? p.media.effectSchedule : null;
-    const effect = sched ? sched[0].page : (['sphere','field'].includes(p.media.effect) ? p.media.effect : 'cube');
+    const isBlended = p.media.effect === 'sphere-blended';
+    // effectSchedule on an older post is a legacy per-marker {t,page,shape}
+    // list from the single-bank driven editor — a blended post's switch
+    // points are just times (effectSwitchPoints), not shape assignments.
+    const sched = !isBlended && Array.isArray(p.media.effectSchedule) && p.media.effectSchedule.length ? p.media.effectSchedule : null;
+    const effect = isBlended ? 'sphere' : (sched ? sched[0].page : (['sphere','field'].includes(p.media.effect) ? p.media.effect : 'cube'));
     const base = FEED_EFFECT_PAGES[effect];
     const sep = base.endsWith('?') ? '' : '&';
     let src = base + sep + 'song=' + encodeURIComponent(p.media.url) + '&muted=1&embed=inline';
@@ -2180,23 +2181,10 @@
   // lives inside sphere.html as one continuously-deformable SDF, so nothing
   // new is ever authored on the 'field' page again.
   const FEED_EFFECT_PAGES = { cube: 'effects-lab/destinys-child.html?world=1&v=' + FEED_EFFECT_CACHE_BUST, sphere: 'effects-lab/sphere.html?v=' + FEED_EFFECT_CACHE_BUST, field: 'effects-lab/field.html?v=' + FEED_EFFECT_CACHE_BUST };
-  // Keep this in the exact same order as sphere.html's own SHAPE_NAMES —
-  // index here is the shape id both pages agree on.
-  const SPHERE_SHAPE_NAMES = ['Fluff','Gyroid','Superformula','Mandelbulb','SDF Morph','Waves','Chladni','Spiderweb','Sea Anemone','Anemone Spiral','Sand Dunes','Slime Mold','Aurora Curtains','Catenoid Helicoid','Vector Field','Ripple Tank',"Jacob's Ladder",'Virus Capsid','Soap Bubbles','Hilbert Curve','Spin Wave'];
-  // Must match sphere.html's own BANKS exactly — sphere.html only ever
-  // compiles 8 shapes at once (compiling all 21 together is what caused real
-  // whole-browser GPU-driver locks), so a song's timeline has to stay inside
-  // one bank throughout. Switching banks mid-edit resets the timeline rather
-  // than risk a runtime recompile during playback.
-  const SPHERE_BANKS = [
-    { label: 'Classic', ids: [0,1,2,3,4,5,6,7] },
-    { label: 'Organic', ids: [8,9,10,11,12,13,17,18] },
-    { label: 'Flow & Field', ids: [14,15,16,19,20,3,7,12] },
-  ];
   // Upload-time timeline editor state — separate from the fullscreen player's
   // own feedPlayer* state above, since this drives one small preview iframe
   // and edits a draft schedule that only gets attached to the post on save.
-  let scheduleDraft = null; // { markers:[{t,page,shape}], duration }
+  let scheduleDraft = null; // { markers:[{t}] } — waveform-detected "big switch" times for the blended preview
   let scheduleUploadedMedia = null; // the media object once the song has been uploaded to get a real URL for the preview iframe
   let scheduleUploadedForFile = null; // which File object scheduleUploadedMedia belongs to, so re-opening doesn't re-upload
   let scheduleSelectedMarkerIdx = 0;
@@ -2205,10 +2193,8 @@
   let schedulePlaying = false;
   let scheduleDragMarker = null;
   let scheduleFiredIdx = -1;
-  let scheduleBlendedMode = false;
   function scheduleFrame(){ return document.getElementById('feed-schedule-frame-sphere'); }
-  // Shared by openScheduleEditor and toggleBlendedPreview — uploads the
-  // chosen song once (for preview) and reuses that same upload for both, and
+  // Uploads the chosen song once (for preview) and reuses that same upload
   // for the real post if one follows, instead of uploading twice.
   async function ensureScheduleSongUploaded(){
     const file = document.getElementById('feed-post-song').files[0];
@@ -2226,21 +2212,14 @@
       return scheduleUploadedMedia;
     } catch(e){ hideProgress(); toast('Could not upload for preview — try again.'); return null; }
   }
-  // Every shape — the old sphere solids and the old field cymatics patterns
-  // — now lives inside sphere.html as ONE raymarched SDF field (see
-  // effects-lab/sphere.html), so there's only ever one frame here. It loads
-  // once and never reloads its src again; every switch, including what used
-  // to be a sphere↔field cut, is a real setShape morph — the same liquid
-  // deform the sphere shapes always had, now covering all 8.
-  function loadScheduleFrame(initialShape){
+  // Design the visuals now always opens straight into the full blended
+  // experience (all 3 banks + background layer composited together) — the
+  // old single-bank "driven" marker editor is gone; there's nothing to pick
+  // a bank/shape for any more.
+  function loadScheduleFrame(){
     if(!scheduleUploadedMedia) return;
-    const base = FEED_EFFECT_PAGES.sphere;
-    const sep = base.endsWith('?') ? '' : '&';
-    const bank = scheduleDraft?.bank || 0;
-    scheduleFrame().src = base + sep + 'song=' + encodeURIComponent(scheduleUploadedMedia.url) + '&driven=1&bank=' + bank + '&shape=' + initialShape + '&muted=0&active=0';
-  }
-  function switchScheduleShape(shape, instant){
-    scheduleFrame().contentWindow?.postMessage({ type:'setShape', index:shape, instant }, '*');
+    const base = FEED_EFFECT_PAGES.sphere.split('?')[0];
+    scheduleFrame().src = base + '?song=' + encodeURIComponent(scheduleUploadedMedia.url) + '&muted=0';
   }
   function scheduleBroadcast(msg){
     scheduleFrame()?.contentWindow?.postMessage(msg, '*');
@@ -2309,48 +2288,12 @@
     filled.sort((a,b)=>a.t-b.t);
     return filled;
   }
-  function scheduleApplyTick(){
+  // sphere.html tracks its own audio currentTime against these switch-point
+  // times and triggers the synchronized "big switch" itself — the parent
+  // just has to (re)send the list whenever the marker set changes.
+  function scheduleBroadcastSwitchPoints(){
     if(!scheduleDraft) return;
-    const sched = scheduleDraft.markers;
-    let idx = 0;
-    for(let i=0;i<sched.length;i++){ if(sched[i].t <= scheduleCurrentTime) idx = i; else break; }
-    if(idx === scheduleFiredIdx) return;
-    scheduleFiredIdx = idx;
-    const entry = sched[idx];
-    switchScheduleShape(entry.shape, false);
-  }
-  function renderScheduleBankBar(){
-    const wrap = document.getElementById('feed-schedule-banks');
-    if(!wrap) return;
-    wrap.innerHTML = '';
-    const activeBank = scheduleDraft?.bank || 0;
-    SPHERE_BANKS.forEach((b,i)=>{
-      const btn = document.createElement('button');
-      btn.className = 'feed-schedule-bank-btn';
-      btn.textContent = b.label;
-      btn.dataset.active = (i === activeBank) ? 'true' : 'false';
-      btn.onclick = ()=>app.setScheduleBank(i);
-      wrap.appendChild(btn);
-    });
-  }
-  function renderScheduleShapePalette(){
-    const m = scheduleDraft?.markers[scheduleSelectedMarkerIdx];
-    const wrap = document.getElementById('feed-schedule-shapes');
-    if(!wrap) return;
-    wrap.innerHTML = '';
-    renderScheduleBankBar();
-    if(!m) return;
-    const bank = SPHERE_BANKS[scheduleDraft?.bank || 0];
-    bank.ids.forEach(i=>{
-      const btn = document.createElement('button');
-      btn.className = 'feed-schedule-shape-btn';
-      btn.textContent = SPHERE_SHAPE_NAMES[i];
-      btn.dataset.active = (i === m.shape) ? 'true' : 'false';
-      btn.onclick = ()=>app.setSelectedMarkerShape(i);
-      wrap.appendChild(btn);
-    });
-    const rmBtn = document.getElementById('feed-schedule-remove-btn');
-    if(rmBtn) rmBtn.hidden = scheduleSelectedMarkerIdx === 0;
+    scheduleBroadcast({ type:'switchPoints', times: scheduleDraft.markers.map(m=>m.t) });
   }
   function renderScheduleTrack(){
     const track = document.getElementById('feed-schedule-track');
@@ -2368,14 +2311,12 @@
         el.dataset.selected = (i === scheduleSelectedMarkerIdx) ? 'true' : 'false';
         const p = scheduleDuration > 0 ? (m.t/scheduleDuration)*100 : 0;
         el.style.left = p + '%';
-        const label = SPHERE_SHAPE_NAMES[m.shape] || '';
-        el.title = label + ' @ ' + fmtInlineTime(m.t);
+        el.title = 'Switch @ ' + fmtInlineTime(m.t);
         el.addEventListener('pointerdown', ev=>{ ev.stopPropagation(); app.selectMarker(i); scheduleDragMarker = m; });
         track.appendChild(el);
       });
     }
     renderScheduleMarkerList();
-    if(schedulePlaying && scheduleDraft) scheduleApplyTick();
   }
   function renderScheduleMarkerList(){
     const wrap = document.getElementById('feed-schedule-marker-list');
@@ -2386,24 +2327,20 @@
       const row = document.createElement('div');
       row.className = 'feed-schedule-marker-row';
       row.dataset.selected = (i === scheduleSelectedMarkerIdx) ? 'true' : 'false';
-      const label = SPHERE_SHAPE_NAMES[m.shape] || '';
-      row.innerHTML = `<span class="fsr-dot"></span><span class="fsr-time">${fmtInlineTime(m.t)}</span><span class="fsr-label">${label}</span>`;
-      if(i > 0){
-        const back = document.createElement('button'); back.className='fsr-nudge'; back.textContent='−1s';
-        back.onclick = (ev)=>{ ev.stopPropagation(); app.nudgeMarkerTime(i, -1); };
-        const fwd = document.createElement('button'); fwd.className='fsr-nudge'; fwd.textContent='+1s';
-        fwd.onclick = (ev)=>{ ev.stopPropagation(); app.nudgeMarkerTime(i, 1); };
-        const del = document.createElement('button'); del.textContent='✕';
-        del.onclick = (ev)=>{ ev.stopPropagation(); app.selectMarker(i); app.deleteSelectedMarker(); };
-        row.appendChild(back); row.appendChild(fwd); row.appendChild(del);
-      }
+      row.innerHTML = `<span class="fsr-dot"></span><span class="fsr-time">${fmtInlineTime(m.t)}</span><span class="fsr-label">Big switch</span>`;
+      const back = document.createElement('button'); back.className='fsr-nudge'; back.textContent='−1s';
+      back.onclick = (ev)=>{ ev.stopPropagation(); app.nudgeMarkerTime(i, -1); };
+      const fwd = document.createElement('button'); fwd.className='fsr-nudge'; fwd.textContent='+1s';
+      fwd.onclick = (ev)=>{ ev.stopPropagation(); app.nudgeMarkerTime(i, 1); };
+      const del = document.createElement('button'); del.textContent='✕';
+      del.onclick = (ev)=>{ ev.stopPropagation(); app.selectMarker(i); app.deleteSelectedMarker(); };
+      row.appendChild(back); row.appendChild(fwd); row.appendChild(del);
       row.addEventListener('click', ()=> app.selectMarkerAndSeek(i));
       wrap.appendChild(row);
     });
   }
   addEventListener('pointermove', e=>{
     if(!scheduleDragMarker || !scheduleDraft) return;
-    if(scheduleDraft.markers[0] === scheduleDragMarker) return; // the opening marker always stays at 0
     const track = document.getElementById('feed-schedule-track');
     if(!track || scheduleDuration <= 0) return;
     const rect = track.getBoundingClientRect();
@@ -2417,6 +2354,7 @@
       scheduleSelectedMarkerIdx = scheduleDraft.markers.indexOf(scheduleDragMarker);
       scheduleDragMarker = null;
       renderScheduleTrack();
+      scheduleBroadcastSwitchPoints();
     }
   });
   let feedPlayerLoadedFor = null; // the song URL currently loaded into all 3 frames
@@ -2428,6 +2366,11 @@
   let feedPlayerActiveScheduleBank = 0;
   let feedPlayerScheduleFired = -1;
   let feedPlayerScheduleLastT = 0;
+  // A blended post's own "big switch" times (from Design the visuals' waveform
+  // Suggest switch points) — unlike feedPlayerActiveSchedule above, these
+  // aren't per-shape markers; the sphere frame itself decides what "switch"
+  // means for its 4 layers, this just tells it when.
+  let feedPlayerBlendedSwitchPoints = null;
   function feedPlayerFrame(effect){ return document.getElementById('feed-player-iframe-' + effect); }
   function ensureFeedPlayerLoaded(activeEffect){
     if(!feedPlayerSongUrl || feedPlayerLoadedFor === feedPlayerSongUrl) return;
@@ -2455,7 +2398,11 @@
         // and gets silently dropped, same race the 'active' param avoids above.
         if(effect === activeEffect && feedPlayerActiveSchedule[0]) src += '&shape=' + feedPlayerActiveSchedule[0].shape;
       }
-      feedPlayerFrame(effect).src = src;
+      const frame = feedPlayerFrame(effect);
+      frame.src = src;
+      if(effect === 'sphere' && feedPlayerBlendedSwitchPoints && feedPlayerBlendedSwitchPoints.length){
+        frame.onload = () => frame.contentWindow?.postMessage({ type:'switchPoints', times: feedPlayerBlendedSwitchPoints }, '*');
+      }
     });
   }
   let feedPlayerCurrentEffect = null; // which of the 3 frames is currently the audible/visible one
@@ -7763,11 +7710,12 @@
             media = await SB.uploadMedia(uploadFile);
           }
           if(media.kind === 'audio'){
-            // No dropdown anymore — a song always goes to sphere/field, chosen
-            // via the timeline editor. Never opened it? Defaults to Sphere.
-            const draft = (scheduleDraft && scheduleUploadedForFile === file) ? scheduleDraft : { markers: [{ t:0, page:'sphere', shape:0 }], bank: 0 };
-            media.effect = draft.markers[0].page;
-            if(draft.markers.length > 1){ media.effectSchedule = draft.markers; media.effectScheduleBank = draft.bank || 0; }
+            // Every song post now gets the full blended sphere experience (3
+            // banks + background, all composited) — "Design the visuals"
+            // only ever adds waveform-detected big-switch times on top of it.
+            const draft = (scheduleDraft && scheduleUploadedForFile === file) ? scheduleDraft : { markers: [] };
+            media.effect = 'sphere-blended';
+            if(draft.markers.length) media.effectSwitchPoints = draft.markers.map(m => m.t);
           }
           if(media.kind === 'video'){ media.effect = 'cube'; }
         }
@@ -7794,63 +7742,24 @@
       if(!requireAuth()) return;
       const media = await ensureScheduleSongUploaded();
       if(!media) return;
-      if(!scheduleDraft) scheduleDraft = { markers: [{ t: 0, page: 'sphere', shape: 0 }], bank: 0 };
-      if(scheduleDraft.bank == null) scheduleDraft.bank = 0; // editing an older draft/post saved before banks existed
-      scheduleSelectedMarkerIdx = 0;
+      // Straight into the full blended experience (3 banks + background,
+      // all composited live) — there's no single-bank/single-shape mode to
+      // choose any more, so nothing to pick before this opens.
+      if(!scheduleDraft) scheduleDraft = { markers: [] };
+      scheduleSelectedMarkerIdx = -1;
       scheduleFiredIdx = -1;
       schedulePlaying = false;
-      scheduleBlendedMode = false;
       document.getElementById('feed-schedule-play').textContent = '▶';
       document.getElementById('feed-schedule-modal').hidden = false;
-      renderScheduleShapePalette();
-      loadScheduleFrame(scheduleDraft.markers[0].shape);
+      loadScheduleFrame();
+      scheduleFrame().onload = () => scheduleBroadcastSwitchPoints();
       renderScheduleTrack();
-    },
-    // Same modal, same iframe, same "Design the visuals" entry point — just
-    // swaps the frame between the single-bank marker-timeline view (driven=1)
-    // and the all-4-layers blended view (no driven param). The marker-editing
-    // UI only makes sense for the single-bank view, so it hides while blended
-    // preview is active instead of trying to show both at once.
-    toggleBlendedPreview(){
-      scheduleBlendedMode = !scheduleBlendedMode;
-      const btn = document.getElementById('feed-schedule-blend-toggle');
-      btn.classList.toggle('on', scheduleBlendedMode);
-      document.getElementById('feed-schedule-head-label').textContent = scheduleBlendedMode ? 'Blended preview' : 'Schedule the switches';
-      for (const id of ['feed-schedule-banks','feed-schedule-shapes','feed-schedule-transport','feed-schedule-track','feed-schedule-add-btn','feed-schedule-marker-list','feed-schedule-hint']) {
-        const el = document.getElementById(id);
-        if (el) el.style.display = scheduleBlendedMode ? 'none' : '';
-      }
-      if (scheduleBlendedMode) {
-        const base = FEED_EFFECT_PAGES.sphere.split('?')[0];
-        scheduleFrame().src = base + '?song=' + encodeURIComponent(scheduleUploadedMedia.url) + '&muted=0';
-      } else {
-        loadScheduleFrame(scheduleDraft.markers[scheduleSelectedMarkerIdx]?.shape ?? scheduleDraft.markers[0].shape);
-      }
     },
     closeScheduleEditor(){
       document.getElementById('feed-schedule-modal').hidden = true;
       scheduleBroadcast({ type: 'pause' });
       scheduleFrame().src = 'about:blank';
       schedulePlaying = false;
-      scheduleBlendedMode = false;
-    },
-    setScheduleBank(bankIdx){
-      if(!scheduleDraft || bankIdx === (scheduleDraft.bank || 0)) return;
-      // sphere.html only ever compiles one 8-shape bank at a time — switching
-      // banks mid-timeline would mean asking it to recompile mid-song, which
-      // is exactly the freeze this whole system exists to avoid. So a bank
-      // switch here resets the timeline back to a single opening marker in
-      // the new bank rather than trying to remap old markers across banks.
-      const hadExtra = scheduleDraft.markers.length > 1;
-      scheduleDraft.bank = bankIdx;
-      scheduleDraft.markers = [{ t: 0, page: 'sphere', shape: SPHERE_BANKS[bankIdx].ids[0] }];
-      scheduleSelectedMarkerIdx = 0;
-      scheduleCurrentTime = 0;
-      scheduleFiredIdx = -1;
-      loadScheduleFrame(scheduleDraft.markers[0].shape);
-      renderScheduleShapePalette();
-      renderScheduleTrack();
-      if(hadExtra) toast(`Switched to ${SPHERE_BANKS[bankIdx].label} — timeline reset (banks can't mix mid-song).`);
     },
     saveScheduleEditor(){
       const n = scheduleDraft.markers.length;
@@ -7870,13 +7779,6 @@
       scheduleCurrentTime = t;
       scheduleFiredIdx = -1;
       scheduleBroadcast({ type:'seek', time: t });
-      if(!schedulePlaying && scheduleDraft){
-        // paused scrubbing still previews whichever shape is active at that time
-        let idx = 0;
-        for(let i=0;i<scheduleDraft.markers.length;i++){ if(scheduleDraft.markers[i].t <= t) idx = i; else break; }
-        const entry = scheduleDraft.markers[idx];
-        switchScheduleShape(entry.shape, true);
-      }
       renderScheduleTrack();
     },
     addMarkerAtPlayhead(){
@@ -7885,17 +7787,15 @@
       // stacking two markers on top of each other.
       const near = scheduleDraft.markers.findIndex(m => Math.abs(m.t - scheduleCurrentTime) < 0.35);
       if(near >= 0){ app.selectMarker(near); return; }
-      const ref = scheduleDraft.markers[scheduleSelectedMarkerIdx] || scheduleDraft.markers[scheduleDraft.markers.length-1];
-      const marker = { t: scheduleCurrentTime, page: 'sphere', shape: ref?.shape ?? SPHERE_BANKS[scheduleDraft.bank || 0].ids[0] };
+      const marker = { t: scheduleCurrentTime };
       scheduleDraft.markers.push(marker);
       scheduleDraft.markers.sort((a,b)=>a.t-b.t);
       scheduleSelectedMarkerIdx = scheduleDraft.markers.indexOf(marker);
-      renderScheduleShapePalette();
       renderScheduleTrack();
+      scheduleBroadcastSwitchPoints();
     },
     selectMarker(i){
       scheduleSelectedMarkerIdx = i;
-      renderScheduleShapePalette();
       renderScheduleTrack();
     },
     selectMarkerAndSeek(i){
@@ -7904,32 +7804,24 @@
       if(!m) return;
       scheduleCurrentTime = m.t;
       scheduleFiredIdx = -1;
-      if(!schedulePlaying) switchScheduleShape(m.shape, true);
       scheduleBroadcast({ type:'seek', time: m.t });
       renderScheduleTrack();
     },
     nudgeMarkerTime(i, deltaSec){
       const m = scheduleDraft?.markers[i];
-      if(!m || i === 0) return;
+      if(!m) return;
       const prev = scheduleDraft.markers[i-1], next = scheduleDraft.markers[i+1];
       const min = prev ? prev.t + 0.1 : 0, max = next ? next.t - 0.1 : scheduleDuration;
       m.t = Math.max(min, Math.min(max, m.t + deltaSec));
       renderScheduleTrack();
+      scheduleBroadcastSwitchPoints();
     },
     deleteSelectedMarker(){
-      if(!scheduleDraft || scheduleSelectedMarkerIdx === 0) return;
+      if(!scheduleDraft) return;
       scheduleDraft.markers.splice(scheduleSelectedMarkerIdx, 1);
       scheduleSelectedMarkerIdx = 0;
-      renderScheduleShapePalette();
       renderScheduleTrack();
-    },
-    setSelectedMarkerShape(shapeIdx){
-      const m = scheduleDraft?.markers[scheduleSelectedMarkerIdx];
-      if(!m) return;
-      m.shape = shapeIdx;
-      renderScheduleShapePalette();
-      renderScheduleTrack();
-      if(!schedulePlaying) switchScheduleShape(shapeIdx, false);
+      scheduleBroadcastSwitchPoints();
     },
     async suggestSwitchPoints(){
       if(!scheduleDraft || !scheduleUploadedMedia) return;
@@ -7938,24 +7830,15 @@
       try {
         const hits = await analyzeWaveformForSwitchPoints(scheduleUploadedMedia.url);
         let added = 0;
-        const maxEnergy = hits.reduce((m,h)=>Math.max(m,h.energy), 0.0001);
-        // Ranked calm → intense across all 21 shapes, then filtered down to
-        // just the active bank's 8 (preserving relative order) — a suggested
-        // timeline has to stay inside one bank, same as everything else here.
-        const GLOBAL_INTENSITY = [5,12,15,10,0,20,18, 1,6,8,9,11,13,19, 4,2,7,3,14,16,17];
-        // Waves,Aurora,RippleTank,SandDunes,Fluff,SpinWave,SoapBubbles | Gyroid,Chladni,SeaAnemone,AnemoneSpiral,SlimeMold,CatenoidHelicoid,HilbertCurve | SDFMorph,Superformula,Spiderweb,Mandelbulb,VectorField,JacobsLadder,VirusCapsid
-        const bankIds = SPHERE_BANKS[scheduleDraft.bank || 0].ids;
-        const INTENSITY = GLOBAL_INTENSITY.filter(id => bankIds.includes(id));
-        hits.forEach(({t, energy})=>{
+        hits.forEach(({t})=>{
           if(scheduleDraft.markers.some(m => Math.abs(m.t - t) < 1)) return; // don't crowd an existing/just-added marker
-          const tier = Math.min(INTENSITY.length - 1, Math.floor((energy / maxEnergy) * INTENSITY.length));
-          scheduleDraft.markers.push({ t, page: 'sphere', shape: INTENSITY[tier] });
+          scheduleDraft.markers.push({ t });
           added++;
         });
         scheduleDraft.markers.sort((a,b)=>a.t-b.t);
-        renderScheduleShapePalette();
         renderScheduleTrack();
-        toast(added ? `Added ${added} suggested switch${added===1?'':'es'} — drag, nudge, or remove to taste.` : 'Nothing obvious jumped out — try adding switches by hand.');
+        scheduleBroadcastSwitchPoints();
+        toast(added ? `Found ${added} switch point${added===1?'':'s'} from the waveform — all 3 layers now switch together there.` : 'Nothing obvious jumped out — try adding switches by hand.');
       } catch(e){
         console.error('suggestSwitchPoints failed:', e);
         toast('Could not analyze the audio — try adding switches by hand.');
@@ -8105,15 +7988,17 @@
         if(playBtn){ playBtn.innerHTML = ICON_PLAY; playBtn.title = 'Play'; }
       }
       feedPlayerSongUrl = p.media.url;
-      const sched = Array.isArray(p.media.effectSchedule) && p.media.effectSchedule.length ? p.media.effectSchedule.slice().sort((a,b)=>a.t-b.t) : null;
+      const isBlended = p.media.effect === 'sphere-blended';
+      const sched = !isBlended && Array.isArray(p.media.effectSchedule) && p.media.effectSchedule.length ? p.media.effectSchedule.slice().sort((a,b)=>a.t-b.t) : null;
       feedPlayerActiveSchedule = sched;
       feedPlayerActiveScheduleBank = p.media.effectScheduleBank || 0;
       feedPlayerScheduleFired = sched ? 0 : -1;
       feedPlayerScheduleLastT = 0;
-      const effect = sched ? sched[0].page : (['sphere','field'].includes(p.media.effect) ? p.media.effect : 'cube');
+      feedPlayerBlendedSwitchPoints = isBlended && Array.isArray(p.media.effectSwitchPoints) ? p.media.effectSwitchPoints : null;
+      const effect = isBlended ? 'sphere' : (sched ? sched[0].page : (['sphere','field'].includes(p.media.effect) ? p.media.effect : 'cube'));
       const selectEl = document.getElementById('feed-player-effect-select');
       selectEl.value = effect;
-      selectEl.hidden = !!sched; // an uploader-scheduled post isn't the viewer's to switch
+      selectEl.hidden = !!sched || isBlended; // an uploader-scheduled/blended post isn't the viewer's to switch
       document.getElementById('feed-player-overlay').hidden = false;
       setFeedPlayerActive(effect);
     },
@@ -8159,6 +8044,7 @@
       feedPlayerActiveSchedule = null;
       feedPlayerActiveScheduleBank = 0;
       feedPlayerScheduleFired = -1;
+      feedPlayerBlendedSwitchPoints = null;
       document.getElementById('feed-player-effect-select').hidden = false;
     },
     toggleFeedPlayerFullscreen(){

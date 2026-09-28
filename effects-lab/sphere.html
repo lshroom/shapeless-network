@@ -45,7 +45,8 @@
   .layerRow:last-child{border-bottom:none;padding-bottom:0;}
   .layerRow .lr-head{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#f5f5f7;font-weight:600;}
   .layerRow .lr-head input[type=checkbox]{accent-color:#8b9bff;}
-  .layerRow select{background:rgba(255,255,255,.08);color:#f5f5f7;border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:3px 6px;font-size:11px;width:100%;}
+  .layerRow select{background:rgba(255,255,255,.08);color:#f5f5f7;border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:3px 6px;font-size:11px;width:100%;color-scheme:dark;}
+  .layerRow select option{background:#14151c;color:#f5f5f7;}
   .layerRow .lr-size{display:flex;align-items:center;gap:6px;}
   .layerRow .lr-size span{font-size:9.5px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.03em;min-width:26px;}
   .layerRow input[type=range]{width:100%;accent-color:#8b9bff;}
@@ -539,7 +540,15 @@ function buildMaterial(bankIdx){
 // top of the pointer-event stack. Each layer keeps its own independent
 // jitter/rotation-wobble/pulse/hue flourishes (those are shader uniforms, not
 // camera state) so they still don't all look identical.
-function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera }){
+function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera, reaction={} }){
+  // Each layer gets its own reaction "personality" and its own audio band —
+  // before real stem separation exists, this is the stand-in for "the 3
+  // layers shouldn't all just flinch at the same kick": one grows on the
+  // bass, one breathes with the mids (harmony), one shrinks on the highs.
+  const reactType = reaction.type || 'jump';
+  const reactBand = reaction.band || 'bass';
+  const reactPhase = reaction.phase || 0;
+  function bandVal(){ return audio[reactBand] ?? audio.bass; }
   const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha, powerPreference:'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
   renderer.setClearColor(0x05060a, alpha ? 0 : 1);
@@ -601,7 +610,11 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera }
     // occasional variety on top of that, picked randomly each hit. Camera
     // flourishes (orbit spin flip, FOV punch) now live at module level since
     // the camera is shared across every layer.
-    pulseVel += 1.6 + audio.bass * 0.8;
+    const bv = bandVal();
+    if (reactType === 'grow') pulseVel += 2.2 + bv * 2.4;
+    else if (reactType === 'shrink') pulseVel -= 1.8 + bv * 2.0;
+    else if (reactType === 'breathe') pulseVel += 0.7 + bv * 1.2;
+    else pulseVel += 2.6 + bv * 2.2; // jump
     const roll = Math.random();
     if (roll < 0.38) {
       rotVel.set((Math.random()-0.5)*3.2, (Math.random()-0.5)*3.2, (Math.random()-0.5)*3.2);
@@ -632,8 +645,8 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera }
     }
     jitterVel.multiplyScalar(Math.pow(0.85, dt*60));
     jitterPos.addScaledVector(jitterVel, dt);
-    jitterPos.x += Math.sin(t*0.9)*0.006*(0.3+audio.mid);
-    jitterPos.y += Math.cos(t*0.7)*0.006*(0.3+audio.rms);
+    jitterPos.x += Math.sin(t*0.9)*0.014*(0.3+audio.mid*1.8);
+    jitterPos.y += Math.cos(t*0.7)*0.014*(0.3+audio.rms+audio.high*1.2);
     jitterPos.multiplyScalar(Math.pow(0.9, dt*60));
     uniforms.uJitter.value.copy(jitterPos);
     // Decay rates below are per REAL SECOND (Math.pow(k, dt), not dt*60) so
@@ -644,11 +657,20 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera }
     rotOffset.multiplyScalar(Math.pow(0.25, dt));
     uniforms.uJitterRot.value.setFromMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rotOffset.x, rotOffset.y, rotOffset.z)));
     uniforms.uHueKick.value *= Math.pow(0.2, dt);
-    pulseVel *= Math.pow(0.25, dt);
+    // Decay/clamp differ by personality: "grow" holds its swell longer and
+    // clamps mostly positive, "shrink" recovers from a mostly-negative dip,
+    // "breathe" barely uses the beat-kick at all — its motion is the big,
+    // slow, harmony-driven idle sine below — and "jump" snaps fast both ways.
+    const bv2 = bandVal();
+    let pulseVelDecay = 0.25, pulseValDecay = 0.35, lo = -0.35, hi = 0.9, breatheAmp = 0.03, breatheFreq = 0.55;
+    if (reactType === 'grow') { pulseVelDecay = 0.5; pulseValDecay = 0.6; lo = -0.2; hi = 1.5; breatheAmp = 0.05; breatheFreq = 0.4; }
+    else if (reactType === 'shrink') { pulseVelDecay = 0.35; pulseValDecay = 0.42; lo = -0.85; hi = 0.55; breatheAmp = 0.045; breatheFreq = 0.7; }
+    else if (reactType === 'breathe') { pulseVelDecay = 0.65; pulseValDecay = 0.72; lo = -0.55; hi = 1.0; breatheAmp = 0.16; breatheFreq = 0.85; }
+    pulseVel *= Math.pow(pulseVelDecay, dt);
     pulseVal += pulseVel * dt;
-    pulseVal *= Math.pow(0.35, dt);
-    const idleBreath = Math.sin(t*0.55)*0.028 + Math.sin(t*1.3+1.7)*0.016;
-    uniforms.uPulse.value = Math.max(-0.35, Math.min(0.9, pulseVal + idleBreath));
+    pulseVal *= Math.pow(pulseValDecay, dt);
+    const idleBreath = Math.sin(t*breatheFreq + reactPhase)*breatheAmp*(1 + bv2*1.6) + Math.sin(t*breatheFreq*2.3 + reactPhase*1.7)*breatheAmp*0.5;
+    uniforms.uPulse.value = Math.max(lo, Math.min(hi, pulseVal + idleBreath));
     // camera is the shared one — its own orbit/fov update happens once at
     // module level, not per layer; this just reads its current pose.
     pushAudio(uniforms, audio, t);
@@ -670,6 +692,13 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera }
     setAutoBeat(v){ autoBeat = v; },
     setEnabled(v){ enabled = v; canvas.style.display = v ? 'block' : 'none'; },
     setInterval(base){ switchIntervalSec = base * intervalMult; },
+    // A synchronized, waveform-triggered switch (see SHARED CAMERA/switch
+    // points below) — always lands on a genuinely different shape, same as
+    // the layer's own auto-switching, just called from outside on demand.
+    bigSwitch(tNow){
+      const n = BANKS[bank].ids.length;
+      startMorphTo((active + 1 + Math.floor(Math.random() * (n - 1))) % n, tNow);
+    },
   };
 }
 
@@ -692,7 +721,11 @@ function createBackgroundLayer({ canvas }){
   const uniforms = Object.assign(audioUniforms(), {
     uRes: { value: new THREE.Vector2(1, 1) },
     uDrift: { value: new THREE.Vector2(0, 0) },
+    uStyle: { value: 0 },
+    uMorph: { value: 0 }, // crossfade 0..1 between uStyle and uStyle2 during a style switch
+    uStyle2: { value: 0 },
   });
+  const BG_STYLE_NAMES = ['Plasma drift', 'Flowing waves', 'Pulse rings', 'Starfield'];
   const mat = new THREE.ShaderMaterial({
     glslVersion: THREE.GLSL3,
     uniforms,
@@ -703,16 +736,61 @@ function createBackgroundLayer({ canvas }){
       out vec4 fragColor;
       uniform vec2 uRes, uDrift;
       uniform float uTime,uBass,uMid,uHigh,uRms,uBeat;
+      uniform int uStyle, uStyle2;
+      uniform float uMorph;
       ${GLSL.snoise3}
       ${GLSL.palette}
+      vec3 styleColor(int style, vec2 uv, vec2 q){
+        if (style == 0) {
+          // Plasma drift — soft rolling noise field.
+          float n1 = snoise(vec3(q*0.6, uTime*0.035));
+          float n2 = snoise(vec3(q*1.4+11.0, uTime*0.06+5.0));
+          float field = n1*0.65 + n2*0.35;
+          float hue = fract(field*0.5 + uTime*0.01 + uMid*0.08);
+          return spectral(hue) * (0.34 + 0.26*(0.5+0.5*field) + uBeat*0.24 + uBass*0.16);
+        } else if (style == 1) {
+          // Flowing waves — horizontal bands undulating and scrolling.
+          float w1 = sin(uv.x*2.2 + q.y*1.6 + uTime*0.5 + uMid*2.0);
+          float w2 = sin(uv.x*3.7 - q.y*2.1 - uTime*0.32 + uHigh*1.5);
+          float field = w1*0.6 + w2*0.4;
+          float hue = fract(uv.x*0.15 + uTime*0.03 + field*0.12 + uMid*0.1);
+          return spectral(hue) * (0.3 + 0.28*(0.5+0.5*field) + uBeat*0.26 + uBass*0.14);
+        } else if (style == 2) {
+          // Pulsing rings — concentric rings expanding from center, snapping on the beat.
+          float r = length(uv);
+          float ring = sin(r*9.0 - uTime*1.1 - uBeat*3.0);
+          float pulse = smoothstep(0.0, 1.0, 0.5+0.5*ring);
+          float hue = fract(r*0.3 - uTime*0.025 + uMid*0.15);
+          return spectral(hue) * (0.28 + 0.34*pulse + uBeat*0.3 + uBass*0.18);
+        } else {
+          // Starfield — sparse twinkling points drifting past, denser/brighter on highs.
+          vec2 gv = q*6.0;
+          vec2 cell = floor(gv), f = fract(gv)-0.5;
+          float star = 0.0;
+          for (int oy=-1; oy<=1; oy++) for (int ox=-1; ox<=1; ox++) {
+            vec2 c = cell + vec2(float(ox), float(oy));
+            float rnd = fract(sin(dot(c, vec2(127.1,311.7)))*43758.5453);
+            if (rnd > 0.86) {
+              vec2 off = vec2(fract(rnd*13.0), fract(rnd*29.0)) - 0.5;
+              float d = length(f - vec2(float(ox), float(oy)) - off);
+              float tw = 0.5 + 0.5*sin(uTime*(2.0+rnd*4.0) + rnd*20.0);
+              star += smoothstep(0.09, 0.0, d) * (0.4 + 0.6*tw);
+            }
+          }
+          float hue = fract(uTime*0.02 + uHigh*0.2);
+          vec3 base = vec3(0.02, 0.025, 0.05) * (0.6 + 0.4*sin(uTime*0.1));
+          return base + spectral(hue) * star * (0.7 + uHigh*0.6 + uBeat*0.3);
+        }
+      }
       void main(){
         vec2 uv=(vUv*2.0-1.0); uv.x*=uRes.x/uRes.y;
         vec2 q = uv*1.2 + uDrift;
-        float n1 = snoise(vec3(q*0.6, uTime*0.035));
-        float n2 = snoise(vec3(q*1.4+11.0, uTime*0.06+5.0));
-        float field = n1*0.65 + n2*0.35;
-        float hue = fract(field*0.5 + uTime*0.01 + uMid*0.08);
-        vec3 col = spectral(hue) * (0.32 + 0.24*(0.5+0.5*field) + uBeat*0.22 + uBass*0.14);
+        vec3 colA = styleColor(uStyle, uv, q);
+        vec3 col = colA;
+        if (uMorph > 0.001) {
+          vec3 colB = styleColor(uStyle2, uv, q);
+          col = mix(colA, colB, uMorph);
+        }
         fragColor = vec4(col, 1.0);
       }`,
     depthWrite:false, depthTest:false,
@@ -721,9 +799,33 @@ function createBackgroundLayer({ canvas }){
   scene.add(mesh);
 
   let enabled = true;
+  let style = 0, morphTarget = -1, morphT = 0;
+  const MORPH_DUR = 1.4;
+  function setStyle(idx, instant){
+    idx = ((idx % BG_STYLE_NAMES.length) + BG_STYLE_NAMES.length) % BG_STYLE_NAMES.length;
+    if (instant) { style = idx; uniforms.uStyle.value = idx; uniforms.uMorph.value = 0; morphTarget = -1; return; }
+    if (idx === style) return;
+    morphTarget = idx; morphT = 0;
+    uniforms.uStyle.value = style; uniforms.uStyle2.value = idx;
+  }
+  let styleTimer = 8 + Math.random() * 6;
   const drift = new THREE.Vector2(0, 0);
   function step(dt, t){
     if (!enabled) return;
+    // Background now auto-cycles through its 4 styles on its own clock (plus
+    // a beat-triggered chance), same as the shape layers auto-switch shapes —
+    // it used to just sit on one drifting noise field forever, which read as
+    // "not really changing" next to the other 3 layers' constant switching.
+    styleTimer -= dt;
+    if (morphTarget < 0 && (styleTimer <= 0 || (audio.hit && Math.random() < 0.12))) {
+      setStyle(style + 1 + Math.floor(Math.random()*(BG_STYLE_NAMES.length-1)));
+      styleTimer = 9 + Math.random() * 7;
+    }
+    if (morphTarget >= 0) {
+      morphT += dt / MORPH_DUR;
+      if (morphT >= 1) { style = morphTarget; morphTarget = -1; uniforms.uStyle.value = style; uniforms.uMorph.value = 0; }
+      else uniforms.uMorph.value = morphT;
+    }
     // Slow constant drift plus a little extra push tied to the mids/rms, so
     // the background is always slowly shifting even through a quiet stretch
     // with no shape switch happening at all.
@@ -740,6 +842,9 @@ function createBackgroundLayer({ canvas }){
   }
   return {
     canvas, label: 'Background', blend: 'normal', scale: 1.0,
+    isBackground: true, styleNames: BG_STYLE_NAMES,
+    get styleIdx(){ return style; },
+    setStyle,
     step, precompile,
     setEnabled(v){ enabled = v; canvas.style.display = v ? 'block' : 'none'; },
     setAutoBeat(){}, setInterval(){}, // no-ops — kept so shared loop/UI code can treat every layer the same way
@@ -780,6 +885,7 @@ function cameraBeatFlourish() {
   if (Math.random() < 0.5) spinDir *= -1;
   else fovPunch += 6 + audio.bass * 4;
 }
+let onFrameExtra = null; // blended mode hooks its switch-point check here (declared before MODE SELECT so its assignment there sticks)
 
 // ================= MODE SELECT =================
 const layersEl = document.getElementById('layers');
@@ -860,10 +966,16 @@ if (driven) {
   layersEl.appendChild(bgCanvas);
   const bgLayer = createBackgroundLayer({ canvas: bgCanvas });
 
+  // Each layer's `reaction` is a stand-in for stem-separated audio: with only
+  // the mixed signal to work with, giving each layer its own band (bass/mid/
+  // high) and its own motion personality (grow/breathe/shrink) is what makes
+  // them read as 3 different things reacting, instead of 3 copies of the same
+  // shape flinching at the same kick. Real stems can replace `band` later
+  // without touching anything else.
   const LAYER_DEFS = [
-    { bank:0, blend:'normal',     scale:1.0,  z:1, mult:1.0 },
-    { bank:1, blend:'screen',     scale:0.8,  z:2, mult:1.3 },
-    { bank:2, blend:'difference', scale:0.6,  z:3, mult:0.85 },
+    { bank:0, blend:'normal',     scale:1.0,  z:1, mult:1.0,  reaction:{ type:'grow',    band:'bass', phase:0 } },
+    { bank:1, blend:'screen',     scale:0.8,  z:2, mult:1.3,  reaction:{ type:'breathe', band:'mid',  phase:2.1 } },
+    { bank:2, blend:'difference', scale:0.6,  z:3, mult:0.85, reaction:{ type:'shrink',  band:'high', phase:4.4 } },
   ];
   const shapeLayers = LAYER_DEFS.map(def => {
     const canvas = document.createElement('canvas');
@@ -872,13 +984,66 @@ if (driven) {
     canvas.style.mixBlendMode = def.blend;
     canvas.style.transform = `scale(${def.scale})`;
     layersEl.appendChild(canvas);
-    const layer = createLayer({ canvas, bankIdx: def.bank, alpha: true, intervalMult: def.mult, camera });
+    const layer = createLayer({ canvas, bankIdx: def.bank, alpha: true, intervalMult: def.mult, camera, reaction: def.reaction });
     layer.blend = def.blend;
     layer.scale = def.scale;
     layer.label = BANKS[def.bank].label;
     return layer;
   });
   layers = [bgLayer, ...shapeLayers];
+
+  // Waveform-detected "big switch" moments, sent from the post composer's
+  // timeline editor (or the feed player, for an already-published post) —
+  // unlike each layer's own continuous auto-switching, this is a structural
+  // accent: every shape layer + the background style jump together right at
+  // a point the song itself actually changes.
+  let switchPoints = [];
+  let switchPointFired = -1, switchPointLastT = 0;
+  function bigSwitch() {
+    const tNow = clock.getElapsedTime();
+    shapeLayers.forEach(l => l.bigSwitch(tNow));
+    bgLayer.setStyle(bgLayer.styleIdx + 1 + Math.floor(Math.random() * (bgLayer.styleNames.length - 1)));
+    cameraBeatFlourish();
+  }
+  function checkSwitchPoints() {
+    if (!switchPoints.length || !audioEl) return;
+    const ct = audioEl.currentTime;
+    if (ct < switchPointLastT - 1) switchPointFired = -1; // song looped back to the top
+    switchPointLastT = ct;
+    let idx = -1;
+    for (let i = 0; i < switchPoints.length; i++) { if (switchPoints[i] <= ct) idx = i; else break; }
+    if (idx < 0 || idx === switchPointFired) return;
+    switchPointFired = idx;
+    bigSwitch();
+  }
+  onFrameExtra = checkSwitchPoints;
+  // Blended mode's own playback-control listener — the driven branch above
+  // has its own copy since it also handles setShape, which doesn't apply
+  // here (no single "active shape" for blended mode to set).
+  addEventListener('message', e => {
+    if (e.data?.type === 'switchPoints' && Array.isArray(e.data.times)) {
+      switchPoints = e.data.times.slice().sort((a, b) => a - b);
+      switchPointFired = -1;
+    }
+    if (e.data?.type === 'setActive') {
+      if (e.data.active) {
+        if (audioEl && isFinite(e.data.time) && Math.abs(audioEl.currentTime - e.data.time) > 0.4) audioEl.currentTime = e.data.time;
+        actx?.resume().catch(()=>{}); audioEl?.play().catch(()=>{});
+      }
+      else audioEl?.pause();
+    }
+    if (e.data?.type === 'mute' && audioEl) {
+      audioEl.muted = !!e.data.muted;
+      if (!e.data.muted) { actx?.resume().catch(()=>{}); audioEl.play().catch(()=>{}); }
+    }
+    if (e.data?.type === 'play' && audioEl) { actx?.resume().catch(()=>{}); audioEl.play().catch(()=>{}); }
+    if (e.data?.type === 'pause' && audioEl) audioEl.pause();
+    if (e.data?.type === 'seek' && audioEl && isFinite(e.data.time)) audioEl.currentTime = e.data.time;
+    if (e.data?.type === 'volume' && audioEl) {
+      audioEl.volume = e.data.value; audioEl.muted = e.data.value <= 0;
+      if (e.data.value > 0) { actx?.resume().catch(()=>{}); audioEl.play().catch(()=>{}); }
+    }
+  });
 
   const BLEND_MODES = ['normal','multiply','screen','difference','exclusion','overlay','lighten','darken'];
   function renderBlendPanel(){
@@ -887,6 +1052,27 @@ if (driven) {
     layers.forEach((layer, i) => {
       const row = document.createElement('div');
       row.className = 'layerRow';
+      if (layer.isBackground) {
+        // Background has no blend mode of its own (it's the base everything
+        // else composites onto) or a size to scale — its dropdown picks
+        // which of its 4 style presets is active instead.
+        const styleOpts = layer.styleNames.map((n,idx) => `<option value="${idx}"${idx===layer.styleIdx?' selected':''}>${n}</option>`).join('');
+        row.innerHTML = `
+          <div class="lr-head">
+            <input type="checkbox" checked>
+            <span>${layer.label}</span>
+          </div>
+          <select>${styleOpts}</select>
+        `;
+        row.querySelector('input[type=checkbox]').addEventListener('change', e=>{
+          layer.setEnabled(e.target.checked);
+        });
+        row.querySelector('select').addEventListener('change', e=>{
+          layer.setStyle(+e.target.value, true);
+        });
+        wrap.appendChild(row);
+        return;
+      }
       const modeOpts = BLEND_MODES.map(m => `<option value="${m}"${m===layer.blend?' selected':''}>${m}</option>`).join('');
       row.innerHTML = `
         <div class="lr-head">
@@ -948,6 +1134,7 @@ function loop(){
   if (audio.hit) cameraBeatFlourish();
   stepCamera(dt, t);
   layers.forEach(l => l.step(dt, t));
+  onFrameExtra?.(); // blended mode hooks its switch-point check in here
   requestAnimationFrame(loop);
 }
 // Compile every active layer's shader with the "Preparing visuals… N%"
