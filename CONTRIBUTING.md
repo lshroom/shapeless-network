@@ -42,12 +42,28 @@ site only moves when someone with deploy access decides it should.
 ## Opening and merging a PR
 
 - `master` is protected — nobody, including maintainers, can push straight to it. Every change
-  goes through a pull request.
-- Every PR needs at least one approving review before it can merge, and pushing new commits to
-  a PR clears any existing approval (so a review always reflects what's actually about to merge).
+  goes through a pull request, on its own branch.
+- Every PR needs an approving review **from the owner specifically** before it can merge (a
+  `CODEOWNERS` entry auto-requests that review on open — approving is a one-tap "Approve" in the
+  GitHub app, no extra tooling needed). Pushing new commits to a PR clears any existing approval,
+  so a review always reflects what's actually about to merge.
+- All review conversations on a PR have to be marked resolved before it can merge — nothing
+  slips through with an unanswered "wait, why did you change this?".
 - Force-pushes and branch deletion are blocked on `master` — history there is permanent.
 - If you don't have write access yet, fork the repo, push your branch there, and open the PR
   from your fork — same process either way.
+
+## If a merge turns out to be a mistake
+
+Two independent safety nets, so one missed review doesn't become permanent damage:
+
+1. **In the repo:** because force-push and deletion are blocked, every merge is just an ordinary
+   commit sitting in history — open the merged PR on GitHub and hit **Revert**, which opens a new
+   PR that undoes it. That new PR goes through the exact same review gate as anything else.
+2. **In production:** merging here never touches shapelessworld.org by itself (see above) — a
+   maintainer deploys separately, and each deploy is kept as its own rollback point on Vercel. If
+   something bad gets deployed before anyone notices it was bad, the previous deployment can be
+   re-aliased back to production in under a minute, no rebuild needed.
 
 ## Code of conduct
 
