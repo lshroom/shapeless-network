@@ -19,6 +19,14 @@ Issues are tagged by skill:
 
 Grab anything untagged-as-claimed and comment that you're on it.
 
+## How this connects to the live site
+
+This repo is the source of truth for the code, but it does **not** auto-deploy to
+shapelessworld.org. Nothing you push or merge here reaches real users by itself — changes get
+pulled into a separate working copy, tested, and deployed by a maintainer. That's deliberate: it
+means a bad PR can be merged and reverted here without ever touching production, and the live
+site only moves when someone with deploy access decides it should.
+
 ## Making a change
 
 - Keep the "no build step" property unless you're doing the framework migration tracked in
@@ -30,6 +38,16 @@ Grab anything untagged-as-claimed and comment that you're on it.
   so it gets run against the project.
 - Small, focused PRs over big ones — this is a volunteer project, small diffs get reviewed
   faster.
+
+## Opening and merging a PR
+
+- `master` is protected — nobody, including maintainers, can push straight to it. Every change
+  goes through a pull request.
+- Every PR needs at least one approving review before it can merge, and pushing new commits to
+  a PR clears any existing approval (so a review always reflects what's actually about to merge).
+- Force-pushes and branch deletion are blocked on `master` — history there is permanent.
+- If you don't have write access yet, fork the repo, push your branch there, and open the PR
+  from your fork — same process either way.
 
 ## Code of conduct
 
