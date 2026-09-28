@@ -88,7 +88,16 @@ const clock = new THREE.Clock();
 
 // ---- audio (shared across every layer — one song, one analyser, so all
 // layers react to the exact same beat instead of drifting out of sync) ----
-const audio = { bass:0, mid:0, high:0, rms:0, beatEnv:0, kick:0, hit:false };
+// bass/vocals/harmony are frequency-band proxies for the 4 Demucs stems
+// (drums/bass/vocals/other) — real per-track stem separation only runs on a
+// contributor's own local machine (see tools/stem_server.py), it can't run
+// in a visitor's browser on the live site, so this is the closest a public
+// page can get without a hosted separation service. `drums` uses broadband
+// spectral flux instead of a frequency band, since a real drum hit (kick,
+// snare, hihat together) shows up as energy across the WHOLE spectrum at
+// once, not in one band — that's what makes it read as "reacting to drums"
+// instead of just to the bass band.
+const audio = { bass:0, mid:0, high:0, vocals:0, harmony:0, drums:0, rms:0, beatEnv:0, kick:0, hit:false, bassHit:false, vocalHit:false, harmonyHit:false };
 let actx, analyser, freqData, timeData, srcNode;
 let audioEl = null;
 function ensureCtx() {
@@ -125,20 +134,32 @@ function loadSongUrl(url, muted, startTime, active) {
 window._sphereSetSongUrl = loadSongUrl;
 
 let bassS=0, midS=0, highS=0, rmsS=0;
-// Onset detector: a FAST envelope of the bass band vs a SLOW rolling baseline
-// of the same band. A kick is a fast envelope spiking well above the recent
-// local loudness — this reacts to the actual transient instead of drifting
-// with a smoothed derivative, and a refractory window stops it double-firing
-// on one hit. Works straight off the mixed signal, no stem separation needed.
-let bassFast=0, bassSlow=0, kickRefractory=0, kickPulse=0;
+let prevFreq = null, fluxFast=0, fluxSlow=0, drumRefractory=0, drumPulse=0;
+// Per-band onset detector: a FAST envelope vs a SLOW rolling baseline of the
+// same signal — a hit is the fast envelope spiking well above the recent
+// local loudness — used once per band below (bass/vocals/harmony), plus once
+// on broadband spectral flux for drums. A refractory window stops each from
+// double-firing on one hit.
+let bassFast=0, bassSlow=0, bassRefractory=0, bassPulse=0;
+let midFast=0, midSlow=0, midRefractory=0, midPulse=0;
+let hiFast=0, hiSlow=0, hiRefractory=0, hiPulse=0;
+function onset(fast, slow, mult, add, refractoryT, minGap, now){
+  return fast > slow * mult + add && (now - refractoryT) > minGap;
+}
 function sampleAudio() {
   if (!analyser) return;
   analyser.getByteFrequencyData(freqData);
   analyser.getByteTimeDomainData(timeData);
   const n = freqData.length;
-  let b=0,m=0,h=0; const bEnd=(n*0.08)|0, mEnd=(n*0.4)|0;
-  for (let i=0;i<n;i++){ const v=freqData[i]/255; if(i<bEnd)b+=v; else if(i<mEnd)m+=v; else h+=v; }
-  b/=bEnd; m/=(mEnd-bEnd); h/=(n-mEnd);
+  let b=0,m=0,h=0,flux=0; const bEnd=(n*0.08)|0, mEnd=(n*0.4)|0;
+  if (!prevFreq) prevFreq = new Float32Array(n);
+  for (let i=0;i<n;i++){
+    const v=freqData[i]/255;
+    if(i<bEnd)b+=v; else if(i<mEnd)m+=v; else h+=v;
+    const d = v - prevFreq[i]; if (d > 0) flux += d;
+    prevFreq[i] = v;
+  }
+  b/=bEnd; m/=(mEnd-bEnd); h/=(n-mEnd); flux/=n;
   let rms=0; for(let i=0;i<timeData.length;i++){ const v=(timeData[i]-128)/128; rms+=v*v; } rms=Math.sqrt(rms/timeData.length);
   bassS+=(b-bassS)*0.3; midS+=(m-midS)*0.3; highS+=(h-highS)*0.3; rmsS+=(rms-rmsS)*0.3;
   // Raw analyser bands read as quiet/subtle next to the shapes' always-on
@@ -147,18 +168,36 @@ function sampleAudio() {
   // reads audio.bass/mid/high/rms, instead of retuning 21 shape functions.
   const boost = v => Math.min(1, v * 1.8);
   audio.bass=boost(bassS); audio.mid=boost(midS); audio.high=boost(highS); audio.rms=boost(rmsS);
+  audio.vocals = audio.mid; // vocals live mostly in the mid band
+  audio.harmony = boost(highS*0.65 + midS*0.2); // sustained texture — mostly highs, some mid
 
-  bassFast += (b - bassFast) * 0.55;
-  bassSlow += (b - bassSlow) * 0.045;
   const now = performance.now() / 1000;
-  let hit = false;
-  if (bassFast > bassSlow * 1.35 + 0.06 && (now - kickRefractory) > 0.14) {
-    hit = true; kickRefractory = now;
-  }
-  kickPulse = Math.max(kickPulse * 0.7, hit ? 1 : 0);
-  audio.beatEnv = Math.max(audio.beatEnv*0.9, kickPulse);
-  audio.kick = kickPulse;
-  audio.hit = hit; // true for exactly the one sampleAudio() call the onset lands on — used to trigger one-shot beat flourishes, as opposed to audio.kick which stays >0 for several frames while its envelope decays
+
+  fluxFast += (flux - fluxFast) * 0.6; fluxSlow += (flux - fluxSlow) * 0.05;
+  const drumHit = onset(fluxFast, fluxSlow, 1.4, 0.012, drumRefractory, 0.11, now);
+  if (drumHit) drumRefractory = now;
+  drumPulse = Math.max(drumPulse * 0.7, drumHit ? 1 : 0);
+  audio.drums = drumPulse; audio.kick = drumPulse;
+  audio.beatEnv = Math.max(audio.beatEnv*0.9, drumPulse);
+  audio.hit = drumHit; // true for exactly the one sampleAudio() call a drum hit lands on
+
+  bassFast += (b - bassFast) * 0.55; bassSlow += (b - bassSlow) * 0.045;
+  const bassHit = onset(bassFast, bassSlow, 1.35, 0.06, bassRefractory, 0.16, now);
+  if (bassHit) bassRefractory = now;
+  bassPulse = Math.max(bassPulse * 0.75, bassHit ? 1 : 0);
+  audio.bassHit = bassHit; audio.bassPulse = bassPulse;
+
+  midFast += (m - midFast) * 0.4; midSlow += (m - midSlow) * 0.03;
+  const vocalHit = onset(midFast, midSlow, 1.25, 0.05, midRefractory, 0.22, now);
+  if (vocalHit) midRefractory = now;
+  midPulse = Math.max(midPulse * 0.8, vocalHit ? 1 : 0);
+  audio.vocalHit = vocalHit; audio.vocalPulse = midPulse;
+
+  hiFast += (h - hiFast) * 0.5; hiSlow += (h - hiSlow) * 0.04;
+  const harmonyHit = onset(hiFast, hiSlow, 1.3, 0.05, hiRefractory, 0.25, now);
+  if (harmonyHit) hiRefractory = now;
+  hiPulse = Math.max(hiPulse * 0.85, harmonyHit ? 1 : 0);
+  audio.harmonyHit = harmonyHit; audio.harmonyPulse = hiPulse;
 }
 
 // ---- shape registry: each shape's SDF kept as its own source string so a
@@ -549,6 +588,18 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera, 
   const reactBand = reaction.band || 'bass';
   const reactPhase = reaction.phase || 0;
   function bandVal(){ return audio[reactBand] ?? audio.bass; }
+  // Each layer flourishes off ITS OWN stem-proxy's onset, not the global drum
+  // hit — otherwise all 3 "react differently" only in magnitude, still all
+  // flinching in lockstep on every drum hit. The drums layer still gets the
+  // most frequent, sharpest hits (that's what a drum track IS); bass/vocals
+  // fire on their own, rarer transients.
+  function bandHit(){
+    if (reactBand === 'drums') return audio.hit;
+    if (reactBand === 'bass') return audio.bassHit;
+    if (reactBand === 'vocals') return audio.vocalHit;
+    if (reactBand === 'harmony') return audio.harmonyHit;
+    return audio.hit;
+  }
   const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha, powerPreference:'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
   renderer.setClearColor(0x05060a, alpha ? 0 : 1);
@@ -634,7 +685,7 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera, 
         startMorphTo((active + 1) % BANKS[bank].ids.length, t);
       }
     }
-    if (audio.hit) onBeatMove();
+    if (bandHit()) onBeatMove();
     if (morphing) {
       const p = Math.min(1, (t - morphStartT) / MORPH_SECONDS);
       uniforms.uMorph.value = p;
@@ -724,6 +775,8 @@ function createBackgroundLayer({ canvas }){
     uStyle: { value: 0 },
     uMorph: { value: 0 }, // crossfade 0..1 between uStyle and uStyle2 during a style switch
     uStyle2: { value: 0 },
+    uGlitch: { value: 0 }, // the background is the harmony layer — this is its harmony-driven glitch
+    uHarmony: { value: 0 },
   });
   const BG_STYLE_NAMES = ['Plasma drift', 'Flowing waves', 'Pulse rings', 'Starfield'];
   const mat = new THREE.ShaderMaterial({
@@ -737,7 +790,7 @@ function createBackgroundLayer({ canvas }){
       uniform vec2 uRes, uDrift;
       uniform float uTime,uBass,uMid,uHigh,uRms,uBeat;
       uniform int uStyle, uStyle2;
-      uniform float uMorph;
+      uniform float uMorph, uGlitch, uHarmony;
       ${GLSL.snoise3}
       ${GLSL.palette}
       vec3 styleColor(int style, vec2 uv, vec2 q){
@@ -784,12 +837,30 @@ function createBackgroundLayer({ canvas }){
       }
       void main(){
         vec2 uv=(vUv*2.0-1.0); uv.x*=uRes.x/uRes.y;
-        vec2 q = uv*1.2 + uDrift;
-        vec3 colA = styleColor(uStyle, uv, q);
+        // Background IS the harmony stem's own layer — a harmony onset (chord
+        // change / texture shift, approximated since we can't run real pitch
+        // tracking in-browser) triggers a scanline-slice glitch instead of a
+        // geometry flourish, which is what the raymarched layers get instead.
+        vec2 guv = uv;
+        if (uGlitch > 0.002) {
+          float slice = floor(vUv.y*40.0);
+          float sliceRnd = fract(sin(slice*91.71 + floor(uTime*13.0))*43758.5453);
+          guv.x += (sliceRnd - 0.5) * uGlitch * 0.55;
+        }
+        vec2 q = guv*1.2 + uDrift;
+        vec3 colA = styleColor(uStyle, guv, q);
         vec3 col = colA;
         if (uMorph > 0.001) {
-          vec3 colB = styleColor(uStyle2, uv, q);
+          vec3 colB = styleColor(uStyle2, guv, q);
           col = mix(colA, colB, uMorph);
+        }
+        if (uGlitch > 0.002) {
+          vec2 qr = q + vec2(uGlitch*0.04, 0.0);
+          vec2 qb = q - vec2(uGlitch*0.04, 0.0);
+          col.r = mix(col.r, styleColor(uStyle, guv, qr).r, uGlitch);
+          col.b = mix(col.b, styleColor(uStyle, guv, qb).b, uGlitch);
+          float blockRnd = fract(sin(dot(floor(vUv*vec2(11.0,17.0) + floor(uTime*19.0)), vec2(12.9898,78.233)))*43758.5453);
+          if (blockRnd > 1.0 - uGlitch*0.35) col = mix(col, vec3(1.0), 0.5*uGlitch);
         }
         fragColor = vec4(col, 1.0);
       }`,
@@ -809,18 +880,26 @@ function createBackgroundLayer({ canvas }){
     uniforms.uStyle.value = style; uniforms.uStyle2.value = idx;
   }
   let styleTimer = 8 + Math.random() * 6;
+  let glitchAmt = 0;
   const drift = new THREE.Vector2(0, 0);
   function step(dt, t){
     if (!enabled) return;
     // Background now auto-cycles through its 4 styles on its own clock (plus
-    // a beat-triggered chance), same as the shape layers auto-switch shapes —
-    // it used to just sit on one drifting noise field forever, which read as
-    // "not really changing" next to the other 3 layers' constant switching.
+    // a harmony-onset-triggered chance, since this layer IS the harmony
+    // stem), same as the shape layers auto-switch shapes — it used to just
+    // sit on one drifting noise field forever, which read as "not really
+    // changing" next to the other 3 layers' constant switching.
     styleTimer -= dt;
-    if (morphTarget < 0 && (styleTimer <= 0 || (audio.hit && Math.random() < 0.12))) {
+    if (morphTarget < 0 && (styleTimer <= 0 || (audio.harmonyHit && Math.random() < 0.2))) {
       setStyle(style + 1 + Math.floor(Math.random()*(BG_STYLE_NAMES.length-1)));
       styleTimer = 9 + Math.random() * 7;
     }
+    // Glitch burst on every harmony onset, plus a gentle baseline glitch
+    // during sustained harmonic energy so it's not silent between onsets.
+    if (audio.harmonyHit) glitchAmt = 1;
+    glitchAmt *= Math.pow(0.12, dt);
+    uniforms.uGlitch.value = Math.max(glitchAmt, audio.harmony * 0.22);
+    uniforms.uHarmony.value = audio.harmony;
     if (morphTarget >= 0) {
       morphT += dt / MORPH_DUR;
       if (morphT >= 1) { style = morphTarget; morphTarget = -1; uniforms.uStyle.value = style; uniforms.uMorph.value = 0; }
@@ -972,10 +1051,15 @@ if (driven) {
   // them read as 3 different things reacting, instead of 3 copies of the same
   // shape flinching at the same kick. Real stems can replace `band` later
   // without touching anything else.
+  // Classic=bass, Organic=drums, Flow&Field=vocals, background=harmony (see
+  // below) — the same drums/bass/vocals/harmony split the Demucs-based local
+  // stem tool uses, approximated here with frequency bands + broadband flux
+  // since real separation can't run in a visitor's browser (see `audio`'s
+  // definition up top).
   const LAYER_DEFS = [
-    { bank:0, blend:'normal',     scale:1.0,  z:1, mult:1.0,  reaction:{ type:'grow',    band:'bass', phase:0 } },
-    { bank:1, blend:'screen',     scale:0.8,  z:2, mult:1.3,  reaction:{ type:'breathe', band:'mid',  phase:2.1 } },
-    { bank:2, blend:'difference', scale:0.6,  z:3, mult:0.85, reaction:{ type:'shrink',  band:'high', phase:4.4 } },
+    { bank:0, blend:'normal',     scale:1.0,  z:1, mult:0.85, reaction:{ type:'grow',    band:'bass',   phase:0 } },
+    { bank:1, blend:'screen',     scale:0.8,  z:2, mult:1.0,  reaction:{ type:'jump',    band:'drums',  phase:2.1 } },
+    { bank:2, blend:'difference', scale:0.6,  z:3, mult:1.3,  reaction:{ type:'breathe', band:'vocals', phase:4.4 } },
   ];
   const shapeLayers = LAYER_DEFS.map(def => {
     const canvas = document.createElement('canvas');
