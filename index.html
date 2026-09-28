@@ -1227,25 +1227,6 @@
                second "on snare hit, shift to" dropdown: pick a shape there
                and the SAME object on screen morphs into it on every snare
                hit, then eases back — kick and snare are one shape, not two. -->
-          <div class="feed-stems-layer-row" data-stem="drums">
-            <span class="fsl-label">Drums</span>
-            <select class="fsl-effect" onchange="app.setStemEffect('drums', this.value)">
-              <option value="off" selected>Off</option>
-              <option value="plate">Plate</option>
-              <option value="orbit">Orbit</option>
-              <option value="glow">Background glow</option>
-            </select>
-            <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('drums')">⚙</button>
-            <div class="fsl-controls-panel" hidden>
-              <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('drums', this.value)" hidden></label>
-              <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-                <option value="0">None (color tint only)</option>
-                <option value="1">Stellar Nebula (surrounds everything)</option>
-                <option value="2">Aurora Borealis (surrounds everything)</option>
-                <option value="3">Cloudscape (surrounds everything)</option>
-              </select>
-            </div>
-          </div>
           <div class="feed-stems-layer-row" data-stem="kick">
             <span class="fsl-label">Kick</span>
             <select class="fsl-effect" data-shapes onchange="app.setStemEffect('kick', this.value)">
@@ -2402,7 +2383,7 @@
   // Snare has no row of its own — Kick's row carries a second dropdown
   // ("on snare hit, shift to") so kick and snare share ONE object that
   // morphs, per the exact ask, instead of being two separate shapes.
-  const STEMS = ['drums','kick','cymbals','bass','vocals','harmony'];
+  const STEMS = ['kick','cymbals','bass','vocals','harmony'];
   // scene.html's CENTER_SHAPES index — the full real library, all 9 offered
   // on every shape dropdown now (not one fixed pick per stem):
   const SHAPE_NAMES = ['Fluff','Gyroid Lattice','Superformula','Mandelbulb Fractal','SDF Morph Field','Wave Interference Field','Chladni Plate','Resonant Spiderweb','Crystal Burst'];
@@ -2419,9 +2400,9 @@
     const ang = (i/SHAPE_STEM_ORDER.length) * Math.PI*2;
     DEFAULT_POS[stem] = { x: Math.round(Math.cos(ang)*1.9*10)/10, z: Math.round(Math.sin(ang)*1.9*10)/10 };
   });
-  const DEFAULT_ASSIGN = { drums:'off', kick:'off', cymbals:'off', bass:'off', vocals:'off', harmony:'off' };
+  const DEFAULT_ASSIGN = { kick:'off', cymbals:'off', bass:'off', vocals:'off', harmony:'off' };
   function clonePos(){ const o={}; SHAPE_STEM_ORDER.forEach(s=>o[s]=Object.assign({},DEFAULT_POS[s])); return o; }
-  const stemLayerCfg = { assign: Object.assign({}, DEFAULT_ASSIGN), sizes: { drums:1, kick:1, cymbals:1, bass:1, vocals:1, harmony:1 }, shapeChoice: Object.assign({}, CENTER_SHAPE_FOR_STEM), kickSnareShape: null, pos: clonePos(), glowBg: 0 };
+  const stemLayerCfg = { assign: Object.assign({}, DEFAULT_ASSIGN), sizes: { kick:1, cymbals:1, bass:1, vocals:1, harmony:1 }, shapeChoice: Object.assign({}, CENTER_SHAPE_FOR_STEM), kickSnareShape: null, pos: clonePos(), glowBg: 0 };
   function populateShapeSelects(){
     // Every real shape from the sphere.html/field.html library goes directly
     // into the same effect dropdown the stem's Off/Plate/Orbit/Background
@@ -2456,7 +2437,7 @@
   }
   function resetStemLayerCfg(){
     stemLayerCfg.assign = Object.assign({}, DEFAULT_ASSIGN);
-    stemLayerCfg.sizes = { drums:1, kick:1, cymbals:1, bass:1, vocals:1, harmony:1 };
+    stemLayerCfg.sizes = { kick:1, cymbals:1, bass:1, vocals:1, harmony:1 };
     stemLayerCfg.shapeChoice = Object.assign({}, CENTER_SHAPE_FOR_STEM);
     stemLayerCfg.kickSnareShape = null;
     stemLayerCfg.pos = clonePos();
