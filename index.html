@@ -8148,7 +8148,7 @@
       const role = input.id.replace('feed-stem-', '');
       stemFiles[role] = input.files[0] || null;
       renderStemsStatus();
-      if(previewOpen) app.openScenePreview();
+      app.pushPreviewStems();
     },
     async autoSplitStems(){
       const songFile = document.getElementById('feed-post-song').files[0];
@@ -8190,6 +8190,7 @@
           stemFiles.other = await mixBuffersToWavFile([guitarBuf, pianoBuf, otherBuf], base+'_harmony.wav');
         } finally { actx.close(); }
         renderStemsStatus();
+        app.pushPreviewStems();
         status.textContent = 'split complete — all 4 stems ready below';
         toast('Split locally into 4 stems.');
       } catch(e){
@@ -8246,20 +8247,36 @@
     setKickSnareShape(val){ stemLayerCfg.kickSnareShape = (val === '' ? null : parseInt(val, 10)); pushPreviewCfg(); },
     setGlowBg(val){ stemLayerCfg.glowBg = parseInt(val, 10); pushPreviewCfg(); },
     async openScenePreview(){
+      // Every previous version of this re-navigated the iframe (frame.src=…)
+      // on every single stem file pick, which tears down and rebuilds a
+      // whole WebGL context + AudioContext each time — spamming that while
+      // stems are still being picked/split is almost certainly what was
+      // crashing Chrome. Now the iframe only ever loads ONCE; every later
+      // change (new stem file, dropdown, slider) goes through postMessage
+      // into the already-running page instead.
       const modal = document.getElementById('feed-scene-preview-modal');
       const frame = document.getElementById('feed-scene-preview-frame');
       if(!modal || !frame) return;
+      modal.hidden = false;
+      const alreadyLoaded = previewOpen && frame.src && frame.src.indexOf('about:blank') === -1;
+      previewOpen = true;
+      const sendState = () => {
+        pushPreviewStems();
+        pushPreviewCfg();
+      };
+      if(alreadyLoaded){ sendState(); return; }
+      frame.onload = sendState;
+      frame.src = 'effects-lab/scene.html?embed=inline&muted=0';
+    },
+    pushPreviewStems(){
+      if(!previewOpen) return;
+      Object.values(previewStemUrls).forEach(u=>{ try{ URL.revokeObjectURL(u); }catch(_){} });
       previewStemUrls = {};
       ['vocals','drums','bass','other'].forEach(role=>{
         if(stemFiles[role]) previewStemUrls[role] = URL.createObjectURL(stemFiles[role]);
       });
-      modal.hidden = false;
-      previewOpen = true;
-      frame.src = 'effects-lab/scene.html?embed=inline&muted=0';
-      frame.onload = () => {
-        frame.contentWindow.postMessage({ type:'stems', urls: previewStemUrls }, '*');
-        frame.contentWindow.postMessage({ type:'cfg', cfg: deriveSceneCfg() }, '*');
-      };
+      const frame = document.getElementById('feed-scene-preview-frame');
+      if(frame && frame.contentWindow) frame.contentWindow.postMessage({ type:'stems', urls: previewStemUrls }, '*');
     },
     closeScenePreview(){
       const modal = document.getElementById('feed-scene-preview-modal');

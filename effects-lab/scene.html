@@ -53,7 +53,7 @@ import { GLSL, raymarchQuad } from '/h5555/core.js';
 // ---- renderer / scene / camera ----
 const canvas = document.getElementById('stage');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setClearColor(0x05060a, 1);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(55, 1, 0.01, 200);
@@ -242,7 +242,7 @@ float deSuperformulaC(vec3 p, float bass, float mid, float high, float rms, floa
 float deMandelbulbC(vec3 p, float bass, float mid, float high, float rms, float size){
   vec3 z=p*(1.1/max(0.35,size)); float dr=1.0; float r=0.0;
   float pw=8.0+sin(uTime*0.3)*1.0+bass*2.0;
-  for(int i=0;i<8;i++){
+  for(int i=0;i<6;i++){
     r=length(z); if(r>2.0)break;
     float th=acos(z.z/r); float ph=atan(z.y,z.x);
     dr=pow(r,pw-1.0)*pw*dr+1.0;
@@ -424,7 +424,7 @@ vec3 bgColor(vec3 ro, vec3 rd){
 }
 vec3 render(vec3 ro, vec3 rd){
   float t=0.0; bool didHit=false; vec3 col=vec3(0.0);
-  for(int i=0;i<110;i++){
+  for(int i=0;i<72;i++){
     vec3 p=ro+rd*t; float d=de(p);
     if(d<0.0015){
       vec2 e=vec2(0.002,0.0);
@@ -432,7 +432,7 @@ vec3 render(vec3 ro, vec3 rd){
       float diff=max(dot(n,normalize(vec3(0.6,0.8,0.5))),0.0);
       float fres=pow(1.0-max(dot(n,-rd),0.0),2.5);
       vec3 baseCol = colorAt(p,n);
-      float ao=1.0-float(i)/110.0;
+      float ao=1.0-float(i)/72.0;
       col=baseCol*(0.3+0.7*diff)*ao+fres*0.4*baseCol;
       didHit=true;
       break;
