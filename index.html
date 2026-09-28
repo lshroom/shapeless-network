@@ -1248,16 +1248,14 @@
           </div>
           <div class="feed-stems-layer-row" data-stem="kick">
             <span class="fsl-label">Kick</span>
-            <select class="fsl-effect" onchange="app.setStemEffect('kick', this.value)">
+            <select class="fsl-effect" data-shapes onchange="app.setStemEffect('kick', this.value)">
               <option value="off" selected>Off</option>
-              <option value="center">Center: pick a shape →</option>
               <option value="plate">Plate</option>
               <option value="orbit">Orbit</option>
               <option value="glow">Background glow</option>
             </select>
             <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('kick')">⚙</button>
             <div class="fsl-controls-panel" hidden>
-              <label>Shape<select class="fsl-shape" hidden onchange="app.setStemShape('kick', this.value)"></select></label>
               <label class="fsl-snare-label" hidden>on snare hit, shift to<select class="fsl-kick-snare" onchange="app.setKickSnareShape(this.value)"><option value="">(no morph)</option></select></label>
               <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('kick','x',this.value)"></label>
               <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('kick','z',this.value)"></label>
@@ -1272,16 +1270,14 @@
           </div>
           <div class="feed-stems-layer-row" data-stem="cymbals">
             <span class="fsl-label">Cymbals</span>
-            <select class="fsl-effect" onchange="app.setStemEffect('cymbals', this.value)">
+            <select class="fsl-effect" data-shapes onchange="app.setStemEffect('cymbals', this.value)">
               <option value="off" selected>Off</option>
-              <option value="center">Center: pick a shape →</option>
               <option value="plate">Plate</option>
               <option value="orbit">Orbit</option>
               <option value="glow">Background glow</option>
             </select>
             <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('cymbals')">⚙</button>
             <div class="fsl-controls-panel" hidden>
-              <label>Shape<select class="fsl-shape" hidden onchange="app.setStemShape('cymbals', this.value)"></select></label>
               <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('cymbals','x',this.value)"></label>
               <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('cymbals','z',this.value)"></label>
               <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('cymbals', this.value)" hidden></label>
@@ -1295,16 +1291,14 @@
           </div>
           <div class="feed-stems-layer-row" data-stem="bass">
             <span class="fsl-label">Bass</span>
-            <select class="fsl-effect" onchange="app.setStemEffect('bass', this.value)">
+            <select class="fsl-effect" data-shapes onchange="app.setStemEffect('bass', this.value)">
               <option value="off" selected>Off</option>
-              <option value="center">Center: pick a shape →</option>
               <option value="plate">Plate</option>
               <option value="orbit">Orbit</option>
               <option value="glow">Background glow</option>
             </select>
             <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('bass')">⚙</button>
             <div class="fsl-controls-panel" hidden>
-              <label>Shape<select class="fsl-shape" hidden onchange="app.setStemShape('bass', this.value)"></select></label>
               <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('bass','x',this.value)"></label>
               <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('bass','z',this.value)"></label>
               <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('bass', this.value)" hidden></label>
@@ -1318,16 +1312,14 @@
           </div>
           <div class="feed-stems-layer-row" data-stem="vocals">
             <span class="fsl-label">Vocals</span>
-            <select class="fsl-effect" onchange="app.setStemEffect('vocals', this.value)">
+            <select class="fsl-effect" data-shapes onchange="app.setStemEffect('vocals', this.value)">
               <option value="off" selected>Off</option>
-              <option value="center">Center: pick a shape →</option>
               <option value="plate">Plate</option>
               <option value="orbit">Orbit</option>
               <option value="glow">Background glow</option>
             </select>
             <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('vocals')">⚙</button>
             <div class="fsl-controls-panel" hidden>
-              <label>Shape<select class="fsl-shape" hidden onchange="app.setStemShape('vocals', this.value)"></select></label>
               <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('vocals','x',this.value)"></label>
               <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('vocals','z',this.value)"></label>
               <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('vocals', this.value)" hidden></label>
@@ -1341,16 +1333,14 @@
           </div>
           <div class="feed-stems-layer-row" data-stem="harmony">
             <span class="fsl-label">Harmony</span>
-            <select class="fsl-effect" onchange="app.setStemEffect('harmony', this.value)">
+            <select class="fsl-effect" data-shapes onchange="app.setStemEffect('harmony', this.value)">
               <option value="off" selected>Off</option>
-              <option value="center">Center: pick a shape →</option>
               <option value="plate">Plate</option>
               <option value="orbit">Orbit</option>
               <option value="glow">Background glow</option>
             </select>
             <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('harmony')">⚙</button>
             <div class="fsl-controls-panel" hidden>
-              <label>Shape<select class="fsl-shape" hidden onchange="app.setStemShape('harmony', this.value)"></select></label>
               <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('harmony','x',this.value)"></label>
               <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('harmony','z',this.value)"></label>
               <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('harmony', this.value)" hidden></label>
@@ -2433,8 +2423,14 @@
   function clonePos(){ const o={}; SHAPE_STEM_ORDER.forEach(s=>o[s]=Object.assign({},DEFAULT_POS[s])); return o; }
   const stemLayerCfg = { assign: Object.assign({}, DEFAULT_ASSIGN), sizes: { drums:1, kick:1, cymbals:1, bass:1, vocals:1, harmony:1 }, shapeChoice: Object.assign({}, CENTER_SHAPE_FOR_STEM), kickSnareShape: null, pos: clonePos(), glowBg: 0 };
   function populateShapeSelects(){
-    document.querySelectorAll('.fsl-shape').forEach(sel=>{
-      sel.innerHTML = SHAPE_NAMES.map((n,i)=>`<option value="${i}">${n}</option>`).join('');
+    // Every real shape from the sphere.html/field.html library goes directly
+    // into the same effect dropdown the stem's Off/Plate/Orbit/Background
+    // options are already in — right after "Off" — instead of a second
+    // hidden picker, since that's literally where people are looking.
+    document.querySelectorAll('.fsl-effect[data-shapes]').forEach(sel=>{
+      const offOpt = sel.querySelector('option[value="off"]');
+      const shapeOpts = SHAPE_NAMES.map((n,i)=>`<option value="shape:${i}">${n}</option>`).join('');
+      if(offOpt) offOpt.insertAdjacentHTML('afterend', shapeOpts);
     });
     const ks = document.querySelector('.fsl-kick-snare');
     if(ks) ks.innerHTML = '<option value="">(no morph)</option>' + SHAPE_NAMES.map((n,i)=>`<option value="${i}">${n}</option>`).join('');
@@ -2453,7 +2449,7 @@
     if(!row) return {};
     return {
       effect: row.querySelector('.fsl-effect'), size: row.querySelector('.fsl-size'), bg: row.querySelector('.fsl-bg'),
-      shape: row.querySelector('.fsl-shape'), snareLabel: row.querySelector('.fsl-snare-label'), snareShape: row.querySelector('.fsl-kick-snare'),
+      snareLabel: row.querySelector('.fsl-snare-label'), snareShape: row.querySelector('.fsl-kick-snare'),
       posX: row.querySelector('.fsl-pos-x'), posZ: row.querySelector('.fsl-pos-z'), posLabels: row.querySelectorAll('.fsl-pos-label'),
       ctlBtn: row.querySelector('.fsl-ctl-btn'), panel: row.querySelector('.fsl-controls-panel'),
     };
@@ -2466,12 +2462,11 @@
     stemLayerCfg.pos = clonePos();
     stemLayerCfg.glowBg = 0;
     STEMS.forEach(stem=>{
-      const { effect, size, bg, shape, snareLabel, snareShape, posX, posZ, posLabels, ctlBtn, panel } = stemLayerRowEls(stem);
+      const { effect, size, bg, snareLabel, snareShape, posX, posZ, posLabels, ctlBtn, panel } = stemLayerRowEls(stem);
       const val = stemLayerCfg.assign[stem];
       if(effect) effect.value = val;
       if(size){ size.value = 1; size.hidden = (val === 'off' || val === 'glow'); }
       if(bg){ bg.value = '0'; bg.hidden = (val !== 'glow'); }
-      if(shape){ shape.value = String(stemLayerCfg.shapeChoice[stem] || 0); shape.hidden = (val !== 'center'); }
       if(snareShape) snareShape.value = '';
       if(snareLabel) snareLabel.hidden = (val !== 'center');
       if(posX && DEFAULT_POS[stem]) posX.value = DEFAULT_POS[stem].x;
@@ -8206,14 +8201,18 @@
       }
     },
     setStemEffect(stem, val){
+      // Every real shape is its own option right in this same dropdown, as
+      // "shape:<index>" — picking one means slot=center with that shape.
+      let slotName = val, shapeIdx = null;
+      if(val.indexOf('shape:') === 0){ slotName = 'center'; shapeIdx = parseInt(val.slice(6), 10); }
       // "center" (each stem's own real shape) can now be shared by several
       // stems at once — they all show simultaneously. plate/orbit/glow are
       // still single-owner plain looks, so picking one still bumps whoever
       // else held it back to off.
-      if(val !== 'off' && val !== 'center'){
+      if(slotName !== 'off' && slotName !== 'center'){
         STEMS.forEach(other=>{
           if(other === stem) return;
-          if(stemLayerCfg.assign[other] === val){
+          if(stemLayerCfg.assign[other] === slotName){
             stemLayerCfg.assign[other] = 'off';
             const { effect, size, bg } = stemLayerRowEls(other);
             if(effect) effect.value = 'off';
@@ -8222,17 +8221,17 @@
           }
         });
       }
-      stemLayerCfg.assign[stem] = val;
-      const { size, bg, shape, snareLabel, snareShape, posLabels, ctlBtn, panel } = stemLayerRowEls(stem);
-      if(size) size.hidden = (val === 'off' || val === 'glow');
-      if(bg) bg.hidden = (val !== 'glow');
-      if(shape) shape.hidden = (val !== 'center');
-      if(snareLabel) snareLabel.hidden = (val !== 'center');
-      if(posLabels) posLabels.forEach(l=>{ l.hidden = (val !== 'center'); });
+      stemLayerCfg.assign[stem] = slotName;
+      if(shapeIdx != null) stemLayerCfg.shapeChoice[stem] = shapeIdx;
+      const { size, bg, snareLabel, posLabels, ctlBtn, panel } = stemLayerRowEls(stem);
+      if(size) size.hidden = (slotName === 'off' || slotName === 'glow');
+      if(bg) bg.hidden = (slotName !== 'glow');
+      if(snareLabel) snareLabel.hidden = (slotName !== 'center');
+      if(posLabels) posLabels.forEach(l=>{ l.hidden = (slotName !== 'center'); });
       // the ⚙ Controls button (same pattern as sphere.html/field.html's own
       // gear button) shows whenever this row is doing anything, and its
       // panel auto-collapses on every change so the row stays tidy.
-      if(ctlBtn){ ctlBtn.hidden = (val === 'off'); ctlBtn.classList.remove('on'); }
+      if(ctlBtn){ ctlBtn.hidden = (slotName === 'off'); ctlBtn.classList.remove('on'); }
       if(panel) panel.hidden = true;
       pushPreviewCfg();
     },
@@ -8243,7 +8242,6 @@
       if(ctlBtn) ctlBtn.classList.toggle('on', !panel.hidden);
     },
     setStemEffectSize(stem, val){ stemLayerCfg.sizes[stem] = parseFloat(val); pushPreviewCfg(); },
-    setStemShape(stem, val){ stemLayerCfg.shapeChoice[stem] = parseInt(val, 10); pushPreviewCfg(); },
     setStemPos(stem, axis, val){ if(!stemLayerCfg.pos[stem]) stemLayerCfg.pos[stem] = {x:0,z:0}; stemLayerCfg.pos[stem][axis] = parseFloat(val); pushPreviewCfg(); },
     setKickSnareShape(val){ stemLayerCfg.kickSnareShape = (val === '' ? null : parseInt(val, 10)); pushPreviewCfg(); },
     setGlowBg(val){ stemLayerCfg.glowBg = parseInt(val, 10); pushPreviewCfg(); },
