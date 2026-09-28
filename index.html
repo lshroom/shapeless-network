@@ -1270,6 +1270,27 @@
               </select>
             </div>
           </div>
+          <div class="feed-stems-layer-row" data-stem="snare">
+            <span class="fsl-label">Snare</span>
+            <select class="fsl-effect" data-shapes onchange="app.setStemEffect('snare', this.value)">
+              <option value="off" selected>Off</option>
+              <option value="plate">Plate</option>
+              <option value="orbit">Orbit</option>
+              <option value="glow">Background glow</option>
+            </select>
+            <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('snare')">⚙</button>
+            <div class="fsl-controls-panel" hidden>
+              <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('snare','x',this.value)"></label>
+              <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('snare','z',this.value)"></label>
+              <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('snare', this.value)" hidden></label>
+              <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
+                <option value="0">None (color tint only)</option>
+                <option value="1">Stellar Nebula (surrounds everything)</option>
+                <option value="2">Aurora Borealis (surrounds everything)</option>
+                <option value="3">Cloudscape (surrounds everything)</option>
+              </select>
+            </div>
+          </div>
           <div class="feed-stems-layer-row" data-stem="bass">
             <span class="fsl-label">Bass</span>
             <select class="fsl-effect" data-shapes onchange="app.setStemEffect('bass', this.value)">
@@ -2383,18 +2404,18 @@
   // Snare has no row of its own — Kick's row carries a second dropdown
   // ("on snare hit, shift to") so kick and snare share ONE object that
   // morphs, per the exact ask, instead of being two separate shapes.
-  const STEMS = ['kick','cymbals','bass','vocals','harmony'];
+  const STEMS = ['kick','snare','cymbals','bass','vocals','harmony'];
   // scene.html's CENTER_SHAPES index — the full real library, all 9 offered
   // on every shape dropdown now (not one fixed pick per stem):
   const SHAPE_NAMES = ['Fluff','Gyroid Lattice','Superformula','Mandelbulb Fractal','SDF Morph Field','Wave Interference Field','Chladni Plate','Resonant Spiderweb','Crystal Burst'];
   // initial shape each stem's dropdown opens on (still changeable) — the
   // exact picks from the original per-stem assignment, now just a default:
-  const CENTER_SHAPE_FOR_STEM = { kick:0, cymbals:8, bass:4, vocals:7, harmony:6 };
+  const CENTER_SHAPE_FOR_STEM = { kick:0, snare:1, cymbals:8, bass:4, vocals:7, harmony:6 };
   // default X/Z placement — 5 fixed positions spread evenly on a ring, one
   // per shape-capable stem, independent of how many are actually on, so
   // turning on any subset already looks spread apart. Draggable per stem
   // from there (app.setStemPos) — "move them in space wherever I want".
-  const SHAPE_STEM_ORDER = ['kick','cymbals','bass','vocals','harmony'];
+  const SHAPE_STEM_ORDER = ['kick','snare','cymbals','bass','vocals','harmony'];
   const DEFAULT_POS = {};
   SHAPE_STEM_ORDER.forEach((stem,i)=>{
     const ang = (i/SHAPE_STEM_ORDER.length) * Math.PI*2;
