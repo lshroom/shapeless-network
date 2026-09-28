@@ -393,6 +393,9 @@
   .feed-schedule-shapes{ display:flex; flex-wrap:wrap; gap:6px; padding:10px 14px 0; }
   .feed-schedule-shape-btn{ background:var(--surface-2); color:var(--muted); border:1px solid var(--line); border-radius:99px; padding:6px 12px; font-size:11.5px; cursor:pointer; }
   .feed-schedule-shape-btn[data-active="true"]{ background:var(--accent); color:#04181B; border-color:transparent; font-weight:600; }
+  .feed-schedule-banks{ display:flex; flex-wrap:wrap; gap:6px; padding:10px 14px 0; }
+  .feed-schedule-bank-btn{ background:transparent; color:var(--muted); border:1px solid var(--line); border-radius:99px; padding:5px 12px; font-size:11px; cursor:pointer; }
+  .feed-schedule-bank-btn[data-active="true"]{ background:var(--accent); color:#04181B; border-color:transparent; font-weight:600; }
   .feed-schedule-transport{ display:flex; align-items:center; gap:8px; padding:12px 14px 8px; }
   .feed-schedule-transport button{ background:var(--surface-2); color:var(--muted); border:1px solid var(--line); border-radius:99px; width:36px; height:36px; flex:none; cursor:pointer; font-size:15px; }
   .feed-schedule-transport span{ font-family:var(--font-mono); font-size:12.5px; color:var(--muted); }
@@ -1180,6 +1183,7 @@
         <div class="feed-schedule-preview">
           <iframe id="feed-schedule-frame-sphere" class="feed-schedule-frame" data-active="true" allow="autoplay"></iframe>
         </div>
+        <div class="feed-schedule-banks" id="feed-schedule-banks"></div>
         <div class="feed-schedule-shapes" id="feed-schedule-shapes"></div>
         <div class="feed-schedule-transport">
           <button id="feed-schedule-play" onclick="app.toggleSchedulePreview()">▶</button>
@@ -2178,6 +2182,16 @@
   // Keep this in the exact same order as sphere.html's own SHAPE_NAMES —
   // index here is the shape id both pages agree on.
   const SPHERE_SHAPE_NAMES = ['Fluff','Gyroid','Superformula','Mandelbulb','SDF Morph','Waves','Chladni','Spiderweb','Sea Anemone','Anemone Spiral','Sand Dunes','Slime Mold','Aurora Curtains','Catenoid Helicoid','Vector Field','Ripple Tank',"Jacob's Ladder",'Virus Capsid','Soap Bubbles','Hilbert Curve','Spin Wave'];
+  // Must match sphere.html's own BANKS exactly — sphere.html only ever
+  // compiles 8 shapes at once (compiling all 21 together is what caused real
+  // whole-browser GPU-driver locks), so a song's timeline has to stay inside
+  // one bank throughout. Switching banks mid-edit resets the timeline rather
+  // than risk a runtime recompile during playback.
+  const SPHERE_BANKS = [
+    { label: 'Classic', ids: [0,1,2,3,4,5,6,7] },
+    { label: 'Organic', ids: [8,9,10,11,12,13,17,18] },
+    { label: 'Flow & Field', ids: [14,15,16,19,20,3,7,12] },
+  ];
   // Upload-time timeline editor state — separate from the fullscreen player's
   // own feedPlayer* state above, since this drives one small preview iframe
   // and edits a draft schedule that only gets attached to the post on save.
@@ -2201,7 +2215,8 @@
     if(!scheduleUploadedMedia) return;
     const base = FEED_EFFECT_PAGES.sphere;
     const sep = base.endsWith('?') ? '' : '&';
-    scheduleFrame().src = base + sep + 'song=' + encodeURIComponent(scheduleUploadedMedia.url) + '&driven=1&shape=' + initialShape + '&muted=0&active=0';
+    const bank = scheduleDraft?.bank || 0;
+    scheduleFrame().src = base + sep + 'song=' + encodeURIComponent(scheduleUploadedMedia.url) + '&driven=1&bank=' + bank + '&shape=' + initialShape + '&muted=0&active=0';
   }
   function switchScheduleShape(shape, instant){
     scheduleFrame().contentWindow?.postMessage({ type:'setShape', index:shape, instant }, '*');
@@ -2283,16 +2298,32 @@
     const entry = sched[idx];
     switchScheduleShape(entry.shape, false);
   }
+  function renderScheduleBankBar(){
+    const wrap = document.getElementById('feed-schedule-banks');
+    if(!wrap) return;
+    wrap.innerHTML = '';
+    const activeBank = scheduleDraft?.bank || 0;
+    SPHERE_BANKS.forEach((b,i)=>{
+      const btn = document.createElement('button');
+      btn.className = 'feed-schedule-bank-btn';
+      btn.textContent = b.label;
+      btn.dataset.active = (i === activeBank) ? 'true' : 'false';
+      btn.onclick = ()=>app.setScheduleBank(i);
+      wrap.appendChild(btn);
+    });
+  }
   function renderScheduleShapePalette(){
     const m = scheduleDraft?.markers[scheduleSelectedMarkerIdx];
     const wrap = document.getElementById('feed-schedule-shapes');
     if(!wrap) return;
     wrap.innerHTML = '';
+    renderScheduleBankBar();
     if(!m) return;
-    SPHERE_SHAPE_NAMES.forEach((name,i)=>{
+    const bank = SPHERE_BANKS[scheduleDraft?.bank || 0];
+    bank.ids.forEach(i=>{
       const btn = document.createElement('button');
       btn.className = 'feed-schedule-shape-btn';
-      btn.textContent = name;
+      btn.textContent = SPHERE_SHAPE_NAMES[i];
       btn.dataset.active = (i === m.shape) ? 'true' : 'false';
       btn.onclick = ()=>app.setSelectedMarkerShape(i);
       wrap.appendChild(btn);
@@ -2373,6 +2404,7 @@
   // watches it play out — no dots, no gear, no manual switching. Sorted
   // ascending by time; each entry is {t, page:'sphere'|'field', shape:index}.
   let feedPlayerActiveSchedule = null;
+  let feedPlayerActiveScheduleBank = 0;
   let feedPlayerScheduleFired = -1;
   let feedPlayerScheduleLastT = 0;
   function feedPlayerFrame(effect){ return document.getElementById('feed-player-iframe-' + effect); }
@@ -2395,6 +2427,7 @@
       // own dots/gear/auto-switch bar is someone else's job right now.
       if(feedPlayerActiveSchedule && (effect === 'sphere' || effect === 'field')){
         src += '&driven=1';
+        if(effect === 'sphere') src += '&bank=' + (feedPlayerActiveScheduleBank || 0);
         // The very first frame's shape has to travel in the URL, not a
         // postMessage sent right after — a message fired the instant src is
         // assigned can arrive before the fresh page's own listener exists
@@ -7711,9 +7744,9 @@
           if(media.kind === 'audio'){
             // No dropdown anymore — a song always goes to sphere/field, chosen
             // via the timeline editor. Never opened it? Defaults to Sphere.
-            const draft = (scheduleDraft && scheduleUploadedForFile === file) ? scheduleDraft : { markers: [{ t:0, page:'sphere', shape:0 }] };
+            const draft = (scheduleDraft && scheduleUploadedForFile === file) ? scheduleDraft : { markers: [{ t:0, page:'sphere', shape:0 }], bank: 0 };
             media.effect = draft.markers[0].page;
-            if(draft.markers.length > 1) media.effectSchedule = draft.markers;
+            if(draft.markers.length > 1){ media.effectSchedule = draft.markers; media.effectScheduleBank = draft.bank || 0; }
           }
           if(media.kind === 'video'){ media.effect = 'cube'; }
         }
@@ -7752,7 +7785,8 @@
           hideProgress();
         } catch(e){ hideProgress(); toast('Could not upload for preview — try again.'); return; }
       }
-      if(!scheduleDraft) scheduleDraft = { markers: [{ t: 0, page: 'sphere', shape: 0 }] };
+      if(!scheduleDraft) scheduleDraft = { markers: [{ t: 0, page: 'sphere', shape: 0 }], bank: 0 };
+      if(scheduleDraft.bank == null) scheduleDraft.bank = 0; // editing an older draft/post saved before banks existed
       scheduleSelectedMarkerIdx = 0;
       scheduleFiredIdx = -1;
       schedulePlaying = false;
@@ -7767,6 +7801,24 @@
       scheduleBroadcast({ type: 'pause' });
       scheduleFrame().src = 'about:blank';
       schedulePlaying = false;
+    },
+    setScheduleBank(bankIdx){
+      if(!scheduleDraft || bankIdx === (scheduleDraft.bank || 0)) return;
+      // sphere.html only ever compiles one 8-shape bank at a time — switching
+      // banks mid-timeline would mean asking it to recompile mid-song, which
+      // is exactly the freeze this whole system exists to avoid. So a bank
+      // switch here resets the timeline back to a single opening marker in
+      // the new bank rather than trying to remap old markers across banks.
+      const hadExtra = scheduleDraft.markers.length > 1;
+      scheduleDraft.bank = bankIdx;
+      scheduleDraft.markers = [{ t: 0, page: 'sphere', shape: SPHERE_BANKS[bankIdx].ids[0] }];
+      scheduleSelectedMarkerIdx = 0;
+      scheduleCurrentTime = 0;
+      scheduleFiredIdx = -1;
+      loadScheduleFrame(scheduleDraft.markers[0].shape);
+      renderScheduleShapePalette();
+      renderScheduleTrack();
+      if(hadExtra) toast(`Switched to ${SPHERE_BANKS[bankIdx].label} — timeline reset (banks can't mix mid-song).`);
     },
     saveScheduleEditor(){
       const n = scheduleDraft.markers.length;
@@ -7802,7 +7854,7 @@
       const near = scheduleDraft.markers.findIndex(m => Math.abs(m.t - scheduleCurrentTime) < 0.35);
       if(near >= 0){ app.selectMarker(near); return; }
       const ref = scheduleDraft.markers[scheduleSelectedMarkerIdx] || scheduleDraft.markers[scheduleDraft.markers.length-1];
-      const marker = { t: scheduleCurrentTime, page: 'sphere', shape: ref?.shape ?? 0 };
+      const marker = { t: scheduleCurrentTime, page: 'sphere', shape: ref?.shape ?? SPHERE_BANKS[scheduleDraft.bank || 0].ids[0] };
       scheduleDraft.markers.push(marker);
       scheduleDraft.markers.sort((a,b)=>a.t-b.t);
       scheduleSelectedMarkerIdx = scheduleDraft.markers.indexOf(marker);
@@ -7855,13 +7907,13 @@
         const hits = await analyzeWaveformForSwitchPoints(scheduleUploadedMedia.url);
         let added = 0;
         const maxEnergy = hits.reduce((m,h)=>Math.max(m,h.energy), 0.0001);
-        // Ranked calm → intense across all 21 shapes, so a quiet moment gets a
-        // gentler one (or one of the "ambient" fill points a dead stretch now
-        // gets — see analyzeWaveformForSwitchPoints) and a hard hit gets the
-        // most chaotic one available. More shapes in rotation now too, so a
-        // long song doesn't keep landing on the same handful.
-        const INTENSITY = [5,12,15,10,0,20,18, 1,6,8,9,11,13,19, 4,2,7,3,14,16,17];
+        // Ranked calm → intense across all 21 shapes, then filtered down to
+        // just the active bank's 8 (preserving relative order) — a suggested
+        // timeline has to stay inside one bank, same as everything else here.
+        const GLOBAL_INTENSITY = [5,12,15,10,0,20,18, 1,6,8,9,11,13,19, 4,2,7,3,14,16,17];
         // Waves,Aurora,RippleTank,SandDunes,Fluff,SpinWave,SoapBubbles | Gyroid,Chladni,SeaAnemone,AnemoneSpiral,SlimeMold,CatenoidHelicoid,HilbertCurve | SDFMorph,Superformula,Spiderweb,Mandelbulb,VectorField,JacobsLadder,VirusCapsid
+        const bankIds = SPHERE_BANKS[scheduleDraft.bank || 0].ids;
+        const INTENSITY = GLOBAL_INTENSITY.filter(id => bankIds.includes(id));
         hits.forEach(({t, energy})=>{
           if(scheduleDraft.markers.some(m => Math.abs(m.t - t) < 1)) return; // don't crowd an existing/just-added marker
           const tier = Math.min(INTENSITY.length - 1, Math.floor((energy / maxEnergy) * INTENSITY.length));
@@ -8023,6 +8075,7 @@
       feedPlayerSongUrl = p.media.url;
       const sched = Array.isArray(p.media.effectSchedule) && p.media.effectSchedule.length ? p.media.effectSchedule.slice().sort((a,b)=>a.t-b.t) : null;
       feedPlayerActiveSchedule = sched;
+      feedPlayerActiveScheduleBank = p.media.effectScheduleBank || 0;
       feedPlayerScheduleFired = sched ? 0 : -1;
       feedPlayerScheduleLastT = 0;
       const effect = sched ? sched[0].page : (['sphere','field'].includes(p.media.effect) ? p.media.effect : 'cube');
@@ -8072,6 +8125,7 @@
       feedPlayerSongUrl = null;
       feedPlayerCurrentEffect = null;
       feedPlayerActiveSchedule = null;
+      feedPlayerActiveScheduleBank = 0;
       feedPlayerScheduleFired = -1;
       document.getElementById('feed-player-effect-select').hidden = false;
     },
