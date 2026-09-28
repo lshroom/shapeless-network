@@ -1276,6 +1276,16 @@
             </select>
             <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('harmony', this.value)">
           </div>
+          <div class="feed-stems-layer-row">
+            <span class="fsl-label">Background</span>
+            <select id="fsl-glow-bg" onchange="app.setGlowBg(this.value)">
+              <option value="0">None (color tint only)</option>
+              <option value="1">Stellar Nebula (surrounds everything)</option>
+              <option value="2">Aurora Borealis (surrounds everything)</option>
+              <option value="3">Cloudscape (surrounds everything)</option>
+            </select>
+            <span></span>
+          </div>
         </div>
       </div>
       <div class="feed-post-progress" id="feed-post-progress" hidden>
@@ -2319,7 +2329,7 @@
   // 7 Resonant Spiderweb, 8 Crystal Burst (cymbals-only, real geometry not an SDF).
   const CENTER_SHAPE_FOR_STEM = { kick:0, cymbals:8, bass:4, vocals:7, harmony:6 };
   const DEFAULT_ASSIGN = { drums:'off', kick:'center', snare:'off', cymbals:'off', bass:'plate', vocals:'orbit', harmony:'glow' };
-  const stemLayerCfg = { assign: Object.assign({}, DEFAULT_ASSIGN), sizes: { drums:1, kick:1, snare:1, cymbals:1, bass:1, vocals:1, harmony:1 } };
+  const stemLayerCfg = { assign: Object.assign({}, DEFAULT_ASSIGN), sizes: { drums:1, kick:1, snare:1, cymbals:1, bass:1, vocals:1, harmony:1 }, glowBg: 0 };
   function stemLayerRowEls(stem){
     const row = document.querySelector('.feed-stems-layer-row[data-stem="'+stem+'"]');
     return row ? { effect: row.querySelector('.fsl-effect'), size: row.querySelector('.fsl-size') } : {};
@@ -2327,11 +2337,13 @@
   function resetStemLayerCfg(){
     stemLayerCfg.assign = Object.assign({}, DEFAULT_ASSIGN);
     stemLayerCfg.sizes = { drums:1, kick:1, snare:1, cymbals:1, bass:1, vocals:1, harmony:1 };
+    stemLayerCfg.glowBg = 0;
     STEMS.forEach(stem=>{
       const { effect, size } = stemLayerRowEls(stem);
       if(effect) effect.value = stemLayerCfg.assign[stem];
       if(size){ size.value = 1; size.hidden = (stemLayerCfg.assign[stem] === 'off' || stemLayerCfg.assign[stem] === 'glow'); }
     });
+    const bgEl = document.getElementById('fsl-glow-bg'); if(bgEl) bgEl.value = '0';
   }
   function deriveSceneCfg(){
     const slots = {}, sizes = { center:1, plate:1, orbit:1 };
@@ -2347,7 +2359,7 @@
     if(!slots.plate) slots.plate = 'bass';
     if(!slots.orbit) slots.orbit = 'vocals';
     if(!slots.glow) slots.glow = 'harmony';
-    return { slots, sizes, centerShape };
+    return { slots, sizes, centerShape, glowBg: stemLayerCfg.glowBg };
   }
   // The local stem-splitter (tools/stem_server.py) — runs Demucs on the
   // uploader's own machine, per shapeless-1974's "🔪 Stems" button and the
@@ -8031,6 +8043,7 @@
       if(size) size.hidden = (val === 'off' || val === 'glow');
     },
     setStemEffectSize(stem, val){ stemLayerCfg.sizes[stem] = parseFloat(val); },
+    setGlowBg(val){ stemLayerCfg.glowBg = parseInt(val, 10); },
     async submitFeedPost(){
       if(!requireAuth()) return;
       const text = (document.getElementById('feed-post-input').value||'').trim();

@@ -207,7 +207,7 @@ const CENTER_SHAPES = ['Fluff','Gyroid Lattice','Superformula','Mandelbulb Fract
 const SCENE_FRAG = `
 ${GLSL.snoise3}
 ${GLSL.palette}
-uniform int uCenterShape;
+uniform int uCenterShape, uGlowBg;
 uniform float uCenterBass, uCenterMid, uCenterHigh, uCenterRms, uCenterSize;
 uniform float uPlateBass, uPlateMid, uPlateSize;
 uniform float uOrbitRms, uOrbitHigh, uOrbitSize;
@@ -338,8 +338,63 @@ vec3 colorAt(vec3 p, vec3 n){
   vec3 glowTint = spectral(0.4 + uGlowMid*0.25);
   return mix(base, glowTint, 0.18 + uGlowRms*0.22);
 }
+// Background style — an enclosing volumetric backdrop that fills the whole
+// view behind Center/Plate/Orbit, driven by whichever stem holds "glow"
+// (uGlowMid/uGlowRms), instead of the earlier flat tint-only version. All 3
+// are verbatim ports of real, already-built h5555 engines (Stellar Nebula:
+// public/h5555/engines/batch10.js; Aurora Borealis: batch03.js; Cloudscape:
+// batch13.js) — reduced iteration counts since this now runs alongside the
+// foreground raymarch every frame instead of alone.
+float fbmBg(vec3 p){ float f=0.0,a=0.5; for(int i=0;i<5;i++){ f+=a*snoise(p); p*=2.02; a*=0.5; } return f; }
+vec3 bgNebula(vec3 ro, vec3 rd){
+  vec3 col=vec3(0.0); float t=0.5;
+  for(int i=0;i<30;i++){
+    vec3 p=ro+rd*t; float d=fbmBg(p*0.5+vec3(0.0,0.0,uTime*0.03));
+    float dens=clamp(d*1.1-0.1,0.0,1.0)*smoothstep(9.0,2.0,length(p));
+    if(dens>0.01){ vec3 gc=spectral(0.62+d*0.2); col+=gc*dens*0.09*(0.7+uGlowMid*0.6); }
+    float star=pow(max(0.0,snoise(p*3.0)),20.0); col+=vec3(star)*0.5;
+    t+=0.3; if(t>14.0)break;
+  }
+  return col*(0.8+uGlowRms*0.4);
+}
+vec3 bgAurora(vec3 ro, vec3 rd){
+  vec3 col=vec3(0.01,0.02,0.04); float trans=1.0; float t=0.5;
+  for(int i=0;i<28;i++){
+    vec3 p=ro+rd*t;
+    float curtain=snoise(vec3(p.x*0.4+uTime*0.2, uTime*0.1, p.z*0.4))*0.5+0.5;
+    curtain=pow(curtain,2.0);
+    float hfade=smoothstep(4.5,-1.0,p.y)*smoothstep(-2.0,0.5,p.y);
+    float dens=curtain*hfade*(0.6+uGlowMid);
+    vec3 c=spectral(0.35+p.y*0.08+uGlowRms*0.2);
+    col+=c*dens*trans*0.15; trans*=1.0-dens*0.1;
+    t+=0.35; if(trans<0.02||t>14.0)break;
+  }
+  return col;
+}
+vec3 bgCloudscape(vec3 ro, vec3 rd){
+  vec3 sky=mix(vec3(0.05,0.06,0.09),vec3(0.02,0.03,0.06),clamp(rd.y*1.5+0.3,0.0,1.0));
+  vec3 col=sky; float t=1.0; float trans=1.0;
+  float thresh=1.0-0.7*0.45;
+  for(int i=0;i<26;i++){
+    vec3 p=ro+rd*t; p.x+=uTime*0.4; float d=fbmBg(p*0.45)*0.5+0.5;
+    float slab=smoothstep(3.0,0.5,abs(p.y-0.5));
+    float dens=clamp((d-thresh)*3.0,0.0,1.0)*slab*(0.5+uGlowMid*0.7);
+    if(dens>0.01){
+      float light=clamp(fbmBg((p+vec3(0.0,0.7,0.0))*0.45)*0.5+0.5,0.35,1.0);
+      vec3 cc=mix(vec3(0.06,0.07,0.1),spectral(0.55+light*0.2),light);
+      col=mix(col,cc,dens*0.16*trans); trans*=(1.0-dens*0.16);
+    }
+    t+=0.4; if(t>12.0||trans<0.03)break;
+  }
+  return col*(0.85+uGlowRms*0.3);
+}
+vec3 bgColor(vec3 ro, vec3 rd){
+  if(uGlowBg==1) return bgAurora(ro,rd);
+  if(uGlowBg==2) return bgCloudscape(ro,rd);
+  return bgNebula(ro,rd);
+}
 vec3 render(vec3 ro, vec3 rd){
-  float t=0.0; vec3 col=vec3(0.02,0.02,0.035)*(0.5+uGlowRms*0.6);
+  float t=0.0; bool didHit=false; vec3 col=vec3(0.0);
   for(int i=0;i<110;i++){
     vec3 p=ro+rd*t; float d=de(p);
     if(d<0.0015){
@@ -350,10 +405,12 @@ vec3 render(vec3 ro, vec3 rd){
       vec3 baseCol = colorAt(p,n);
       float ao=1.0-float(i)/110.0;
       col=baseCol*(0.3+0.7*diff)*ao+fres*0.4*baseCol;
+      didHit=true;
       break;
     }
     t+=d; if(t>18.0)break;
   }
+  if(!didHit){ col = uGlowBg>0 ? bgColor(ro,rd) : vec3(0.02,0.02,0.035)*(0.5+uGlowRms*0.6); }
   return col;
 }`;
 
@@ -361,7 +418,7 @@ const { mesh, uniforms } = raymarchQuad(SCENE_FRAG, {
   uCenterShape:{value:0}, uCenterBass:{value:0}, uCenterMid:{value:0}, uCenterHigh:{value:0}, uCenterRms:{value:0}, uCenterSize:{value:1},
   uPlateBass:{value:0}, uPlateMid:{value:0}, uPlateSize:{value:1},
   uOrbitRms:{value:0}, uOrbitHigh:{value:0}, uOrbitSize:{value:1},
-  uGlowMid:{value:0}, uGlowRms:{value:0},
+  uGlowBg:{value:0}, uGlowMid:{value:0}, uGlowRms:{value:0},
 });
 scene.add(mesh);
 
@@ -419,9 +476,12 @@ function updateCrystalBurst(t, stem, size){
 
 // ---- per-layer config: which stem drives which slot, how big, which Center
 // shape (see index.html — each stem offers at most one fixed Center choice
-// it was picked for, not a menu). ?cfg=<url-encoded JSON> —
-// { slots:{center,plate,orbit,glow}, sizes:{center,plate,orbit}, centerShape:0-8 }
-const DEFAULT_CFG = { slots:{ center:'kick', plate:'bass', orbit:'vocals', glow:'harmony' }, sizes:{ center:1, plate:1, orbit:1 }, centerShape:0 };
+// it was picked for, not a menu). glowBg (0=None/flat tint, 1=Stellar
+// Nebula, 2=Aurora Borealis, 3=Cloudscape) is the enclosing background style
+// for whichever stem holds "glow" — see bgColor() above. ?cfg=<url-encoded
+// JSON> — { slots:{center,plate,orbit,glow}, sizes:{center,plate,orbit}, centerShape:0-8, glowBg:0-3 }
+const GLOW_BG_NAMES = ['None','Stellar Nebula','Aurora Borealis','Cloudscape'];
+const DEFAULT_CFG = { slots:{ center:'kick', plate:'bass', orbit:'vocals', glow:'harmony' }, sizes:{ center:1, plate:1, orbit:1 }, centerShape:0, glowBg:0 };
 let sceneCfg = DEFAULT_CFG;
 {
   const raw = new URLSearchParams(location.search).get('cfg');
@@ -432,12 +492,13 @@ let sceneCfg = DEFAULT_CFG;
         slots: Object.assign({}, DEFAULT_CFG.slots, parsed.slots||{}),
         sizes: Object.assign({}, DEFAULT_CFG.sizes, parsed.sizes||{}),
         centerShape: (typeof parsed.centerShape === 'number') ? parsed.centerShape : DEFAULT_CFG.centerShape,
+        glowBg: (typeof parsed.glowBg === 'number') ? parsed.glowBg : DEFAULT_CFG.glowBg,
       };
     } catch(_){ /* malformed cfg — fall back to the default mapping rather than breaking the scene */ }
   }
 }
 const labelWrap = document.getElementById('stemLabels');
-if(labelWrap) labelWrap.innerHTML = `<span><b>●</b> ${sceneCfg.slots.center} → center (${CENTER_SHAPES[sceneCfg.centerShape]||'?'})</span><span><b>●</b> ${sceneCfg.slots.plate} → plate</span><span><b>●</b> ${sceneCfg.slots.orbit} → orbit</span><span><b>●</b> ${sceneCfg.slots.glow} → glow</span>`;
+if(labelWrap) labelWrap.innerHTML = `<span><b>●</b> ${sceneCfg.slots.center} → center (${CENTER_SHAPES[sceneCfg.centerShape]||'?'})</span><span><b>●</b> ${sceneCfg.slots.plate} → plate</span><span><b>●</b> ${sceneCfg.slots.orbit} → orbit</span><span><b>●</b> ${sceneCfg.slots.glow} → glow (${GLOW_BG_NAMES[sceneCfg.glowBg]||'?'})</span>`;
 
 // Kick's Fluff (shape 0) briefly deforms into Gyroid Lattice (shape 1) on a
 // snare hit, then eases back — "fluff is kick and should deform to snare
@@ -475,6 +536,7 @@ function loop(){
   uniforms.uCenterSize.value = sceneCfg.sizes.center;
   uniforms.uPlateBass.value = plateStem.bass; uniforms.uPlateMid.value = plateStem.mid; uniforms.uPlateSize.value = sceneCfg.sizes.plate;
   uniforms.uOrbitRms.value = orbitStem.rms; uniforms.uOrbitHigh.value = orbitStem.high; uniforms.uOrbitSize.value = sceneCfg.sizes.orbit;
+  uniforms.uGlowBg.value = sceneCfg.glowBg || 0;
   uniforms.uGlowMid.value = glowStem.mid; uniforms.uGlowRms.value = glowStem.rms;
   uniforms.uTime.value = t;
   uniforms.uRes.value.set(innerWidth, innerHeight);
