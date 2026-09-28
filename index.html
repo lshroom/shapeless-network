@@ -2050,12 +2050,13 @@
     if(box) box.hidden = true;
   }
   let _ffmpeg = null;
-  // Every step here (the two dynamic imports + every toBlobURL, which is a
-  // fetch() under the hood) hits unpkg with no built-in timeout — if that
-  // network call ever stalls, this whole function hangs forever with zero
-  // console error (looks exactly like a frozen tab, not a failure). Wrapping
-  // each awaited step in a timeout so a stall becomes a real, visible error
-  // instead of a silent hang.
+  // These used to load from unpkg — a second, independent confirmation (after
+  // the same thing happened to three.js in the scene visualizer) that unpkg
+  // itself is what's unreachable/blocked on this machine, not this app's
+  // code: the compressor hung on "Loading compressor…" with zero console
+  // error every time, exactly like a stalled fetch with no timeout would.
+  // Vendored the exact same pinned versions locally instead of guessing at
+  // another timeout value — nothing here depends on an external CDN now.
   function withTimeout(promise, ms, label){
     return Promise.race([
       promise,
@@ -2066,22 +2067,22 @@
     if(_ffmpeg) return _ffmpeg;
     setProgress(0, 'Loading compressor…');
     try {
-      const { FFmpeg } = await withTimeout(import('https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js'), 20000, 'Loading compressor');
-      const { toBlobURL } = await withTimeout(import('https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js'), 20000, 'Loading compressor');
+      const { FFmpeg } = await withTimeout(import('/vendor/ffmpeg/ffmpeg/index.js'), 20000, 'Loading compressor');
+      const { toBlobURL } = await withTimeout(import('/vendor/ffmpeg/util/index.js'), 20000, 'Loading compressor');
       const ffmpeg = new FFmpeg();
       ffmpeg.on('progress', ({ progress }) => {
         const pct = Math.round(Math.max(0, Math.min(1, progress || 0)) * 100);
         setProgress(pct, `Compressing… ${pct}%`);
       });
       ffmpeg.on('log', ({ message }) => console.log('[ffmpeg]', message));
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+      const baseURL = '/vendor/ffmpeg/core';
       await withTimeout(ffmpeg.load({
         coreURL: await withTimeout(toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'), 20000, 'Loading compressor core'),
         wasmURL: await withTimeout(toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'), 30000, 'Loading compressor (wasm)'),
         // ffmpeg.wasm spawns its own internal worker from its own package URL —
         // browsers refuse `new Worker(crossOriginURL)` outright, so that also
         // needs blob-wrapping (classWorkerURL), same as the core JS/WASM above.
-        classWorkerURL: await withTimeout(toBlobURL('https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js', 'text/javascript'), 20000, 'Loading compressor worker'),
+        classWorkerURL: await withTimeout(toBlobURL('/vendor/ffmpeg/ffmpeg/worker.js', 'text/javascript'), 20000, 'Loading compressor worker'),
       }), 20000, 'Starting compressor');
       _ffmpeg = ffmpeg;
       return ffmpeg;
@@ -2104,7 +2105,7 @@
   }
   async function compressAudioToFlac(file){
     const ffmpeg = await getFFmpeg();
-    const { fetchFile } = await import('https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js');
+    const { fetchFile } = await import('/vendor/ffmpeg/util/index.js');
     const inName = 'in-' + Date.now();
     const baseName = (file.name||'song').replace(/\.[^.]+$/, '');
     await ffmpeg.writeFile(inName, await fetchFile(file));
@@ -2127,7 +2128,7 @@
   }
   async function compressVideo(file){
     const ffmpeg = await getFFmpeg();
-    const { fetchFile } = await import('https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js');
+    const { fetchFile } = await import('/vendor/ffmpeg/util/index.js');
     const inName = 'in-' + Date.now();
     const baseName = (file.name||'video').replace(/\.[^.]+$/, '');
     await ffmpeg.writeFile(inName, await fetchFile(file));
