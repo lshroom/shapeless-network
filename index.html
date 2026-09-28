@@ -431,16 +431,10 @@
   #feed-post-stems-status{ flex-basis:100%; }
   .feed-stems-auto{ flex-basis:100%; display:flex; align-items:center; gap:8px; }
   .feed-stems-layers{ flex-basis:100%; display:flex; flex-direction:column; gap:6px; margin-top:4px; padding-top:8px; border-top:1px solid var(--line); }
-  .feed-stems-layer-row{ display:flex; flex-wrap:wrap; align-items:flex-start; gap:6px; padding:4px 0; }
-  .fsl-label{ font-size:11px; color:var(--muted); min-width:58px; padding-top:5px; }
+  .feed-stems-layer-row{ display:grid; grid-template-columns:64px 1fr 80px; align-items:center; gap:6px; }
+  .fsl-label{ font-size:11px; color:var(--muted); }
   .feed-stems-layer-row select{ background:var(--surface-2); border:1px solid var(--line); border-radius:6px; padding:5px 6px; color:var(--text); font-size:11.5px; font-family:inherit; }
-  .feed-stems-layer-row input[type=range]{ accent-color:var(--accent); width:90px; }
-  .fsl-ctl-btn{ background:rgba(255,255,255,.08); color:var(--text); border:1px solid var(--line); border-radius:99px; width:26px; height:26px; font-size:13px; cursor:pointer; }
-  .fsl-ctl-btn.on{ background:rgba(139,155,255,.22); border-color:#8b9bff; color:#cdd4ff; }
-  .fsl-controls-panel{ display:flex; flex-wrap:wrap; align-items:flex-end; gap:10px; width:100%; padding:8px; margin-top:2px; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; }
-  .fsl-controls-panel[hidden]{ display:none; }
-  .fsl-controls-panel label{ display:flex; flex-direction:column; gap:3px; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
-  .fsl-snare-label{ font-size:10px; }
+  .feed-stems-layer-row input[type=range]{ accent-color:var(--accent); width:100%; }
   .feed-item{ position:relative; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
   .feed-item-activity{ cursor:pointer; border-left:3px solid var(--accent); }
   .feed-item-head{ display:flex; align-items:center; gap:9px; margin-bottom:8px; }
@@ -1187,25 +1181,19 @@
         <span id="feed-post-media-name" class="pad-hint"></span>
         <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="app.submitFeedPost()">Post →</button>
       </div>
-      <div class="feed-composer-row" id="feed-post-mode-prompt" hidden>
-        <span class="pad-hint">Split this song into stems for the full scene?</span>
-        <button class="btn btn-ghost btn-sm" id="feed-post-mode-auto-btn" onclick="app.chooseStemsMode('auto')" hidden>Split automatically</button>
-        <button class="btn btn-ghost btn-sm" onclick="app.chooseStemsMode('manual')">Upload stems manually</button>
-        <button class="btn btn-ghost btn-sm" onclick="app.chooseStemsMode('single')">Just use this song (one effect)</button>
-      </div>
       <div class="feed-composer-row" id="feed-post-effect-row" hidden>
         <button class="btn btn-ghost btn-sm" id="feed-post-schedule-btn" onclick="app.openScheduleEditor()">Design the visuals</button>
         <span class="pad-hint" id="feed-post-schedule-status">defaults to Sphere</span>
-        <button class="btn btn-ghost btn-sm" onclick="app.backToStemsPrompt()">split into stems instead</button>
+        <label class="feed-stems-toggle"><input type="checkbox" id="feed-post-stems-toggle" onchange="app.toggleStemsMode(this.checked)"> Full (4 stems)</label>
       </div>
       <div class="feed-stems-pickers" id="feed-post-stems-pickers" hidden>
-        <button class="btn btn-ghost btn-sm" onclick="app.backToStemsPrompt()">← change</button>
         <div class="feed-stems-auto" id="feed-stems-auto" hidden>
           <button class="btn btn-ghost btn-sm" id="feed-stems-auto-btn" onclick="app.autoSplitStems()">Split automatically</button>
           <button class="btn btn-ghost btn-sm" onclick="app.configureStemRemote()" title="Set up reaching your PC's splitter from away from home">⚙ configure remote splitter</button>
           <span class="pad-hint" id="feed-stems-auto-status"></span>
         </div>
-        <div class="feed-stems-manual" id="feed-stems-manual-pickers" hidden>
+        <button class="btn btn-ghost btn-sm" id="feed-stems-manual-toggle" onclick="app.toggleManualStemPickers()" hidden>or upload files manually instead</button>
+        <div class="feed-stems-manual" id="feed-stems-manual-pickers">
           <label class="feed-stem-picker">Vocals<input type="file" accept="audio/*" id="feed-stem-vocals" onchange="app.previewStemFile(this)"></label>
           <label class="feed-stem-picker">Drums<input type="file" accept="audio/*" id="feed-stem-drums" onchange="app.previewStemFile(this)"></label>
           <label class="feed-stem-picker">Bass<input type="file" accept="audio/*" id="feed-stem-bass" onchange="app.previewStemFile(this)"></label>
@@ -1214,145 +1202,133 @@
         <span class="pad-hint" id="feed-post-stems-status">split the song into vocals/drums/bass/harmony first (your stem-splitter app, or the button above if it's running), then add all 4 here</span>
         <button class="btn btn-ghost btn-sm" id="feed-stems-preview-btn" onclick="app.openScenePreview()">▶ Preview</button>
         <div class="feed-stems-layers" id="feed-stems-layers">
-          <!-- One row per stem, each stem listed exactly once, every row
-               starts Off — nothing shows in the preview until you turn
-               something on (see app.setStemEffect / deriveSceneCfg: no
-               fallback defaults, off is really off). "Center" puts that
-               stem's own real shape into the scene — pick ANY of the 8
-               sphere.html/field.html shapes (+ Crystal Burst) from the
-               shape dropdown that appears, not a fixed one per stem.
-               Several stems can hold Center at once (they render side by
-               side) — only Plate/Orbit/Background glow are single-owner
-               (see app.setStemEffect's bump-to-off). Kick's row carries a
-               second "on snare hit, shift to" dropdown: pick a shape there
-               and the SAME object on screen morphs into it on every snare
-               hit, then eases back — kick and snare are one shape, not two. -->
+          <!-- One row per stem, each stem listed exactly once. Off/Plate/
+               Orbit/Background glow are plain fixed looks — no shape menu,
+               just which stem drives that slot's motion. "Center" is only
+               offered on the 5 stems that were given one exact, real shape
+               from the sphere.html/field.html library (never a shape menu):
+               Kick=Fluff (morphs to Gyroid Lattice on snare hits), Cymbals=
+               Crystal Burst, Bass=SDF Morph Field (bubbles with bass),
+               Vocals=Resonant Spiderweb, Harmony=Chladni Plate. Only one
+               stem can hold a given slot at a time — picking one bumps
+               whichever other stem already held it back to Off (see
+               app.setStemEffect). -->
+          <div class="feed-stems-layer-row" data-stem="drums">
+            <span class="fsl-label">Drums</span>
+            <select class="fsl-effect" onchange="app.setStemEffect('drums', this.value)">
+              <option value="off">Off</option>
+              <option value="plate">Plate</option>
+              <option value="orbit">Orbit</option>
+              <option value="glow">Background glow</option>
+            </select>
+            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('drums', this.value)">
+            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
+              <option value="0">None (color tint only)</option>
+              <option value="1">Stellar Nebula (surrounds everything)</option>
+              <option value="2">Aurora Borealis (surrounds everything)</option>
+              <option value="3">Cloudscape (surrounds everything)</option>
+            </select>
+          </div>
           <div class="feed-stems-layer-row" data-stem="kick">
             <span class="fsl-label">Kick</span>
-            <select class="fsl-effect" data-shapes onchange="app.setStemEffect('kick', this.value)">
-              <option value="off" selected>Off</option>
+            <select class="fsl-effect" onchange="app.setStemEffect('kick', this.value)">
+              <option value="off">Off</option>
+              <option value="center" selected>Center: Fluff (morphs on snare hits)</option>
               <option value="plate">Plate</option>
               <option value="orbit">Orbit</option>
               <option value="glow">Background glow</option>
             </select>
-            <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('kick')">⚙</button>
-            <div class="fsl-controls-panel" hidden>
-              <label class="fsl-snare-label" hidden>on snare hit, shift to<select class="fsl-kick-snare" onchange="app.setKickSnareShape(this.value)"><option value="">(no morph)</option></select></label>
-              <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('kick','x',this.value)"></label>
-              <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('kick','z',this.value)"></label>
-              <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('kick', this.value)" hidden></label>
-              <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-                <option value="0">None (color tint only)</option>
-                <option value="1">Stellar Nebula (surrounds everything)</option>
-                <option value="2">Aurora Borealis (surrounds everything)</option>
-                <option value="3">Cloudscape (surrounds everything)</option>
-              </select>
-            </div>
-          </div>
-          <div class="feed-stems-layer-row" data-stem="cymbals">
-            <span class="fsl-label">Cymbals</span>
-            <select class="fsl-effect" data-shapes onchange="app.setStemEffect('cymbals', this.value)">
-              <option value="off" selected>Off</option>
-              <option value="plate">Plate</option>
-              <option value="orbit">Orbit</option>
-              <option value="glow">Background glow</option>
+            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('kick', this.value)">
+            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
+              <option value="0">None (color tint only)</option>
+              <option value="1">Stellar Nebula (surrounds everything)</option>
+              <option value="2">Aurora Borealis (surrounds everything)</option>
+              <option value="3">Cloudscape (surrounds everything)</option>
             </select>
-            <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('cymbals')">⚙</button>
-            <div class="fsl-controls-panel" hidden>
-              <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('cymbals','x',this.value)"></label>
-              <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('cymbals','z',this.value)"></label>
-              <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('cymbals', this.value)" hidden></label>
-              <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-                <option value="0">None (color tint only)</option>
-                <option value="1">Stellar Nebula (surrounds everything)</option>
-                <option value="2">Aurora Borealis (surrounds everything)</option>
-                <option value="3">Cloudscape (surrounds everything)</option>
-              </select>
-            </div>
           </div>
           <div class="feed-stems-layer-row" data-stem="snare">
             <span class="fsl-label">Snare</span>
-            <select class="fsl-effect" data-shapes onchange="app.setStemEffect('snare', this.value)">
-              <option value="off" selected>Off</option>
+            <select class="fsl-effect" onchange="app.setStemEffect('snare', this.value)">
+              <option value="off">Off</option>
               <option value="plate">Plate</option>
               <option value="orbit">Orbit</option>
               <option value="glow">Background glow</option>
             </select>
-            <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('snare')">⚙</button>
-            <div class="fsl-controls-panel" hidden>
-              <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('snare','x',this.value)"></label>
-              <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('snare','z',this.value)"></label>
-              <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('snare', this.value)" hidden></label>
-              <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-                <option value="0">None (color tint only)</option>
-                <option value="1">Stellar Nebula (surrounds everything)</option>
-                <option value="2">Aurora Borealis (surrounds everything)</option>
-                <option value="3">Cloudscape (surrounds everything)</option>
-              </select>
-            </div>
+            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('snare', this.value)">
+            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
+              <option value="0">None (color tint only)</option>
+              <option value="1">Stellar Nebula (surrounds everything)</option>
+              <option value="2">Aurora Borealis (surrounds everything)</option>
+              <option value="3">Cloudscape (surrounds everything)</option>
+            </select>
+          </div>
+          <div class="feed-stems-layer-row" data-stem="cymbals">
+            <span class="fsl-label">Cymbals</span>
+            <select class="fsl-effect" onchange="app.setStemEffect('cymbals', this.value)">
+              <option value="off">Off</option>
+              <option value="center">Center: Crystal Burst</option>
+              <option value="plate">Plate</option>
+              <option value="orbit">Orbit</option>
+              <option value="glow">Background glow</option>
+            </select>
+            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('cymbals', this.value)">
+            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
+              <option value="0">None (color tint only)</option>
+              <option value="1">Stellar Nebula (surrounds everything)</option>
+              <option value="2">Aurora Borealis (surrounds everything)</option>
+              <option value="3">Cloudscape (surrounds everything)</option>
+            </select>
           </div>
           <div class="feed-stems-layer-row" data-stem="bass">
             <span class="fsl-label">Bass</span>
-            <select class="fsl-effect" data-shapes onchange="app.setStemEffect('bass', this.value)">
-              <option value="off" selected>Off</option>
-              <option value="plate">Plate</option>
+            <select class="fsl-effect" onchange="app.setStemEffect('bass', this.value)">
+              <option value="off">Off</option>
+              <option value="center">Center: SDF Morph Field (bubbles with bass)</option>
+              <option value="plate" selected>Plate</option>
               <option value="orbit">Orbit</option>
               <option value="glow">Background glow</option>
             </select>
-            <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('bass')">⚙</button>
-            <div class="fsl-controls-panel" hidden>
-              <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('bass','x',this.value)"></label>
-              <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('bass','z',this.value)"></label>
-              <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('bass', this.value)" hidden></label>
-              <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-                <option value="0">None (color tint only)</option>
-                <option value="1">Stellar Nebula (surrounds everything)</option>
-                <option value="2">Aurora Borealis (surrounds everything)</option>
-                <option value="3">Cloudscape (surrounds everything)</option>
-              </select>
-            </div>
+            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('bass', this.value)">
+            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
+              <option value="0">None (color tint only)</option>
+              <option value="1">Stellar Nebula (surrounds everything)</option>
+              <option value="2">Aurora Borealis (surrounds everything)</option>
+              <option value="3">Cloudscape (surrounds everything)</option>
+            </select>
           </div>
           <div class="feed-stems-layer-row" data-stem="vocals">
             <span class="fsl-label">Vocals</span>
-            <select class="fsl-effect" data-shapes onchange="app.setStemEffect('vocals', this.value)">
-              <option value="off" selected>Off</option>
+            <select class="fsl-effect" onchange="app.setStemEffect('vocals', this.value)">
+              <option value="off">Off</option>
+              <option value="center">Center: Resonant Spiderweb</option>
               <option value="plate">Plate</option>
-              <option value="orbit">Orbit</option>
+              <option value="orbit" selected>Orbit</option>
               <option value="glow">Background glow</option>
             </select>
-            <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('vocals')">⚙</button>
-            <div class="fsl-controls-panel" hidden>
-              <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('vocals','x',this.value)"></label>
-              <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('vocals','z',this.value)"></label>
-              <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('vocals', this.value)" hidden></label>
-              <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-                <option value="0">None (color tint only)</option>
-                <option value="1">Stellar Nebula (surrounds everything)</option>
-                <option value="2">Aurora Borealis (surrounds everything)</option>
-                <option value="3">Cloudscape (surrounds everything)</option>
-              </select>
-            </div>
+            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('vocals', this.value)">
+            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
+              <option value="0">None (color tint only)</option>
+              <option value="1">Stellar Nebula (surrounds everything)</option>
+              <option value="2">Aurora Borealis (surrounds everything)</option>
+              <option value="3">Cloudscape (surrounds everything)</option>
+            </select>
           </div>
           <div class="feed-stems-layer-row" data-stem="harmony">
             <span class="fsl-label">Harmony</span>
-            <select class="fsl-effect" data-shapes onchange="app.setStemEffect('harmony', this.value)">
-              <option value="off" selected>Off</option>
+            <select class="fsl-effect" onchange="app.setStemEffect('harmony', this.value)">
+              <option value="off">Off</option>
+              <option value="center">Center: Chladni Plate</option>
               <option value="plate">Plate</option>
               <option value="orbit">Orbit</option>
-              <option value="glow">Background glow</option>
+              <option value="glow" selected>Background glow</option>
             </select>
-            <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('harmony')">⚙</button>
-            <div class="fsl-controls-panel" hidden>
-              <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('harmony','x',this.value)"></label>
-              <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('harmony','z',this.value)"></label>
-              <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('harmony', this.value)" hidden></label>
-              <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-                <option value="0">None (color tint only)</option>
-                <option value="1">Stellar Nebula (surrounds everything)</option>
-                <option value="2">Aurora Borealis (surrounds everything)</option>
-                <option value="3">Cloudscape (surrounds everything)</option>
-              </select>
-            </div>
+            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('harmony', this.value)" hidden>
+            <select class="fsl-bg" onchange="app.setGlowBg(this.value)">
+              <option value="0">None (color tint only)</option>
+              <option value="1">Stellar Nebula (surrounds everything)</option>
+              <option value="2">Aurora Borealis (surrounds everything)</option>
+              <option value="3">Cloudscape (surrounds everything)</option>
+            </select>
           </div>
         </div>
       </div>
@@ -2392,53 +2368,22 @@
     const n = stemsPickedCount();
     el.textContent = n === 4 ? 'all 4 stems ready' : `${n}/4 stems added — vocals, drums, bass, and harmony (the rest of the song) all need a file`;
   }
-  // Per-stem scene config — 6 stems (drums/kick/cymbals/bass/vocals/harmony)
-  // each appear exactly once in the composer, and pick which SLOT they
-  // drive: off/center/plate/orbit/glow. Everything starts Off — the preview
-  // shows nothing until you turn something on (no fallback defaults, see
-  // deriveSceneCfg). Center puts that stem's own shape into the scene —
-  // ANY of the real 8 sphere.html/field.html shapes (+ Crystal Burst), via
-  // the shape dropdown that appears — several stems can hold Center at
-  // once and render side by side. Only Plate/Orbit/Background glow are
-  // single-owner (see app.setStemEffect's bump-the-other-one-to-off).
-  // Snare has no row of its own — Kick's row carries a second dropdown
-  // ("on snare hit, shift to") so kick and snare share ONE object that
-  // morphs, per the exact ask, instead of being two separate shapes.
-  const STEMS = ['kick','snare','cymbals','bass','vocals','harmony'];
-  // scene.html's CENTER_SHAPES index — the full real library, all 9 offered
-  // on every shape dropdown now (not one fixed pick per stem):
-  const SHAPE_NAMES = ['Fluff','Gyroid Lattice','Superformula','Mandelbulb Fractal','SDF Morph Field','Wave Interference Field','Chladni Plate','Resonant Spiderweb','Crystal Burst'];
-  // initial shape each stem's dropdown opens on (still changeable) — the
-  // exact picks from the original per-stem assignment, now just a default:
-  const CENTER_SHAPE_FOR_STEM = { kick:0, snare:1, cymbals:8, bass:4, vocals:7, harmony:6 };
-  // default X/Z placement — 5 fixed positions spread evenly on a ring, one
-  // per shape-capable stem, independent of how many are actually on, so
-  // turning on any subset already looks spread apart. Draggable per stem
-  // from there (app.setStemPos) — "move them in space wherever I want".
-  const SHAPE_STEM_ORDER = ['kick','snare','cymbals','bass','vocals','harmony'];
-  const DEFAULT_POS = {};
-  SHAPE_STEM_ORDER.forEach((stem,i)=>{
-    const ang = (i/SHAPE_STEM_ORDER.length) * Math.PI*2;
-    DEFAULT_POS[stem] = { x: Math.round(Math.cos(ang)*1.9*10)/10, z: Math.round(Math.sin(ang)*1.9*10)/10 };
-  });
-  const DEFAULT_ASSIGN = { kick:'off', cymbals:'off', bass:'off', vocals:'off', harmony:'off' };
-  function clonePos(){ const o={}; SHAPE_STEM_ORDER.forEach(s=>o[s]=Object.assign({},DEFAULT_POS[s])); return o; }
-  const stemLayerCfg = { assign: Object.assign({}, DEFAULT_ASSIGN), sizes: { kick:1, cymbals:1, bass:1, vocals:1, harmony:1 }, shapeChoice: Object.assign({}, CENTER_SHAPE_FOR_STEM), kickSnareShape: null, pos: clonePos(), glowBg: 0 };
-  function populateShapeSelects(){
-    // Every real shape from the sphere.html/field.html library goes directly
-    // into the same effect dropdown the stem's Off/Plate/Orbit/Background
-    // options are already in — right after "Off" — instead of a second
-    // hidden picker, since that's literally where people are looking.
-    document.querySelectorAll('.fsl-effect[data-shapes]').forEach(sel=>{
-      const offOpt = sel.querySelector('option[value="off"]');
-      const shapeOpts = SHAPE_NAMES.map((n,i)=>`<option value="shape:${i}">${n}</option>`).join('');
-      if(offOpt) offOpt.insertAdjacentHTML('afterend', shapeOpts);
-    });
-    const ks = document.querySelector('.fsl-kick-snare');
-    if(ks) ks.innerHTML = '<option value="">(no morph)</option>' + SHAPE_NAMES.map((n,i)=>`<option value="${i}">${n}</option>`).join('');
-  }
-  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', populateShapeSelects);
-  else populateShapeSelects();
+  // Per-stem scene config — each of the 7 stems (drums/kick/snare/cymbals/
+  // bass/vocals/harmony) appears exactly once in the composer, and picks
+  // which SLOT it drives: off/center/plate/orbit/glow. Plate/Orbit/Glow are
+  // plain fixed looks (no shape menu). Center is only offered on the 5
+  // stems that were each given one exact, real shape from the sphere.html/
+  // field.html library — see CENTER_SHAPE_FOR_STEM. Only one stem can hold
+  // a given slot — see app.setStemEffect for the bump-the-other-one-to-off
+  // exclusivity. deriveSceneCfg() converts this into the slot-first
+  // {slots,sizes,centerShape} format scene.html expects.
+  const STEMS = ['drums','kick','snare','cymbals','bass','vocals','harmony'];
+  // scene.html's CENTER_SHAPES index: 0 Fluff, 1 Gyroid Lattice, 2 Superformula,
+  // 3 Mandelbulb, 4 SDF Morph Field, 5 Wave Interference, 6 Chladni Plate,
+  // 7 Resonant Spiderweb, 8 Crystal Burst (cymbals-only, real geometry not an SDF).
+  const CENTER_SHAPE_FOR_STEM = { kick:0, cymbals:8, bass:4, vocals:7, harmony:6 };
+  const DEFAULT_ASSIGN = { drums:'off', kick:'center', snare:'off', cymbals:'off', bass:'plate', vocals:'orbit', harmony:'glow' };
+  const stemLayerCfg = { assign: Object.assign({}, DEFAULT_ASSIGN), sizes: { drums:1, kick:1, snare:1, cymbals:1, bass:1, vocals:1, harmony:1 }, glowBg: 0 };
   let previewOpen = false;
   let previewStemUrls = {};
   function pushPreviewCfg(){
@@ -2448,57 +2393,40 @@
   }
   function stemLayerRowEls(stem){
     const row = document.querySelector('.feed-stems-layer-row[data-stem="'+stem+'"]');
-    if(!row) return {};
-    return {
-      effect: row.querySelector('.fsl-effect'), size: row.querySelector('.fsl-size'), bg: row.querySelector('.fsl-bg'),
-      snareLabel: row.querySelector('.fsl-snare-label'), snareShape: row.querySelector('.fsl-kick-snare'),
-      posX: row.querySelector('.fsl-pos-x'), posZ: row.querySelector('.fsl-pos-z'), posLabels: row.querySelectorAll('.fsl-pos-label'),
-      ctlBtn: row.querySelector('.fsl-ctl-btn'), panel: row.querySelector('.fsl-controls-panel'),
-    };
+    return row ? { effect: row.querySelector('.fsl-effect'), size: row.querySelector('.fsl-size'), bg: row.querySelector('.fsl-bg') } : {};
   }
   function resetStemLayerCfg(){
     stemLayerCfg.assign = Object.assign({}, DEFAULT_ASSIGN);
-    stemLayerCfg.sizes = { kick:1, cymbals:1, bass:1, vocals:1, harmony:1 };
-    stemLayerCfg.shapeChoice = Object.assign({}, CENTER_SHAPE_FOR_STEM);
-    stemLayerCfg.kickSnareShape = null;
-    stemLayerCfg.pos = clonePos();
+    stemLayerCfg.sizes = { drums:1, kick:1, snare:1, cymbals:1, bass:1, vocals:1, harmony:1 };
     stemLayerCfg.glowBg = 0;
     STEMS.forEach(stem=>{
-      const { effect, size, bg, snareLabel, snareShape, posX, posZ, posLabels, ctlBtn, panel } = stemLayerRowEls(stem);
-      const val = stemLayerCfg.assign[stem];
-      if(effect) effect.value = val;
-      if(size){ size.value = 1; size.hidden = (val === 'off' || val === 'glow'); }
-      if(bg){ bg.value = '0'; bg.hidden = (val !== 'glow'); }
-      if(snareShape) snareShape.value = '';
-      if(snareLabel) snareLabel.hidden = (val !== 'center');
-      if(posX && DEFAULT_POS[stem]) posX.value = DEFAULT_POS[stem].x;
-      if(posZ && DEFAULT_POS[stem]) posZ.value = DEFAULT_POS[stem].z;
-      if(posLabels) posLabels.forEach(l=>{ l.hidden = (val !== 'center'); });
-      if(ctlBtn){ ctlBtn.hidden = (val === 'off'); ctlBtn.classList.remove('on'); }
-      if(panel) panel.hidden = true;
+      const { effect, size, bg } = stemLayerRowEls(stem);
+      if(effect) effect.value = stemLayerCfg.assign[stem];
+      if(size){ size.value = 1; size.hidden = (stemLayerCfg.assign[stem] === 'off' || stemLayerCfg.assign[stem] === 'glow'); }
+      if(bg){ bg.value = '0'; bg.hidden = (stemLayerCfg.assign[stem] !== 'glow'); }
     });
   }
   function deriveSceneCfg(){
     // Every stem that picked "center" shows its own real shape SIMULTANEOUSLY
     // now (up to 5 — one per stem that has a real shape assigned), instead of
-    // only one winning the slot. plate/orbit/glow stay single-owner. Nothing
-    // is forced on here — "off" everywhere means an empty scene.
+    // only one winning the slot. plate/orbit/glow stay single-owner.
     const shapes = [];
     let plate = null, plateSize = 1, orbit = null, orbitSize = 1, glow = null;
     STEMS.forEach(stem=>{
       const slotName = stemLayerCfg.assign[stem];
       if(!slotName || slotName === 'off') return;
       if(slotName === 'center'){
-        if(shapes.length < 5){
-          const p = stemLayerCfg.pos[stem] || {x:0,z:0};
-          const entry = { stem, shape: (stemLayerCfg.shapeChoice[stem] != null ? stemLayerCfg.shapeChoice[stem] : 0), size: stemLayerCfg.sizes[stem], pos: { x:p.x, y:0, z:p.z } };
-          if(stem === 'kick' && stemLayerCfg.kickSnareShape != null) entry.snareShape = stemLayerCfg.kickSnareShape;
-          shapes.push(entry);
+        if(CENTER_SHAPE_FOR_STEM[stem] != null && shapes.length < 5){
+          shapes.push({ stem, shape: CENTER_SHAPE_FOR_STEM[stem], size: stemLayerCfg.sizes[stem] });
         }
       } else if(slotName === 'plate'){ plate = stem; plateSize = stemLayerCfg.sizes[stem]; }
       else if(slotName === 'orbit'){ orbit = stem; orbitSize = stemLayerCfg.sizes[stem]; }
       else if(slotName === 'glow'){ glow = stem; }
     });
+    if(!shapes.length) shapes.push({ stem:'kick', shape: CENTER_SHAPE_FOR_STEM.kick, size:1 });
+    if(!plate) plate = 'bass';
+    if(!orbit) orbit = 'vocals';
+    if(!glow) glow = 'harmony';
     return { shapes, plate, plateSize, orbit, orbitSize, glow, glowBg: stemLayerCfg.glowBg };
   }
   // The local stem-splitter (tools/stem_server.py) — runs Demucs on the
@@ -8048,17 +7976,13 @@
 
     previewFeedMedia(input){
       const label = document.getElementById('feed-post-media-name');
-      const modePrompt = document.getElementById('feed-post-mode-prompt');
       const effectRow = document.getElementById('feed-post-effect-row');
-      const stemsPickers = document.getElementById('feed-post-stems-pickers');
       const all = ['feed-post-camera','feed-post-media','feed-post-song','feed-post-video'].map(id=>document.getElementById(id));
       all.forEach(el=>{ if(el && el.id !== input.id) el.value = ''; });
       if(label) label.textContent = (input.files[0] && input.files[0].name) || '';
-      // A song asks: split it or just use it as-is? A video always goes
+      // A song gets the sphere/field timeline editor. A video always goes
       // straight into the cube — no picker, nothing to design there.
-      if(modePrompt) modePrompt.hidden = input.id !== 'feed-post-song';
-      if(effectRow) effectRow.hidden = true;
-      if(stemsPickers) stemsPickers.hidden = true;
+      if(effectRow) effectRow.hidden = input.id !== 'feed-post-song';
       // A newly-picked song invalidates any in-progress timeline draft — it
       // was built against a different file's uploaded URL.
       if(input.id === 'feed-post-song'){
@@ -8066,48 +7990,21 @@
         document.getElementById('feed-post-schedule-status').textContent = 'defaults to Sphere';
         stemsMode = false;
         Object.keys(stemFiles).forEach(k=>stemFiles[k]=null);
+        document.getElementById('feed-post-stems-toggle').checked = false;
+        document.getElementById('feed-post-stems-pickers').hidden = true;
+        document.getElementById('feed-post-schedule-btn').hidden = false;
         resetStemLayerCfg();
-        app.checkStemModePromptServer();
       }
     },
-    async checkStemModePromptServer(){
-      // Only offer "Split automatically" up front if a local splitter is
-      // actually reachable — otherwise that button would just fail.
-      const btn = document.getElementById('feed-post-mode-auto-btn');
-      if(btn) btn.hidden = true;
-      const resolved = await resolveStemServer();
-      _stemServerResolved = resolved;
-      if(btn) btn.hidden = !resolved;
-    },
-    backToStemsPrompt(){
-      stemsMode = false;
-      Object.keys(stemFiles).forEach(k=>stemFiles[k]=null);
-      resetStemLayerCfg();
-      document.getElementById('feed-post-effect-row').hidden = true;
-      document.getElementById('feed-post-stems-pickers').hidden = true;
-      document.getElementById('feed-post-mode-prompt').hidden = false;
-      app.checkStemModePromptServer();
-    },
-    async chooseStemsMode(mode){
-      const modePrompt = document.getElementById('feed-post-mode-prompt');
-      const effectRow = document.getElementById('feed-post-effect-row');
-      const stemsPickers = document.getElementById('feed-post-stems-pickers');
-      const autoBox = document.getElementById('feed-stems-auto');
-      const manualBox = document.getElementById('feed-stems-manual-pickers');
-      if(modePrompt) modePrompt.hidden = true;
-      if(mode === 'single'){
-        stemsMode = false;
-        if(effectRow) effectRow.hidden = false;
-        if(stemsPickers) stemsPickers.hidden = true;
-        return;
-      }
-      stemsMode = true;
-      if(effectRow) effectRow.hidden = true;
-      if(stemsPickers) stemsPickers.hidden = false;
-      if(autoBox) autoBox.hidden = mode !== 'auto';
-      if(manualBox) manualBox.hidden = mode !== 'manual';
+    async toggleStemsMode(on){
+      stemsMode = on;
+      document.getElementById('feed-post-stems-pickers').hidden = !on;
+      // Stems mode replaces the switch-point timeline entirely — the 4-stem
+      // scene plays all 4 at once, there's nothing to schedule switches on.
+      document.getElementById('feed-post-schedule-btn').hidden = on;
       renderStemsStatus();
-      if(mode === 'auto') await app.refreshStemServerStatus();
+      if(!on) return;
+      await app.refreshStemServerStatus();
     },
     async refreshStemServerStatus(){
       const autoRow = document.getElementById('feed-stems-auto');
@@ -8117,16 +8014,18 @@
       autoRow.hidden = false;
       const resolved = await resolveStemServer();
       _stemServerResolved = resolved;
+      const manualBox = document.getElementById('feed-stems-manual-pickers');
+      const manualToggle = document.getElementById('feed-stems-manual-toggle');
       if(resolved){
         autoBtn.hidden = false;
-        autoStatus.textContent = (resolved.base === LOCAL_STEM_SERVER ? 'local splitter found' : 'reached your PC through its tunnel') + ' — one click to split';
+        autoStatus.textContent = (resolved.base === LOCAL_STEM_SERVER ? 'local splitter found' : 'reached your PC through its tunnel') + ' — one click instead of 4 files';
+        if(manualBox) manualBox.hidden = true;
+        if(manualToggle) manualToggle.hidden = false;
       } else {
         autoBtn.hidden = true;
-        autoStatus.textContent = (myStemServerUrl ? "couldn't reach your PC — is stem_server.py and the tunnel still running?" : "no local splitter found") + ' — ';
-        const link = document.createElement('a');
-        link.href = '#'; link.textContent = 'upload stems manually instead';
-        link.onclick = (e)=>{ e.preventDefault(); app.chooseStemsMode('manual'); };
-        autoStatus.appendChild(link);
+        autoStatus.textContent = myStemServerUrl ? "couldn't reach your PC — is stem_server.py and the tunnel still running?" : '';
+        if(manualBox) manualBox.hidden = false;
+        if(manualToggle) manualToggle.hidden = true;
       }
     },
     async configureStemRemote(){
@@ -8150,7 +8049,7 @@
       const role = input.id.replace('feed-stem-', '');
       stemFiles[role] = input.files[0] || null;
       renderStemsStatus();
-      app.pushPreviewStems();
+      if(previewOpen) app.openScenePreview();
     },
     async autoSplitStems(){
       const songFile = document.getElementById('feed-post-song').files[0];
@@ -8192,7 +8091,6 @@
           stemFiles.other = await mixBuffersToWavFile([guitarBuf, pianoBuf, otherBuf], base+'_harmony.wav');
         } finally { actx.close(); }
         renderStemsStatus();
-        app.pushPreviewStems();
         status.textContent = 'split complete — all 4 stems ready below';
         toast('Split locally into 4 stems.');
       } catch(e){
@@ -8204,18 +8102,14 @@
       }
     },
     setStemEffect(stem, val){
-      // Every real shape is its own option right in this same dropdown, as
-      // "shape:<index>" — picking one means slot=center with that shape.
-      let slotName = val, shapeIdx = null;
-      if(val.indexOf('shape:') === 0){ slotName = 'center'; shapeIdx = parseInt(val.slice(6), 10); }
       // "center" (each stem's own real shape) can now be shared by several
       // stems at once — they all show simultaneously. plate/orbit/glow are
       // still single-owner plain looks, so picking one still bumps whoever
       // else held it back to off.
-      if(slotName !== 'off' && slotName !== 'center'){
+      if(val !== 'off' && val !== 'center'){
         STEMS.forEach(other=>{
           if(other === stem) return;
-          if(stemLayerCfg.assign[other] === slotName){
+          if(stemLayerCfg.assign[other] === val){
             stemLayerCfg.assign[other] = 'off';
             const { effect, size, bg } = stemLayerRowEls(other);
             if(effect) effect.value = 'off';
@@ -8224,61 +8118,33 @@
           }
         });
       }
-      stemLayerCfg.assign[stem] = slotName;
-      if(shapeIdx != null) stemLayerCfg.shapeChoice[stem] = shapeIdx;
-      const { size, bg, snareLabel, posLabels, ctlBtn, panel } = stemLayerRowEls(stem);
-      if(size) size.hidden = (slotName === 'off' || slotName === 'glow');
-      if(bg) bg.hidden = (slotName !== 'glow');
-      if(snareLabel) snareLabel.hidden = (slotName !== 'center');
-      if(posLabels) posLabels.forEach(l=>{ l.hidden = (slotName !== 'center'); });
-      // the ⚙ Controls button (same pattern as sphere.html/field.html's own
-      // gear button) shows whenever this row is doing anything, and its
-      // panel auto-collapses on every change so the row stays tidy.
-      if(ctlBtn){ ctlBtn.hidden = (slotName === 'off'); ctlBtn.classList.remove('on'); }
-      if(panel) panel.hidden = true;
+      stemLayerCfg.assign[stem] = val;
+      const { size, bg } = stemLayerRowEls(stem);
+      if(size) size.hidden = (val === 'off' || val === 'glow');
+      if(bg) bg.hidden = (val !== 'glow');
       pushPreviewCfg();
     },
-    toggleStemControls(stem){
-      const { ctlBtn, panel } = stemLayerRowEls(stem);
-      if(!panel) return;
-      panel.hidden = !panel.hidden;
-      if(ctlBtn) ctlBtn.classList.toggle('on', !panel.hidden);
-    },
     setStemEffectSize(stem, val){ stemLayerCfg.sizes[stem] = parseFloat(val); pushPreviewCfg(); },
-    setStemPos(stem, axis, val){ if(!stemLayerCfg.pos[stem]) stemLayerCfg.pos[stem] = {x:0,z:0}; stemLayerCfg.pos[stem][axis] = parseFloat(val); pushPreviewCfg(); },
-    setKickSnareShape(val){ stemLayerCfg.kickSnareShape = (val === '' ? null : parseInt(val, 10)); pushPreviewCfg(); },
     setGlowBg(val){ stemLayerCfg.glowBg = parseInt(val, 10); pushPreviewCfg(); },
+    toggleManualStemPickers(){
+      const box = document.getElementById('feed-stems-manual-pickers');
+      if(box) box.hidden = !box.hidden;
+    },
     async openScenePreview(){
-      // Every previous version of this re-navigated the iframe (frame.src=…)
-      // on every single stem file pick, which tears down and rebuilds a
-      // whole WebGL context + AudioContext each time — spamming that while
-      // stems are still being picked/split is almost certainly what was
-      // crashing Chrome. Now the iframe only ever loads ONCE; every later
-      // change (new stem file, dropdown, slider) goes through postMessage
-      // into the already-running page instead.
       const modal = document.getElementById('feed-scene-preview-modal');
       const frame = document.getElementById('feed-scene-preview-frame');
       if(!modal || !frame) return;
-      modal.hidden = false;
-      const alreadyLoaded = previewOpen && frame.src && frame.src.indexOf('about:blank') === -1;
-      previewOpen = true;
-      const sendState = () => {
-        pushPreviewStems();
-        pushPreviewCfg();
-      };
-      if(alreadyLoaded){ sendState(); return; }
-      frame.onload = sendState;
-      frame.src = 'effects-lab/scene.html?embed=inline&muted=0';
-    },
-    pushPreviewStems(){
-      if(!previewOpen) return;
-      Object.values(previewStemUrls).forEach(u=>{ try{ URL.revokeObjectURL(u); }catch(_){} });
       previewStemUrls = {};
       ['vocals','drums','bass','other'].forEach(role=>{
         if(stemFiles[role]) previewStemUrls[role] = URL.createObjectURL(stemFiles[role]);
       });
-      const frame = document.getElementById('feed-scene-preview-frame');
-      if(frame && frame.contentWindow) frame.contentWindow.postMessage({ type:'stems', urls: previewStemUrls }, '*');
+      modal.hidden = false;
+      previewOpen = true;
+      frame.src = 'effects-lab/scene.html?embed=inline&muted=0';
+      frame.onload = () => {
+        frame.contentWindow.postMessage({ type:'stems', urls: previewStemUrls }, '*');
+        frame.contentWindow.postMessage({ type:'cfg', cfg: deriveSceneCfg() }, '*');
+      };
     },
     closeScenePreview(){
       const modal = document.getElementById('feed-scene-preview-modal');
@@ -8344,7 +8210,7 @@
         scheduleDraft = null; scheduleUploadedMedia = null; scheduleUploadedForFile = null;
         stemsMode = false;
         Object.keys(stemFiles).forEach(k=>stemFiles[k]=null);
-        document.getElementById('feed-post-mode-prompt').hidden = true;
+        document.getElementById('feed-post-stems-toggle').checked = false;
         document.getElementById('feed-post-stems-pickers').hidden = true;
         ['feed-stem-vocals','feed-stem-drums','feed-stem-bass','feed-stem-other'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
         resetStemLayerCfg();
