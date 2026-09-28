@@ -1195,8 +1195,8 @@
             <select id="fsl-slot-center" onchange="app.setStemLayerSlot('center', this.value)">
               <option value="drums">Drums</option><option value="kick">Kick</option><option value="snare">Snare</option><option value="cymbals">Cymbals</option><option value="bass">Bass</option><option value="vocals">Vocals</option><option value="harmony">Harmony</option>
             </select>
-            <select id="fsl-shape-center" onchange="app.setStemLayerShape(this.value)">
-              <option value="auto">Auto-morphs on hits</option><option value="0">Fluff</option><option value="1">Gyroid</option><option value="2">Mandelbulb</option>
+            <select id="fsl-shape-center" onchange="app.setStemLayerShape('center', this.value)">
+              <option value="auto">Auto-morphs on hits</option><option value="0">Fluff</option><option value="1">Gyroid</option><option value="2">Mandelbulb</option><option value="3">Spikes</option>
             </select>
             <input type="range" id="fsl-size-center" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemLayerSize('center', this.value)">
           </div>
@@ -1205,7 +1205,9 @@
             <select id="fsl-slot-plate" onchange="app.setStemLayerSlot('plate', this.value)">
               <option value="bass">Bass</option><option value="drums">Drums</option><option value="kick">Kick</option><option value="snare">Snare</option><option value="cymbals">Cymbals</option><option value="vocals">Vocals</option><option value="harmony">Harmony</option>
             </select>
-            <span></span>
+            <select id="fsl-shape-plate" onchange="app.setStemLayerShape('plate', this.value)">
+              <option value="0">Ripple</option><option value="1">Bumps</option><option value="2">Dome</option>
+            </select>
             <input type="range" id="fsl-size-plate" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemLayerSize('plate', this.value)">
           </div>
           <div class="feed-stems-layer-row">
@@ -1213,7 +1215,9 @@
             <select id="fsl-slot-orbit" onchange="app.setStemLayerSlot('orbit', this.value)">
               <option value="vocals">Vocals</option><option value="drums">Drums</option><option value="kick">Kick</option><option value="snare">Snare</option><option value="cymbals">Cymbals</option><option value="bass">Bass</option><option value="harmony">Harmony</option>
             </select>
-            <span></span>
+            <select id="fsl-shape-orbit" onchange="app.setStemLayerShape('orbit', this.value)">
+              <option value="0">Blob</option><option value="1">Shimmer</option><option value="2">Ribbon</option>
+            </select>
             <input type="range" id="fsl-size-orbit" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemLayerSize('orbit', this.value)">
           </div>
           <div class="feed-stems-layer-row">
@@ -1221,7 +1225,10 @@
             <select id="fsl-slot-glow" onchange="app.setStemLayerSlot('glow', this.value)">
               <option value="harmony">Harmony</option><option value="drums">Drums</option><option value="kick">Kick</option><option value="snare">Snare</option><option value="cymbals">Cymbals</option><option value="bass">Bass</option><option value="vocals">Vocals</option>
             </select>
-            <span></span><span></span>
+            <select id="fsl-shape-glow" onchange="app.setStemLayerShape('glow', this.value)">
+              <option value="0">Ambient</option><option value="1">Pulse</option>
+            </select>
+            <span></span>
           </div>
         </div>
       </div>
@@ -2254,14 +2261,16 @@
   // Per-layer scene config — which stem feeds which visual slot, how big each
   // one renders, and which shape the center uses. Defaults match scene.html's
   // own DEFAULT_CFG so an unmodified post looks the same either way.
-  const stemLayerCfg = { slots:{ center:'drums', plate:'bass', orbit:'vocals', glow:'harmony' }, sizes:{ center:1, plate:1, orbit:1 }, centerShape:'auto' };
+  const stemLayerCfg = { slots:{ center:'drums', plate:'bass', orbit:'vocals', glow:'harmony' }, sizes:{ center:1, plate:1, orbit:1 }, centerShape:'auto', shapes:{ plate:0, orbit:0, glow:0 } };
   function resetStemLayerCfg(){
     stemLayerCfg.slots = { center:'drums', plate:'bass', orbit:'vocals', glow:'harmony' };
     stemLayerCfg.sizes = { center:1, plate:1, orbit:1 };
     stemLayerCfg.centerShape = 'auto';
+    stemLayerCfg.shapes = { plate:0, orbit:0, glow:0 };
     ['center','plate','orbit','glow'].forEach(slot=>{ const el = document.getElementById('fsl-slot-'+slot); if(el) el.value = stemLayerCfg.slots[slot]; });
     ['center','plate','orbit'].forEach(slot=>{ const el = document.getElementById('fsl-size-'+slot); if(el) el.value = 1; });
     const shapeEl = document.getElementById('fsl-shape-center'); if(shapeEl) shapeEl.value = 'auto';
+    ['plate','orbit','glow'].forEach(slot=>{ const el = document.getElementById('fsl-shape-'+slot); if(el) el.value = '0'; });
   }
   // The local stem-splitter (tools/stem_server.py) — runs Demucs on the
   // uploader's own machine, per shapeless-1974's "🔪 Stems" button and the
@@ -7929,7 +7938,10 @@
       }
     },
     setStemLayerSlot(slot, role){ stemLayerCfg.slots[slot] = role; },
-    setStemLayerShape(val){ stemLayerCfg.centerShape = val === 'auto' ? 'auto' : parseInt(val, 10); },
+    setStemLayerShape(slot, val){
+      if(slot === 'center') stemLayerCfg.centerShape = val === 'auto' ? 'auto' : parseInt(val, 10);
+      else stemLayerCfg.shapes[slot] = parseInt(val, 10);
+    },
     setStemLayerSize(slot, val){ stemLayerCfg.sizes[slot] = parseFloat(val); },
     async submitFeedPost(){
       if(!requireAuth()) return;
