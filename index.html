@@ -384,7 +384,7 @@
   .feed-player-bar .feed-player-close{ margin-left:auto; }
   .feed-schedule-modal{ position:fixed; inset:0; z-index:950; background:rgba(0,0,0,.78); display:flex; align-items:center; justify-content:center; padding:16px; }
   .feed-schedule-modal[hidden]{ display:none; }
-  .feed-schedule-panel{ width:100%; max-width:460px; max-height:100%; overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:14px; display:flex; flex-direction:column; }
+  .feed-schedule-panel{ width:100%; max-width:520px; max-height:100%; overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:14px; display:flex; flex-direction:column; }
   .feed-schedule-head{ display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid var(--line); font-size:13.5px; font-weight:600; }
   .feed-schedule-close{ background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; padding:2px 6px; }
   .feed-schedule-preview{ position:relative; width:100%; aspect-ratio:4/3; background:#05060a; }
@@ -395,16 +395,32 @@
   .feed-schedule-page-toggle{ display:flex; gap:6px; padding:10px 14px 0; }
   .feed-schedule-page-toggle button{ flex:1; background:var(--surface-2); color:var(--muted); border:1px solid var(--line); border-radius:8px; padding:7px; font-size:12px; cursor:pointer; }
   .feed-schedule-page-toggle button[data-active="true"]{ background:var(--accent-dim); color:var(--accent); border-color:var(--accent); font-weight:600; }
-  .feed-schedule-transport{ display:flex; align-items:center; gap:8px; padding:12px 14px 4px; }
-  .feed-schedule-transport button{ background:var(--surface-2); color:var(--muted); border:1px solid var(--line); border-radius:99px; width:30px; height:30px; flex:none; cursor:pointer; }
-  .feed-schedule-transport span{ font-family:var(--font-mono); font-size:11px; color:var(--muted); }
-  .feed-schedule-track{ position:relative; flex:1; height:34px; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; cursor:pointer; }
-  .feed-schedule-playhead{ position:absolute; top:0; bottom:0; width:2px; background:var(--accent-2); pointer-events:none; }
-  .feed-schedule-marker{ position:absolute; top:4px; width:16px; height:26px; margin-left:-8px; border-radius:5px; cursor:grab; border:2px solid rgba(255,255,255,.4); }
-  .feed-schedule-marker[data-page="sphere"]{ background:#8b9bff; }
-  .feed-schedule-marker[data-page="field"]{ background:#4fd8c4; }
-  .feed-schedule-marker[data-selected="true"]{ border-color:#fff; box-shadow:0 0 0 2px var(--accent); }
-  .feed-schedule-hint{ padding:8px 14px 0; font-size:11px; color:var(--muted); line-height:1.4; }
+  .feed-schedule-transport{ display:flex; align-items:center; gap:8px; padding:12px 14px 8px; }
+  .feed-schedule-transport button{ background:var(--surface-2); color:var(--muted); border:1px solid var(--line); border-radius:99px; width:36px; height:36px; flex:none; cursor:pointer; font-size:15px; }
+  .feed-schedule-transport span{ font-family:var(--font-mono); font-size:12.5px; color:var(--muted); }
+  .feed-schedule-track{ position:relative; margin:0 14px; height:64px; background:
+      repeating-linear-gradient(to right, var(--line) 0, var(--line) 1px, transparent 1px, transparent calc(100%/var(--fst-ticks, 20)))
+      , var(--surface-2); border:1px solid var(--line); border-radius:10px; cursor:pointer; touch-action:none; }
+  .feed-schedule-playhead{ position:absolute; top:0; bottom:0; width:2px; background:var(--accent-2); pointer-events:none; box-shadow:0 0 6px var(--accent-2); }
+  .feed-schedule-marker{ position:absolute; top:0; bottom:0; width:26px; margin-left:-13px; cursor:grab; touch-action:none;
+      display:flex; align-items:flex-start; justify-content:center; }
+  .feed-schedule-marker::before{ content:''; position:absolute; inset:0; border-radius:6px; border:2px solid rgba(255,255,255,.45); opacity:.9; }
+  .feed-schedule-marker[data-page="sphere"]::before{ background:rgba(139,155,255,.55); }
+  .feed-schedule-marker[data-page="field"]::before{ background:rgba(79,216,196,.55); }
+  .feed-schedule-marker[data-selected="true"]::before{ border-color:#fff; box-shadow:0 0 0 2px var(--accent); }
+  .feed-schedule-marker-tag{ position:relative; top:-22px; font-size:9.5px; font-weight:700; color:var(--ink); background:var(--surface-3); border:1px solid var(--line); border-radius:5px; padding:2px 5px; white-space:nowrap; pointer-events:none; }
+  .feed-schedule-add-btn{ margin:10px 14px 0; }
+  .feed-schedule-marker-list{ display:flex; flex-direction:column; gap:6px; padding:12px 14px 0; max-height:180px; overflow-y:auto; }
+  .feed-schedule-marker-row{ display:flex; align-items:center; gap:8px; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:7px 9px; cursor:pointer; }
+  .feed-schedule-marker-row[data-selected="true"]{ border-color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, var(--surface-2)); }
+  .feed-schedule-marker-row .fsr-dot{ width:9px; height:9px; border-radius:50%; flex:none; }
+  .feed-schedule-marker-row[data-page="sphere"] .fsr-dot{ background:#8b9bff; }
+  .feed-schedule-marker-row[data-page="field"] .fsr-dot{ background:#4fd8c4; }
+  .feed-schedule-marker-row .fsr-time{ font-family:var(--font-mono); font-size:12px; color:var(--ink); width:40px; }
+  .feed-schedule-marker-row .fsr-label{ flex:1; font-size:12px; color:var(--muted); }
+  .feed-schedule-marker-row button{ background:none; border:none; color:var(--muted); font-size:12px; cursor:pointer; padding:4px 6px; flex:none; }
+  .feed-schedule-marker-row .fsr-nudge{ font-family:var(--font-mono); }
+  .feed-schedule-hint{ padding:10px 14px 0; font-size:11px; color:var(--muted); line-height:1.4; }
   .feed-schedule-actions{ display:flex; gap:8px; justify-content:flex-end; padding:14px; }
   #feed-post-schedule-status{ color:var(--accent); }
   .feed-item{ position:relative; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
@@ -1180,15 +1196,19 @@
         <div class="feed-schedule-transport">
           <button id="feed-schedule-play" onclick="app.toggleSchedulePreview()">▶</button>
           <span id="feed-schedule-time">0:00</span>
-          <div class="feed-schedule-track" id="feed-schedule-track" onclick="app.scheduleTrackClick(event)">
-            <div class="feed-schedule-playhead" id="feed-schedule-playhead" style="left:0"></div>
-          </div>
+          <span style="flex:1"></span>
           <span id="feed-schedule-dur">0:00</span>
         </div>
-        <div class="feed-schedule-hint">Tap the timeline to drop a marker where you want a switch. Tap a marker to select it, then pick Sphere/Field and a shape above. Drag a marker to move it. Tap ✕ Remove below to delete a selected marker (the first one can't be removed).</div>
+        <div class="feed-schedule-track" id="feed-schedule-track" onclick="app.scheduleTrackClick(event)">
+          <div class="feed-schedule-playhead" id="feed-schedule-playhead" style="left:0"></div>
+        </div>
+        <div class="feed-schedule-add-btn" style="display:flex;gap:8px;margin:10px 14px 0;">
+          <button class="btn btn-primary btn-sm" style="flex:1" onclick="app.addMarkerAtPlayhead()">+ Add a switch here</button>
+          <button class="btn btn-ghost btn-sm" id="feed-schedule-suggest-btn" style="flex:1" onclick="app.suggestSwitchPoints()">✨ Suggest switch points</button>
+        </div>
+        <div class="feed-schedule-marker-list" id="feed-schedule-marker-list"></div>
+        <div class="feed-schedule-hint">Tap the timeline to move to that moment (it plays there so you can hear it). Tap <b>+ Add a switch here</b> to drop a marker at the playhead, or drag an existing one to fine-tune it. Tap a row below to select it, nudge its time, or remove it. <b>✨ Suggest</b> listens to the song and drops markers where the energy changes.</div>
         <div class="feed-schedule-actions">
-          <button class="btn btn-ghost btn-sm" id="feed-schedule-remove-btn" onclick="app.deleteSelectedMarker()" hidden>✕ Remove marker</button>
-          <span style="flex:1"></span>
           <button class="btn btn-ghost btn-sm" onclick="app.closeScheduleEditor()">Cancel</button>
           <button class="btn btn-primary btn-sm" onclick="app.saveScheduleEditor()">Save timeline</button>
         </div>
@@ -2169,6 +2189,46 @@
     frame.src = src;
     scheduleFrameCurrentPage = page;
   }
+  // Rough energy-novelty pass over the actual audio: chunks the track into
+  // 1s blocks, tracks each block's loudness against a rolling baseline of the
+  // blocks before it, and flags a block as a suggested switch point when the
+  // energy jumps well above that baseline — a cheap stand-in for "this is
+  // where the song noticeably changes" (a drop, a new section, a build).
+  async function analyzeWaveformForSwitchPoints(url){
+    const resp = await fetch(url);
+    const arrBuf = await resp.arrayBuffer();
+    const actx = new (window.AudioContext || window.webkitAudioContext)();
+    let audioBuf;
+    try { audioBuf = await actx.decodeAudioData(arrBuf); }
+    finally { actx.close(); }
+    const data = audioBuf.getChannelData(0);
+    const sr = audioBuf.sampleRate;
+    const blockSec = 1.0;
+    const blockSize = Math.max(1, Math.floor(sr * blockSec));
+    const energies = [];
+    for(let i=0;i<data.length;i+=blockSize){
+      let sum = 0; const end = Math.min(i+blockSize, data.length);
+      for(let j=i;j<end;j++) sum += data[j]*data[j];
+      energies.push(Math.sqrt(sum/(end-i)));
+    }
+    const baselineWin = 6; // ~6s rolling baseline before each block
+    const raw = [];
+    for(let i=1;i<energies.length;i++){
+      let base=0, cnt=0;
+      for(let k=Math.max(0,i-baselineWin); k<i; k++){ base += energies[k]; cnt++; }
+      base = cnt ? base/cnt : 0;
+      if(energies[i] - base > 0.055 && energies[i] > 0.04) raw.push({ t: i*blockSec, jump: energies[i]-base });
+    }
+    // collapse clusters of nearby candidates into their strongest point, and
+    // keep suggestions at least 8s apart so they're actually useful markers
+    const spaced = [];
+    for(const cand of raw){
+      const last = spaced[spaced.length-1];
+      if(last && cand.t - last.t < 8){ if(cand.jump > last.jump) spaced[spaced.length-1] = cand; }
+      else spaced.push(cand);
+    }
+    return spaced.slice(0, 8).map(c=>c.t);
+  }
   function scheduleApplyTick(){
     if(!scheduleDraft) return;
     const sched = scheduleDraft.markers;
@@ -2220,12 +2280,43 @@
         el.dataset.selected = (i === scheduleSelectedMarkerIdx) ? 'true' : 'false';
         const p = scheduleDuration > 0 ? (m.t/scheduleDuration)*100 : 0;
         el.style.left = p + '%';
-        el.title = (SCHEDULE_SHAPE_NAMES[m.page]||[])[m.shape] + ' @ ' + fmtInlineTime(m.t);
+        const label = (SCHEDULE_SHAPE_NAMES[m.page]||[])[m.shape] || '';
+        el.title = label + ' @ ' + fmtInlineTime(m.t);
+        const tag = document.createElement('span');
+        tag.className = 'feed-schedule-marker-tag';
+        tag.textContent = label;
+        el.appendChild(tag);
         el.addEventListener('pointerdown', ev=>{ ev.stopPropagation(); app.selectMarker(i); scheduleDragMarker = m; });
         track.appendChild(el);
       });
     }
+    renderScheduleMarkerList();
     if(schedulePlaying && scheduleDraft) scheduleApplyTick();
+  }
+  function renderScheduleMarkerList(){
+    const wrap = document.getElementById('feed-schedule-marker-list');
+    if(!wrap) return;
+    wrap.innerHTML = '';
+    if(!scheduleDraft) return;
+    scheduleDraft.markers.forEach((m,i)=>{
+      const row = document.createElement('div');
+      row.className = 'feed-schedule-marker-row';
+      row.dataset.page = m.page;
+      row.dataset.selected = (i === scheduleSelectedMarkerIdx) ? 'true' : 'false';
+      const label = (SCHEDULE_SHAPE_NAMES[m.page]||[])[m.shape] || '';
+      row.innerHTML = `<span class="fsr-dot"></span><span class="fsr-time">${fmtInlineTime(m.t)}</span><span class="fsr-label">${label}</span>`;
+      if(i > 0){
+        const back = document.createElement('button'); back.className='fsr-nudge'; back.textContent='−1s';
+        back.onclick = (ev)=>{ ev.stopPropagation(); app.nudgeMarkerTime(i, -1); };
+        const fwd = document.createElement('button'); fwd.className='fsr-nudge'; fwd.textContent='+1s';
+        fwd.onclick = (ev)=>{ ev.stopPropagation(); app.nudgeMarkerTime(i, 1); };
+        const del = document.createElement('button'); del.textContent='✕';
+        del.onclick = (ev)=>{ ev.stopPropagation(); app.selectMarker(i); app.deleteSelectedMarker(); };
+        row.appendChild(back); row.appendChild(fwd); row.appendChild(del);
+      }
+      row.addEventListener('click', ()=> app.selectMarkerAndSeek(i));
+      wrap.appendChild(row);
+    });
   }
   addEventListener('pointermove', e=>{
     if(!scheduleDragMarker || !scheduleDraft) return;
@@ -7651,12 +7742,37 @@
       app.closeScheduleEditor();
     },
     scheduleTrackClick(ev){
-      if(ev.target.classList.contains('feed-schedule-marker')) return;
-      if(!scheduleDraft || scheduleDuration <= 0) return;
+      // Tapping the timeline moves the playhead (and plays there so you can
+      // hear it) — same as any normal scrubber. Adding a marker is now its
+      // own explicit button, since combining "seek" and "add" on one tap was
+      // exactly what made this fiddly to use.
+      if(ev.target.closest('.feed-schedule-marker')) return;
+      if(scheduleDuration <= 0) return;
       const rect = ev.currentTarget.getBoundingClientRect();
       const pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
-      const lastPage = scheduleDraft.markers[scheduleDraft.markers.length-1]?.page || 'sphere';
-      const marker = { t: pct * scheduleDuration, page: lastPage, shape: 0 };
+      const t = pct * scheduleDuration;
+      scheduleCurrentTime = t;
+      scheduleFiredIdx = -1;
+      const frame = document.getElementById('feed-schedule-frame');
+      if(scheduleFrameCurrentPage) frame.contentWindow?.postMessage({ type:'seek', time: t }, '*');
+      if(!schedulePlaying && scheduleDraft){
+        // paused scrubbing still previews whichever shape is active at that time
+        let idx = 0;
+        for(let i=0;i<scheduleDraft.markers.length;i++){ if(scheduleDraft.markers[i].t <= t) idx = i; else break; }
+        const entry = scheduleDraft.markers[idx];
+        if(entry.page !== scheduleFrameCurrentPage) loadScheduleFramePage(entry.page, entry.shape, t, false);
+        else frame.contentWindow?.postMessage({ type:'setShape', index: entry.shape, instant:true }, '*');
+      }
+      renderScheduleTrack();
+    },
+    addMarkerAtPlayhead(){
+      if(!scheduleDraft || scheduleDuration <= 0) return;
+      // Too close to an existing marker? Just select that one instead of
+      // stacking two markers on top of each other.
+      const near = scheduleDraft.markers.findIndex(m => Math.abs(m.t - scheduleCurrentTime) < 0.35);
+      if(near >= 0){ app.selectMarker(near); return; }
+      const ref = scheduleDraft.markers[scheduleSelectedMarkerIdx] || scheduleDraft.markers[scheduleDraft.markers.length-1];
+      const marker = { t: scheduleCurrentTime, page: ref?.page || 'sphere', shape: ref?.shape ?? 0 };
       scheduleDraft.markers.push(marker);
       scheduleDraft.markers.sort((a,b)=>a.t-b.t);
       scheduleSelectedMarkerIdx = scheduleDraft.markers.indexOf(marker);
@@ -7666,6 +7782,24 @@
     selectMarker(i){
       scheduleSelectedMarkerIdx = i;
       renderScheduleShapePalette();
+      renderScheduleTrack();
+    },
+    selectMarkerAndSeek(i){
+      app.selectMarker(i);
+      const m = scheduleDraft.markers[i];
+      if(!m) return;
+      scheduleCurrentTime = m.t;
+      scheduleFiredIdx = -1;
+      if(!schedulePlaying) loadScheduleFramePage(m.page, m.shape, m.t, false);
+      else document.getElementById('feed-schedule-frame').contentWindow?.postMessage({ type:'seek', time: m.t }, '*');
+      renderScheduleTrack();
+    },
+    nudgeMarkerTime(i, deltaSec){
+      const m = scheduleDraft?.markers[i];
+      if(!m || i === 0) return;
+      const prev = scheduleDraft.markers[i-1], next = scheduleDraft.markers[i+1];
+      const min = prev ? prev.t + 0.1 : 0, max = next ? next.t - 0.1 : scheduleDuration;
+      m.t = Math.max(min, Math.min(max, m.t + deltaSec));
       renderScheduleTrack();
     },
     deleteSelectedMarker(){
@@ -7693,6 +7827,35 @@
         const frame = document.getElementById('feed-schedule-frame');
         if(m.page === scheduleFrameCurrentPage) frame.contentWindow?.postMessage({ type:'setShape', index: shapeIdx, instant: true }, '*');
         else loadScheduleFramePage(m.page, m.shape, scheduleCurrentTime, false);
+      }
+    },
+    async suggestSwitchPoints(){
+      if(!scheduleDraft || !scheduleUploadedMedia) return;
+      const btn = document.getElementById('feed-schedule-suggest-btn');
+      btn.disabled = true; btn.textContent = 'Listening…';
+      try {
+        const times = await analyzeWaveformForSwitchPoints(scheduleUploadedMedia.url);
+        let added = 0;
+        // Alternate sphere/field and cycle through each page's shapes, so the
+        // suggested markers actually show off variety instead of repeating one shape.
+        let sphereI = 0, fieldI = 0, toggle = 0;
+        times.forEach(t=>{
+          if(scheduleDraft.markers.some(m => Math.abs(m.t - t) < 4)) return; // don't crowd an existing marker
+          const page = toggle % 2 === 0 ? 'sphere' : 'field';
+          toggle++;
+          const shape = page === 'sphere' ? (sphereI++ % SPHERE_SHAPE_NAMES.length) : (fieldI++ % FIELD_SHAPE_NAMES.length);
+          scheduleDraft.markers.push({ t, page, shape });
+          added++;
+        });
+        scheduleDraft.markers.sort((a,b)=>a.t-b.t);
+        renderScheduleShapePalette();
+        renderScheduleTrack();
+        toast(added ? `Added ${added} suggested switch${added===1?'':'es'} — drag or nudge to taste.` : 'Nothing obvious jumped out — try adding switches by hand.');
+      } catch(e){
+        console.error('suggestSwitchPoints failed:', e);
+        toast('Could not analyze the audio — try adding switches by hand.');
+      } finally {
+        btn.disabled = false; btn.textContent = '✨ Suggest switch points';
       }
     },
     toggleSchedulePreview(){
