@@ -415,26 +415,6 @@
   .feed-schedule-hint{ padding:10px 14px 0; font-size:11px; color:var(--muted); line-height:1.4; }
   .feed-schedule-actions{ display:flex; gap:8px; justify-content:flex-end; padding:14px; }
   #feed-post-schedule-status{ color:var(--accent); }
-  .feed-stems-toggle{ display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--muted); cursor:pointer; margin-left:auto; }
-  .feed-stems-toggle input{ accent-color:var(--accent); }
-  .feed-stems-pickers{ display:flex; flex-wrap:wrap; gap:8px; padding:10px 14px 0; align-items:center; }
-  .feed-stems-pickers[hidden]{ display:none; }
-  .feed-stem-picker{ display:flex; flex-direction:column; gap:4px; font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
-  .feed-stem-picker input{ font-size:11px; color:var(--ink); max-width:150px; }
-  .feed-stems-manual{ display:flex; flex-wrap:wrap; gap:8px; }
-  .feed-stems-manual[hidden]{ display:none; }
-  .feed-scene-preview-modal{ position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.75); display:flex; align-items:center; justify-content:center; padding:16px; }
-  .feed-scene-preview-modal[hidden]{ display:none; }
-  .feed-scene-preview-panel{ width:min(560px,100%); background:#0a0a0e; border:1px solid rgba(255,255,255,.14); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; }
-  .feed-scene-preview-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; font-size:11.5px; color:var(--muted); }
-  .feed-scene-preview-frame{ width:100%; aspect-ratio:9/13; border:0; display:block; background:#05060a; }
-  #feed-post-stems-status{ flex-basis:100%; }
-  .feed-stems-auto{ flex-basis:100%; display:flex; align-items:center; gap:8px; }
-  .feed-stems-layers{ flex-basis:100%; display:flex; flex-direction:column; gap:6px; margin-top:4px; padding-top:8px; border-top:1px solid var(--line); }
-  .feed-stems-layer-row{ display:grid; grid-template-columns:64px 1fr 80px; align-items:center; gap:6px; }
-  .fsl-label{ font-size:11px; color:var(--muted); }
-  .feed-stems-layer-row select{ background:var(--surface-2); border:1px solid var(--line); border-radius:6px; padding:5px 6px; color:var(--text); font-size:11.5px; font-family:inherit; }
-  .feed-stems-layer-row input[type=range]{ accent-color:var(--accent); width:100%; }
   .feed-item{ position:relative; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
   .feed-item-activity{ cursor:pointer; border-left:3px solid var(--accent); }
   .feed-item-head{ display:flex; align-items:center; gap:9px; margin-bottom:8px; }
@@ -1184,167 +1164,10 @@
       <div class="feed-composer-row" id="feed-post-effect-row" hidden>
         <button class="btn btn-ghost btn-sm" id="feed-post-schedule-btn" onclick="app.openScheduleEditor()">Design the visuals</button>
         <span class="pad-hint" id="feed-post-schedule-status">defaults to Sphere</span>
-        <label class="feed-stems-toggle"><input type="checkbox" id="feed-post-stems-toggle" onchange="app.toggleStemsMode(this.checked)"> Full (4 stems)</label>
-      </div>
-      <div class="feed-stems-pickers" id="feed-post-stems-pickers" hidden>
-        <div class="feed-stems-auto" id="feed-stems-auto" hidden>
-          <button class="btn btn-ghost btn-sm" id="feed-stems-auto-btn" onclick="app.autoSplitStems()">Split automatically</button>
-          <button class="btn btn-ghost btn-sm" onclick="app.configureStemRemote()" title="Set up reaching your PC's splitter from away from home">⚙ configure remote splitter</button>
-          <span class="pad-hint" id="feed-stems-auto-status"></span>
-        </div>
-        <button class="btn btn-ghost btn-sm" id="feed-stems-manual-toggle" onclick="app.toggleManualStemPickers()" hidden>or upload files manually instead</button>
-        <div class="feed-stems-manual" id="feed-stems-manual-pickers">
-          <label class="feed-stem-picker">Vocals<input type="file" accept="audio/*" id="feed-stem-vocals" onchange="app.previewStemFile(this)"></label>
-          <label class="feed-stem-picker">Drums<input type="file" accept="audio/*" id="feed-stem-drums" onchange="app.previewStemFile(this)"></label>
-          <label class="feed-stem-picker">Bass<input type="file" accept="audio/*" id="feed-stem-bass" onchange="app.previewStemFile(this)"></label>
-          <label class="feed-stem-picker">Harmony<input type="file" accept="audio/*" id="feed-stem-other" onchange="app.previewStemFile(this)"></label>
-        </div>
-        <span class="pad-hint" id="feed-post-stems-status">split the song into vocals/drums/bass/harmony first (your stem-splitter app, or the button above if it's running), then add all 4 here</span>
-        <button class="btn btn-ghost btn-sm" id="feed-stems-preview-btn" onclick="app.openScenePreview()">▶ Preview</button>
-        <div class="feed-stems-layers" id="feed-stems-layers">
-          <!-- One row per stem, each stem listed exactly once. Off/Plate/
-               Orbit/Background glow are plain fixed looks — no shape menu,
-               just which stem drives that slot's motion. "Center" is only
-               offered on the 5 stems that were given one exact, real shape
-               from the sphere.html/field.html library (never a shape menu):
-               Kick=Fluff (morphs to Gyroid Lattice on snare hits), Cymbals=
-               Crystal Burst, Bass=SDF Morph Field (bubbles with bass),
-               Vocals=Resonant Spiderweb, Harmony=Chladni Plate. Only one
-               stem can hold a given slot at a time — picking one bumps
-               whichever other stem already held it back to Off (see
-               app.setStemEffect). -->
-          <div class="feed-stems-layer-row" data-stem="drums">
-            <span class="fsl-label">Drums</span>
-            <select class="fsl-effect" onchange="app.setStemEffect('drums', this.value)">
-              <option value="off">Off</option>
-              <option value="plate">Plate</option>
-              <option value="orbit">Orbit</option>
-              <option value="glow">Background glow</option>
-            </select>
-            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('drums', this.value)">
-            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-              <option value="0">None (color tint only)</option>
-              <option value="1">Stellar Nebula (surrounds everything)</option>
-              <option value="2">Aurora Borealis (surrounds everything)</option>
-              <option value="3">Cloudscape (surrounds everything)</option>
-            </select>
-          </div>
-          <div class="feed-stems-layer-row" data-stem="kick">
-            <span class="fsl-label">Kick</span>
-            <select class="fsl-effect" onchange="app.setStemEffect('kick', this.value)">
-              <option value="off">Off</option>
-              <option value="center" selected>Center: Fluff (morphs on snare hits)</option>
-              <option value="plate">Plate</option>
-              <option value="orbit">Orbit</option>
-              <option value="glow">Background glow</option>
-            </select>
-            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('kick', this.value)">
-            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-              <option value="0">None (color tint only)</option>
-              <option value="1">Stellar Nebula (surrounds everything)</option>
-              <option value="2">Aurora Borealis (surrounds everything)</option>
-              <option value="3">Cloudscape (surrounds everything)</option>
-            </select>
-          </div>
-          <div class="feed-stems-layer-row" data-stem="snare">
-            <span class="fsl-label">Snare</span>
-            <select class="fsl-effect" onchange="app.setStemEffect('snare', this.value)">
-              <option value="off">Off</option>
-              <option value="plate">Plate</option>
-              <option value="orbit">Orbit</option>
-              <option value="glow">Background glow</option>
-            </select>
-            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('snare', this.value)">
-            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-              <option value="0">None (color tint only)</option>
-              <option value="1">Stellar Nebula (surrounds everything)</option>
-              <option value="2">Aurora Borealis (surrounds everything)</option>
-              <option value="3">Cloudscape (surrounds everything)</option>
-            </select>
-          </div>
-          <div class="feed-stems-layer-row" data-stem="cymbals">
-            <span class="fsl-label">Cymbals</span>
-            <select class="fsl-effect" onchange="app.setStemEffect('cymbals', this.value)">
-              <option value="off">Off</option>
-              <option value="center">Center: Crystal Burst</option>
-              <option value="plate">Plate</option>
-              <option value="orbit">Orbit</option>
-              <option value="glow">Background glow</option>
-            </select>
-            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('cymbals', this.value)">
-            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-              <option value="0">None (color tint only)</option>
-              <option value="1">Stellar Nebula (surrounds everything)</option>
-              <option value="2">Aurora Borealis (surrounds everything)</option>
-              <option value="3">Cloudscape (surrounds everything)</option>
-            </select>
-          </div>
-          <div class="feed-stems-layer-row" data-stem="bass">
-            <span class="fsl-label">Bass</span>
-            <select class="fsl-effect" onchange="app.setStemEffect('bass', this.value)">
-              <option value="off">Off</option>
-              <option value="center">Center: SDF Morph Field (bubbles with bass)</option>
-              <option value="plate" selected>Plate</option>
-              <option value="orbit">Orbit</option>
-              <option value="glow">Background glow</option>
-            </select>
-            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('bass', this.value)">
-            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-              <option value="0">None (color tint only)</option>
-              <option value="1">Stellar Nebula (surrounds everything)</option>
-              <option value="2">Aurora Borealis (surrounds everything)</option>
-              <option value="3">Cloudscape (surrounds everything)</option>
-            </select>
-          </div>
-          <div class="feed-stems-layer-row" data-stem="vocals">
-            <span class="fsl-label">Vocals</span>
-            <select class="fsl-effect" onchange="app.setStemEffect('vocals', this.value)">
-              <option value="off">Off</option>
-              <option value="center">Center: Resonant Spiderweb</option>
-              <option value="plate">Plate</option>
-              <option value="orbit" selected>Orbit</option>
-              <option value="glow">Background glow</option>
-            </select>
-            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('vocals', this.value)">
-            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-              <option value="0">None (color tint only)</option>
-              <option value="1">Stellar Nebula (surrounds everything)</option>
-              <option value="2">Aurora Borealis (surrounds everything)</option>
-              <option value="3">Cloudscape (surrounds everything)</option>
-            </select>
-          </div>
-          <div class="feed-stems-layer-row" data-stem="harmony">
-            <span class="fsl-label">Harmony</span>
-            <select class="fsl-effect" onchange="app.setStemEffect('harmony', this.value)">
-              <option value="off">Off</option>
-              <option value="center">Center: Chladni Plate</option>
-              <option value="plate">Plate</option>
-              <option value="orbit">Orbit</option>
-              <option value="glow" selected>Background glow</option>
-            </select>
-            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('harmony', this.value)" hidden>
-            <select class="fsl-bg" onchange="app.setGlowBg(this.value)">
-              <option value="0">None (color tint only)</option>
-              <option value="1">Stellar Nebula (surrounds everything)</option>
-              <option value="2">Aurora Borealis (surrounds everything)</option>
-              <option value="3">Cloudscape (surrounds everything)</option>
-            </select>
-          </div>
-        </div>
       </div>
       <div class="feed-post-progress" id="feed-post-progress" hidden>
         <div class="feed-post-progress-track"><div class="feed-post-progress-bar" id="feed-post-progress-bar"></div></div>
         <span id="feed-post-progress-text"></span>
-      </div>
-    </div>
-
-    <div class="feed-scene-preview-modal" id="feed-scene-preview-modal" hidden>
-      <div class="feed-scene-preview-panel">
-        <div class="feed-scene-preview-head">
-          <span>Preview — edit the dropdowns above, it updates live</span>
-          <button class="btn btn-ghost btn-sm" onclick="app.closeScenePreview()">✕ Close</button>
-        </div>
-        <iframe id="feed-scene-preview-frame" class="feed-scene-preview-frame" allow="autoplay"></iframe>
       </div>
     </div>
 
@@ -1747,7 +1570,6 @@
       <iframe id="feed-player-iframe-cube" class="feed-player-frame" allow="autoplay; fullscreen" hidden></iframe>
       <iframe id="feed-player-iframe-sphere" class="feed-player-frame" allow="autoplay; fullscreen" hidden></iframe>
       <iframe id="feed-player-iframe-field" class="feed-player-frame" allow="autoplay; fullscreen" hidden></iframe>
-      <iframe id="feed-player-iframe-scene" class="feed-player-frame" allow="autoplay; fullscreen" hidden></iframe>
     </div>
     <div class="feed-player-bar">
       <select id="feed-player-effect-select" onchange="app.switchFeedPlayerEffect(this.value)">
@@ -2125,26 +1947,14 @@
   const FEED_INLINE_SEEK_DRAG = new Set(); // postIds mid-drag on their seek slider — don't let timeupdate fight the user's thumb
   const FEED_INLINE_LAST_TIME = {}; // postId -> last known playback position, so opening fullscreen can continue instead of restarting
   function feedInlinePlayerHtml(p){
-    let src;
-    if(p.media.effect === 'scene' && p.media.stems){
-      const sep = FEED_SCENE_PAGE.endsWith('?') ? '' : '&';
-      src = FEED_SCENE_PAGE + sep
-        + 'vocals=' + encodeURIComponent(p.media.stems.vocals)
-        + '&drums=' + encodeURIComponent(p.media.stems.drums)
-        + '&bass=' + encodeURIComponent(p.media.stems.bass)
-        + '&other=' + encodeURIComponent(p.media.stems.other)
-        + '&muted=1&embed=inline';
-      if(p.media.stemsCfg) src += '&cfg=' + encodeURIComponent(JSON.stringify(p.media.stemsCfg));
-    } else {
-      const sched = Array.isArray(p.media.effectSchedule) && p.media.effectSchedule.length ? p.media.effectSchedule : null;
-      const effect = sched ? sched[0].page : (['sphere','field'].includes(p.media.effect) ? p.media.effect : 'cube');
-      const base = FEED_EFFECT_PAGES[effect];
-      const sep = base.endsWith('?') ? '' : '&';
-      src = base + sep + 'song=' + encodeURIComponent(p.media.url) + '&muted=1&embed=inline';
-      // The small inline preview just opens on the uploader's first chosen shape
-      // — the full scheduled switching plays out once the viewer goes fullscreen.
-      if(sched) src += '&driven=1&shape=' + sched[0].shape;
-    }
+    const sched = Array.isArray(p.media.effectSchedule) && p.media.effectSchedule.length ? p.media.effectSchedule : null;
+    const effect = sched ? sched[0].page : (['sphere','field'].includes(p.media.effect) ? p.media.effect : 'cube');
+    const base = FEED_EFFECT_PAGES[effect];
+    const sep = base.endsWith('?') ? '' : '&';
+    let src = base + sep + 'song=' + encodeURIComponent(p.media.url) + '&muted=1&embed=inline';
+    // The small inline preview just opens on the uploader's first chosen shape
+    // — the full scheduled switching plays out once the viewer goes fullscreen.
+    if(sched) src += '&driven=1&shape=' + sched[0].shape;
     return `<div class="feed-inline-player">
       <iframe class="feed-inline-frame" id="feed-inline-frame-${p.id}" src="${src}" allow="autoplay" loading="lazy"></iframe>
       <div class="feed-inline-bar">
@@ -2344,13 +2154,6 @@
   // lives inside sphere.html as one continuously-deformable SDF, so nothing
   // new is ever authored on the 'field' page again.
   const FEED_EFFECT_PAGES = { cube: 'effects-lab/destinys-child.html?world=1&v=' + FEED_EFFECT_CACHE_BUST, sphere: 'effects-lab/sphere.html?v=' + FEED_EFFECT_CACHE_BUST, field: 'effects-lab/field.html?v=' + FEED_EFFECT_CACHE_BUST };
-  // 'scene' (the 4-stem visualizer) is deliberately NOT in FEED_EFFECT_PAGES —
-  // that map drives the fullscreen player's 3-frame preload-everything/
-  // crossfade machinery, which assumes every effect plays the SAME single
-  // song url. A scene post has 4 different stem urls and never crossfades to
-  // another effect, so it gets its own single dedicated frame instead — see
-  // ensureFeedPlayerLoaded's scene branch and #feed-player-iframe-scene.
-  const FEED_SCENE_PAGE = 'effects-lab/scene.html?v=' + FEED_EFFECT_CACHE_BUST;
   const SPHERE_SHAPE_NAMES = ['Fluff','Gyroid','Superformula','Mandelbulb','SDF Morph','Waves','Chladni','Spiderweb'];
   // Upload-time timeline editor state — separate from the fullscreen player's
   // own feedPlayer* state above, since this drives one small preview iframe
@@ -2358,137 +2161,6 @@
   let scheduleDraft = null; // { markers:[{t,page,shape}], duration }
   let scheduleUploadedMedia = null; // the media object once the song has been uploaded to get a real URL for the preview iframe
   let scheduleUploadedForFile = null; // which File object scheduleUploadedMedia belongs to, so re-opening doesn't re-upload
-  let stemsMode = false;
-  let _stemServerResolved = null; // last resolveStemServer() result, reused by autoSplitStems so it doesn't re-probe mid-upload
-  const stemFiles = { vocals:null, drums:null, bass:null, other:null };
-  function stemsPickedCount(){ return Object.values(stemFiles).filter(Boolean).length; }
-  function renderStemsStatus(){
-    const el = document.getElementById('feed-post-stems-status');
-    if(!el) return;
-    const n = stemsPickedCount();
-    el.textContent = n === 4 ? 'all 4 stems ready' : `${n}/4 stems added — vocals, drums, bass, and harmony (the rest of the song) all need a file`;
-  }
-  // Per-stem scene config — each of the 7 stems (drums/kick/snare/cymbals/
-  // bass/vocals/harmony) appears exactly once in the composer, and picks
-  // which SLOT it drives: off/center/plate/orbit/glow. Plate/Orbit/Glow are
-  // plain fixed looks (no shape menu). Center is only offered on the 5
-  // stems that were each given one exact, real shape from the sphere.html/
-  // field.html library — see CENTER_SHAPE_FOR_STEM. Only one stem can hold
-  // a given slot — see app.setStemEffect for the bump-the-other-one-to-off
-  // exclusivity. deriveSceneCfg() converts this into the slot-first
-  // {slots,sizes,centerShape} format scene.html expects.
-  const STEMS = ['drums','kick','snare','cymbals','bass','vocals','harmony'];
-  // scene.html's CENTER_SHAPES index: 0 Fluff, 1 Gyroid Lattice, 2 Superformula,
-  // 3 Mandelbulb, 4 SDF Morph Field, 5 Wave Interference, 6 Chladni Plate,
-  // 7 Resonant Spiderweb, 8 Crystal Burst (cymbals-only, real geometry not an SDF).
-  const CENTER_SHAPE_FOR_STEM = { kick:0, cymbals:8, bass:4, vocals:7, harmony:6 };
-  const DEFAULT_ASSIGN = { drums:'off', kick:'center', snare:'off', cymbals:'off', bass:'plate', vocals:'orbit', harmony:'glow' };
-  const stemLayerCfg = { assign: Object.assign({}, DEFAULT_ASSIGN), sizes: { drums:1, kick:1, snare:1, cymbals:1, bass:1, vocals:1, harmony:1 }, glowBg: 0 };
-  let previewOpen = false;
-  let previewStemUrls = {};
-  function pushPreviewCfg(){
-    if(!previewOpen) return;
-    const frame = document.getElementById('feed-scene-preview-frame');
-    if(frame && frame.contentWindow) frame.contentWindow.postMessage({ type:'cfg', cfg: deriveSceneCfg() }, '*');
-  }
-  function stemLayerRowEls(stem){
-    const row = document.querySelector('.feed-stems-layer-row[data-stem="'+stem+'"]');
-    return row ? { effect: row.querySelector('.fsl-effect'), size: row.querySelector('.fsl-size'), bg: row.querySelector('.fsl-bg') } : {};
-  }
-  function resetStemLayerCfg(){
-    stemLayerCfg.assign = Object.assign({}, DEFAULT_ASSIGN);
-    stemLayerCfg.sizes = { drums:1, kick:1, snare:1, cymbals:1, bass:1, vocals:1, harmony:1 };
-    stemLayerCfg.glowBg = 0;
-    STEMS.forEach(stem=>{
-      const { effect, size, bg } = stemLayerRowEls(stem);
-      if(effect) effect.value = stemLayerCfg.assign[stem];
-      if(size){ size.value = 1; size.hidden = (stemLayerCfg.assign[stem] === 'off' || stemLayerCfg.assign[stem] === 'glow'); }
-      if(bg){ bg.value = '0'; bg.hidden = (stemLayerCfg.assign[stem] !== 'glow'); }
-    });
-  }
-  function deriveSceneCfg(){
-    // Every stem that picked "center" shows its own real shape SIMULTANEOUSLY
-    // now (up to 5 — one per stem that has a real shape assigned), instead of
-    // only one winning the slot. plate/orbit/glow stay single-owner.
-    const shapes = [];
-    let plate = null, plateSize = 1, orbit = null, orbitSize = 1, glow = null;
-    STEMS.forEach(stem=>{
-      const slotName = stemLayerCfg.assign[stem];
-      if(!slotName || slotName === 'off') return;
-      if(slotName === 'center'){
-        if(CENTER_SHAPE_FOR_STEM[stem] != null && shapes.length < 5){
-          shapes.push({ stem, shape: CENTER_SHAPE_FOR_STEM[stem], size: stemLayerCfg.sizes[stem] });
-        }
-      } else if(slotName === 'plate'){ plate = stem; plateSize = stemLayerCfg.sizes[stem]; }
-      else if(slotName === 'orbit'){ orbit = stem; orbitSize = stemLayerCfg.sizes[stem]; }
-      else if(slotName === 'glow'){ glow = stem; }
-    });
-    if(!shapes.length) shapes.push({ stem:'kick', shape: CENTER_SHAPE_FOR_STEM.kick, size:1 });
-    if(!plate) plate = 'bass';
-    if(!orbit) orbit = 'vocals';
-    if(!glow) glow = 'harmony';
-    return { shapes, plate, plateSize, orbit, orbitSize, glow, glowBg: stemLayerCfg.glowBg };
-  }
-  // The local stem-splitter (tools/stem_server.py) — runs Demucs on the
-  // uploader's own machine, per shapeless-1974's "🔪 Stems" button and the
-  // Voyage Studio's "Stems" import (see loadMyStemServerUrl/checkStemServer/
-  // stemServerBase/stemServerHeaders further down — this reuses that exact
-  // same account-level config instead of keeping its own, so the tunnel URL
-  // and token you save once work from the Feed, Studio, and any device you're
-  // signed into, not just the browser you saved them in).
-  async function resolveStemServer(){
-    await loadMyStemServerUrl();
-    const ok = await checkStemServer();
-    if(!ok) return null;
-    return { base: stemServerBase(), headers: stemServerHeaders() };
-  }
-  // Demucs' htdemucs_6s model splits into 6 stems (vocals/drums/bass/guitar/
-  // piano/other) — guitar+piano+other are mixed down client-side into one
-  // "harmony" track via an OfflineAudioContext, since that's the 4th part the
-  // scene actually wants and there's no reason to make the user do that mix
-  // by hand.
-  async function decodeAudioUrl(actx, url, headers){
-    const resp = await fetch(url, headers ? { headers } : undefined);
-    const buf = await resp.arrayBuffer();
-    return actx.decodeAudioData(buf);
-  }
-  async function mixBuffersToWavFile(buffers, filename){
-    const channels = Math.max(...buffers.map(b=>b.numberOfChannels));
-    const length = Math.max(...buffers.map(b=>b.length));
-    const sampleRate = buffers[0].sampleRate;
-    const octx = new OfflineAudioContext(channels, length, sampleRate);
-    buffers.forEach(buf=>{
-      const src = octx.createBufferSource();
-      src.buffer = buf;
-      src.connect(octx.destination);
-      src.start(0);
-    });
-    const mixed = await octx.startRendering();
-    return new File([audioBufferToWav(mixed)], filename, { type:'audio/wav' });
-  }
-  function audioBufferToWav(buf){
-    const numCh = buf.numberOfChannels, len = buf.length, sr = buf.sampleRate;
-    const bytesPerSample = 2, blockAlign = numCh*bytesPerSample;
-    const dataSize = len*blockAlign;
-    const out = new ArrayBuffer(44+dataSize);
-    const view = new DataView(out);
-    const writeStr = (off,s)=>{ for(let i=0;i<s.length;i++) view.setUint8(off+i, s.charCodeAt(i)); };
-    writeStr(0,'RIFF'); view.setUint32(4, 36+dataSize, true); writeStr(8,'WAVE');
-    writeStr(12,'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
-    view.setUint16(22, numCh, true); view.setUint32(24, sr, true);
-    view.setUint32(28, sr*blockAlign, true); view.setUint16(32, blockAlign, true); view.setUint16(34, 16, true);
-    writeStr(36,'data'); view.setUint32(40, dataSize, true);
-    const chans = []; for(let c=0;c<numCh;c++) chans.push(buf.getChannelData(c));
-    let off = 44;
-    for(let i=0;i<len;i++){
-      for(let c=0;c<numCh;c++){
-        const s = Math.max(-1, Math.min(1, chans[c][i]));
-        view.setInt16(off, s < 0 ? s*0x8000 : s*0x7FFF, true);
-        off += 2;
-      }
-    }
-    return out;
-  }
   let scheduleSelectedMarkerIdx = 0;
   let scheduleDuration = 0;
   let scheduleCurrentTime = 0;
@@ -3741,7 +3413,6 @@
   const LOCAL_STEM_SERVER = 'http://127.0.0.1:5599';
   const IS_MOBILE_DEVICE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   let myStemServerUrl = null; // this user's own public tunnel to their PC's stem server, once they've set one
-  let myStemServerToken = null; // access token that same tunnel requires for anything but a same-PC (127.0.0.1) request
   let myStemServerUrlLoaded = false;
   async function loadMyStemServerUrl(){
     if(myStemServerUrlLoaded) return myStemServerUrl;
@@ -3751,18 +3422,11 @@
     try {
       const profile = await SB.getProfile(u.id);
       myStemServerUrl = (profile && profile.stem_server_url) || null;
-      myStemServerToken = (profile && profile.stem_server_token) || null;
-    } catch(e){ myStemServerUrl = null; myStemServerToken = null; }
+    } catch(e){ myStemServerUrl = null; }
     return myStemServerUrl;
   }
   function stemServerBase(){
     return (myStemServerUrl && myStemServerUrl.replace(/\/+$/, '')) || LOCAL_STEM_SERVER;
-  }
-  // Only a tunneled (non-127.0.0.1) request needs the token — stem_server.py
-  // never asks for one from this same PC, matching how it always worked
-  // before a tunnel made it reachable from anywhere else too.
-  function stemServerHeaders(){
-    return (myStemServerUrl && myStemServerToken) ? { 'X-Stem-Token': myStemServerToken } : {};
   }
   async function checkStemServer(){
     try {
@@ -3775,16 +3439,15 @@
     if(!v || !v.studio) return;
     migrateStudio(v);
     const base = stemServerBase();
-    const headers = stemServerHeaders();
     toast('Uploading to your stem-splitter…');
     const form = new FormData(); form.append('audio', file);
-    const startRes = await fetch(base + '/separate', { method:'POST', body: form, headers });
-    if(!startRes.ok) throw new Error(startRes.status === 401 ? 'access token was wrong — reconfigure it below' : 'could not start separation');
+    const startRes = await fetch(base + '/separate', { method:'POST', body: form });
+    if(!startRes.ok) throw new Error('could not start separation');
     const { job_id } = await startRes.json();
     let result;
     for(;;){
       await new Promise(r=>setTimeout(r, 1500));
-      const st = await fetch(base + '/status/' + job_id, { headers }).then(r=>r.json());
+      const st = await fetch(base + '/status/' + job_id).then(r=>r.json());
       if(st.status==='error') throw new Error(st.error || 'separation failed');
       if(st.status==='done'){ result = st; break; }
       toast(`Separating on your machine… ${Math.round((st.progress||0)*100)}%`);
@@ -3792,7 +3455,7 @@
     toast('Separated — uploading stems into the song…');
     let added = 0;
     for(const stem of result.stems){
-      const blob = await fetch(base + stem.url, { headers }).then(r=>r.blob());
+      const blob = await fetch(base + stem.url).then(r=>r.blob());
       const stemFile = new File([blob], `${stem.name}-${Date.now()}.wav`, { type: blob.type || 'audio/wav' });
       const media = window.SB ? await SB.uploadMedia(stemFile) : null;
       if(!media) continue;
@@ -4934,15 +4597,10 @@
       ${stemHelpOpen[v.id] ? `<div class="empty-arrangement-banner stem-help-banner">
         ${IS_MOBILE_DEVICE ? `
         Stems runs Demucs on a real computer — a phone can't run it directly. Two options:
-        <br>1) On your computer: download and run <a href="/downloads/shapeless-stem-splitter.zip" download>the stem-splitter</a>, then expose it with a free tunnel — easiest is <code>cloudflared tunnel --url http://localhost:5599</code> (or ngrok). It prints a public address AND an access token on startup — paste both below so your phone can reach it:
-        <div style="display:flex; flex-direction:column; gap:6px; margin:8px 0;">
-          <div style="display:flex; gap:6px;">
-            <input type="text" id="stem-server-url-input-${v.id}" placeholder="https://your-name.trycloudflare.com" value="${myStemServerUrl || ''}" style="flex:1; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:7px 9px; color:var(--text); font-size:12.5px;">
-          </div>
-          <div style="display:flex; gap:6px;">
-            <input type="text" id="stem-server-token-input-${v.id}" placeholder="access token from the stem-splitter's startup message" value="${myStemServerToken || ''}" style="flex:1; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:7px 9px; color:var(--text); font-size:12.5px;">
-            <button class="btn btn-ghost btn-sm" onclick="app.saveStemServerUrl('${v.id}')">Save</button>
-          </div>
+        <br>1) On your computer: download and run <a href="/downloads/shapeless-stem-splitter.zip" download>the stem-splitter</a>, then expose it with a free tunnel — easiest is <code>cloudflared tunnel --url http://localhost:5599</code> (or ngrok). It prints a public address — paste that below so your phone can reach it:
+        <div style="display:flex; gap:6px; margin:8px 0;">
+          <input type="text" id="stem-server-url-input-${v.id}" placeholder="https://your-name.trycloudflare.com" value="${myStemServerUrl || ''}" style="flex:1; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:7px 9px; color:var(--text); font-size:12.5px;">
+          <button class="btn btn-ghost btn-sm" onclick="app.saveStemServerUrl('${v.id}')">Save</button>
         </div>
         <br>2) Or just split it with a free site like <a href="https://moises.ai" target="_blank" rel="noopener">Moises.ai</a> or <a href="https://lalal.ai" target="_blank" rel="noopener">LALAL.AI</a>, then tap <b>Import</b> to bring the stem files in here.
         ` : `
@@ -6312,19 +5970,15 @@
     dismissStemHelp(vid){ delete stemHelpOpen[vid]; renderVoyageDetail(); },
     async saveStemServerUrl(vid){
       const input = document.getElementById('stem-server-url-input-'+vid);
-      const tokenInput = document.getElementById('stem-server-token-input-'+vid);
       let url = (input && input.value || '').trim();
-      const token = (tokenInput && tokenInput.value || '').trim();
       if(url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
       if(!requireAuth()) return;
       try {
-        await SB.updateProfile({ stem_server_url: url || null, stem_server_token: token || null });
+        await SB.updateProfile({ stem_server_url: url || null });
         myStemServerUrl = url || null;
-        myStemServerToken = token || null;
         myStemServerUrlLoaded = true;
         toast(url ? 'Saved — try Stems again.' : 'Cleared.');
         renderVoyageDetail();
-        if(document.getElementById('feed-stems-auto')) app.refreshStemServerStatus();
       } catch(e){ toast('Could not save — try again.'); }
     },
     async pickManualStems(inputEl, vid){
@@ -7988,195 +7642,16 @@
       if(input.id === 'feed-post-song'){
         scheduleDraft = null; scheduleUploadedMedia = null; scheduleUploadedForFile = null;
         document.getElementById('feed-post-schedule-status').textContent = 'defaults to Sphere';
-        stemsMode = false;
-        Object.keys(stemFiles).forEach(k=>stemFiles[k]=null);
-        document.getElementById('feed-post-stems-toggle').checked = false;
-        document.getElementById('feed-post-stems-pickers').hidden = true;
-        document.getElementById('feed-post-schedule-btn').hidden = false;
-        resetStemLayerCfg();
       }
-    },
-    async toggleStemsMode(on){
-      stemsMode = on;
-      document.getElementById('feed-post-stems-pickers').hidden = !on;
-      // Stems mode replaces the switch-point timeline entirely — the 4-stem
-      // scene plays all 4 at once, there's nothing to schedule switches on.
-      document.getElementById('feed-post-schedule-btn').hidden = on;
-      renderStemsStatus();
-      if(!on) return;
-      await app.refreshStemServerStatus();
-    },
-    async refreshStemServerStatus(){
-      const autoRow = document.getElementById('feed-stems-auto');
-      const autoBtn = document.getElementById('feed-stems-auto-btn');
-      const autoStatus = document.getElementById('feed-stems-auto-status');
-      autoStatus.textContent = 'checking for your local splitter…';
-      autoRow.hidden = false;
-      const resolved = await resolveStemServer();
-      _stemServerResolved = resolved;
-      const manualBox = document.getElementById('feed-stems-manual-pickers');
-      const manualToggle = document.getElementById('feed-stems-manual-toggle');
-      if(resolved){
-        autoBtn.hidden = false;
-        autoStatus.textContent = (resolved.base === LOCAL_STEM_SERVER ? 'local splitter found' : 'reached your PC through its tunnel') + ' — one click instead of 4 files';
-        if(manualBox) manualBox.hidden = true;
-        if(manualToggle) manualToggle.hidden = false;
-      } else {
-        autoBtn.hidden = true;
-        autoStatus.textContent = myStemServerUrl ? "couldn't reach your PC — is stem_server.py and the tunnel still running?" : '';
-        if(manualBox) manualBox.hidden = false;
-        if(manualToggle) manualToggle.hidden = true;
-      }
-    },
-    async configureStemRemote(){
-      if(!requireAuth()) return;
-      await loadMyStemServerUrl();
-      let url = prompt('Paste the https:// address your PC\'s cloudflared tunnel printed (leave blank to use this-same-PC only):', myStemServerUrl || '');
-      if(url === null) return;
-      url = url.trim();
-      if(url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
-      const token = url ? prompt('Paste the access token stem_server.py printed on startup:', myStemServerToken || '') : '';
-      if(url && token === null) return;
-      try {
-        await SB.updateProfile({ stem_server_url: url || null, stem_server_token: (token||'').trim() || null });
-        myStemServerUrl = url || null;
-        myStemServerToken = (token||'').trim() || null;
-        toast(url ? 'Saved — this works from any device you sign into.' : 'Cleared — back to this-same-PC only.');
-      } catch(e){ toast('Could not save — try again.'); }
-      app.refreshStemServerStatus();
-    },
-    previewStemFile(input){
-      const role = input.id.replace('feed-stem-', '');
-      stemFiles[role] = input.files[0] || null;
-      renderStemsStatus();
-      if(previewOpen) app.openScenePreview();
-    },
-    async autoSplitStems(){
-      const songFile = document.getElementById('feed-post-song').files[0];
-      if(!songFile){ toast('Pick the song file first.'); return; }
-      const btn = document.getElementById('feed-stems-auto-btn');
-      const status = document.getElementById('feed-stems-auto-status');
-      const server = _stemServerResolved || await resolveStemServer();
-      if(!server){ toast("Couldn't reach your local splitter — check it's running (and the tunnel, if you're away from home)."); return; }
-      btn.disabled = true;
-      try {
-        status.textContent = 'sending to your splitter…';
-        const form = new FormData();
-        form.append('audio', songFile);
-        const sepRes = await fetch(server.base + '/separate', { method:'POST', body: form, headers: server.headers });
-        if(!sepRes.ok) throw new Error(sepRes.status === 401 ? 'access token was wrong — reconfigure it' : 'splitter refused the file');
-        const { job_id } = await sepRes.json();
-        let job;
-        for(;;){
-          await new Promise(r=>setTimeout(r, 1500));
-          const statusRes = await fetch(server.base + '/status/' + job_id, { headers: server.headers });
-          job = await statusRes.json();
-          if(job.status === 'done') break;
-          if(job.status === 'error') throw new Error(job.error || 'splitting failed');
-          status.textContent = `splitting… ${Math.round((job.progress||0)*100)}%`;
-        }
-        status.textContent = 'mixing harmony track…';
-        const byName = {}; job.stems.forEach(s=>{ byName[s.name] = server.base + s.url; });
-        const need = ['vocals','drums','bass','guitar','piano','other'];
-        if(need.some(n=>!byName[n])) throw new Error('the splitter did not return all 6 stems');
-        const actx = new (window.AudioContext || window.webkitAudioContext)();
-        try {
-          const [vocalsBuf, drumsBuf, bassBuf, guitarBuf, pianoBuf, otherBuf] = await Promise.all(
-            need.map(n=>decodeAudioUrl(actx, byName[n], server.headers))
-          );
-          const base = songFile.name.replace(/\.[^.]+$/, '');
-          stemFiles.vocals = new File([audioBufferToWav(vocalsBuf)], base+'_vocals.wav', { type:'audio/wav' });
-          stemFiles.drums = new File([audioBufferToWav(drumsBuf)], base+'_drums.wav', { type:'audio/wav' });
-          stemFiles.bass = new File([audioBufferToWav(bassBuf)], base+'_bass.wav', { type:'audio/wav' });
-          stemFiles.other = await mixBuffersToWavFile([guitarBuf, pianoBuf, otherBuf], base+'_harmony.wav');
-        } finally { actx.close(); }
-        renderStemsStatus();
-        status.textContent = 'split complete — all 4 stems ready below';
-        toast('Split locally into 4 stems.');
-      } catch(e){
-        console.error('autoSplitStems failed:', e);
-        status.textContent = '';
-        toast('Local split failed: ' + (e?.message || 'unknown error') + ' — add the 4 files by hand instead.');
-      } finally {
-        btn.disabled = false;
-      }
-    },
-    setStemEffect(stem, val){
-      // "center" (each stem's own real shape) can now be shared by several
-      // stems at once — they all show simultaneously. plate/orbit/glow are
-      // still single-owner plain looks, so picking one still bumps whoever
-      // else held it back to off.
-      if(val !== 'off' && val !== 'center'){
-        STEMS.forEach(other=>{
-          if(other === stem) return;
-          if(stemLayerCfg.assign[other] === val){
-            stemLayerCfg.assign[other] = 'off';
-            const { effect, size, bg } = stemLayerRowEls(other);
-            if(effect) effect.value = 'off';
-            if(size) size.hidden = true;
-            if(bg) bg.hidden = true;
-          }
-        });
-      }
-      stemLayerCfg.assign[stem] = val;
-      const { size, bg } = stemLayerRowEls(stem);
-      if(size) size.hidden = (val === 'off' || val === 'glow');
-      if(bg) bg.hidden = (val !== 'glow');
-      pushPreviewCfg();
-    },
-    setStemEffectSize(stem, val){ stemLayerCfg.sizes[stem] = parseFloat(val); pushPreviewCfg(); },
-    setGlowBg(val){ stemLayerCfg.glowBg = parseInt(val, 10); pushPreviewCfg(); },
-    toggleManualStemPickers(){
-      const box = document.getElementById('feed-stems-manual-pickers');
-      if(box) box.hidden = !box.hidden;
-    },
-    async openScenePreview(){
-      const modal = document.getElementById('feed-scene-preview-modal');
-      const frame = document.getElementById('feed-scene-preview-frame');
-      if(!modal || !frame) return;
-      previewStemUrls = {};
-      ['vocals','drums','bass','other'].forEach(role=>{
-        if(stemFiles[role]) previewStemUrls[role] = URL.createObjectURL(stemFiles[role]);
-      });
-      modal.hidden = false;
-      previewOpen = true;
-      frame.src = 'effects-lab/scene.html?embed=inline&muted=0';
-      frame.onload = () => {
-        frame.contentWindow.postMessage({ type:'stems', urls: previewStemUrls }, '*');
-        frame.contentWindow.postMessage({ type:'cfg', cfg: deriveSceneCfg() }, '*');
-      };
-    },
-    closeScenePreview(){
-      const modal = document.getElementById('feed-scene-preview-modal');
-      const frame = document.getElementById('feed-scene-preview-frame');
-      if(modal) modal.hidden = true;
-      if(frame) frame.src = 'about:blank';
-      previewOpen = false;
-      Object.values(previewStemUrls).forEach(u=>{ try{ URL.revokeObjectURL(u); }catch(_){} });
-      previewStemUrls = {};
     },
     async submitFeedPost(){
       if(!requireAuth()) return;
       const text = (document.getElementById('feed-post-input').value||'').trim();
       const file = document.getElementById('feed-post-media').files[0] || document.getElementById('feed-post-camera').files[0] || document.getElementById('feed-post-song').files[0] || document.getElementById('feed-post-video').files[0];
-      if(stemsMode && stemsPickedCount() < 4){ toast('Add all 4 stems (vocals, drums, bass, harmony) first — or turn off Full to post the single file instead.'); return; }
-      if(!text && !file && !(stemsMode && stemsPickedCount()===4)){ toast('Write something, or add an image, a video, or a song first.'); return; }
+      if(!text && !file){ toast('Write something, or add an image, a video, or a song first.'); return; }
       try {
         let media = null;
-        if(stemsMode && stemsPickedCount() === 4){
-          setProgress(5, 'Uploading stems…');
-          const roles = ['vocals','drums','bass','other'];
-          const stemUrls = {};
-          for(let i=0;i<roles.length;i++){
-            const role = roles[i];
-            const uploadFile = await prepareForUpload(stemFiles[role]);
-            if(uploadFile.size > UPLOAD_CAP){ setProgress(0, `The ${role} stem is still too large after compression — try a shorter clip.`, true); return; }
-            setProgress(10 + Math.round((i/roles.length)*80), `Uploading ${role}…`);
-            const uploaded = await SB.uploadMedia(uploadFile);
-            stemUrls[role] = uploaded.url;
-          }
-          media = { kind:'audio', url: stemUrls.drums, name: stemFiles.drums.name, effect:'scene', stems: stemUrls, stemsCfg: deriveSceneCfg() };
-        } else if(file){
+        if(file){
           // The timeline editor already uploaded this exact file to get a
           // real URL for its own preview — reuse that instead of uploading twice.
           if(scheduleUploadedForFile === file && scheduleUploadedMedia){
@@ -8206,15 +7681,7 @@
         document.getElementById('feed-post-media-name').textContent = '';
         document.getElementById('feed-post-effect-row').hidden = true;
         document.getElementById('feed-post-schedule-status').textContent = '';
-        document.getElementById('feed-post-schedule-btn').hidden = false;
         scheduleDraft = null; scheduleUploadedMedia = null; scheduleUploadedForFile = null;
-        stemsMode = false;
-        Object.keys(stemFiles).forEach(k=>stemFiles[k]=null);
-        document.getElementById('feed-post-stems-toggle').checked = false;
-        document.getElementById('feed-post-stems-pickers').hidden = true;
-        ['feed-stem-vocals','feed-stem-drums','feed-stem-bass','feed-stem-other'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-        resetStemLayerCfg();
-        app.closeScenePreview();
         hideProgress();
         renderFeed();
         toast('Posted.');
@@ -8485,43 +7952,6 @@
     playFeedEffect(postId){
       const p = FEED_POSTS.find(x=>x.id===postId);
       if(!p || !p.media || !p.media.url) return;
-      // A "Full (4 stems)" post has no single song and never crossfades to
-      // another effect — it's one dedicated frame for its whole life, fed all
-      // 4 stem urls directly, instead of the cube/sphere/field preload-and-
-      // crossfade dance below (which assumes one shared song url).
-      if(p.media.effect === 'scene' && p.media.stems){
-        const inlineFrameScene = document.getElementById('feed-inline-frame-'+postId);
-        feedPlayerStartTime = FEED_INLINE_LAST_TIME[postId] || 0;
-        if(inlineFrameScene){
-          inlineFrameScene.contentWindow?.postMessage({ type: 'pause' }, '*');
-          inlineFrameScene.contentWindow?.postMessage({ type: 'volume', value: 0 }, '*');
-          const vol = document.getElementById('feed-inline-vol-'+postId);
-          if(vol) vol.value = 0;
-          const playBtn = document.getElementById('feed-inline-playpause-'+postId);
-          if(playBtn){ playBtn.innerHTML = ICON_PLAY; playBtn.title = 'Play'; }
-        }
-        feedPlayerSongUrl = null;
-        feedPlayerActiveSchedule = null;
-        feedPlayerScheduleFired = -1;
-        feedPlayerCurrentEffect = 'scene';
-        const sceneFrame = feedPlayerFrame('scene');
-        const sep = FEED_SCENE_PAGE.endsWith('?') ? '' : '&';
-        let src = FEED_SCENE_PAGE + sep
-          + 'vocals=' + encodeURIComponent(p.media.stems.vocals)
-          + '&drums=' + encodeURIComponent(p.media.stems.drums)
-          + '&bass=' + encodeURIComponent(p.media.stems.bass)
-          + '&other=' + encodeURIComponent(p.media.stems.other)
-          + '&active=1';
-        if(p.media.stemsCfg) src += '&cfg=' + encodeURIComponent(JSON.stringify(p.media.stemsCfg));
-        if(feedPlayerStartTime > 1) src += '&t=' + feedPlayerStartTime.toFixed(2);
-        sceneFrame.src = src;
-        sceneFrame.hidden = false;
-        sceneFrame.style.opacity = '1';
-        sceneFrame.style.pointerEvents = 'auto';
-        document.getElementById('feed-player-effect-select').hidden = true;
-        document.getElementById('feed-player-overlay').hidden = false;
-        return;
-      }
       // actually PAUSE the inline preview's own audio (not just mute it) —
       // otherwise it keeps playing silently underneath and any delay before
       // the mute message lands is audible as a doubled/echoed overlap.
@@ -8575,7 +8005,7 @@
     },
     closeFeedPlayer(){
       document.getElementById('feed-player-overlay').hidden = true;
-      Object.keys(FEED_EFFECT_PAGES).concat('scene').forEach(e=>{
+      Object.keys(FEED_EFFECT_PAGES).forEach(e=>{
         const frame = feedPlayerFrame(e);
         feedPlayerFadeAnims[e]?.cancel();
         delete feedPlayerFadeAnims[e];
