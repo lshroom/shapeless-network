@@ -44,6 +44,9 @@
   <button class="dot" data-i="2" title="Superformula Shape"></button>
   <button class="dot" data-i="3" title="Mandelbulb Fractal"></button>
   <button class="dot" data-i="4" title="SDF Morph Field"></button>
+  <button class="dot" data-i="5" title="Wave Interference Field"></button>
+  <button class="dot" data-i="6" title="Chladni Plate"></button>
+  <button class="dot" data-i="7" title="Resonant Spiderweb"></button>
   <button id="beatBtn" class="on">⚡ Auto: ON</button>
   <button id="ctlBtn" title="Controls">⚙</button>
   <button id="fsBtn" title="Fullscreen">⛶</button>
@@ -157,15 +160,21 @@ function sampleAudio() {
   audio.kick = kickPulse;
 }
 
-// ---- the 5 shapes, as ONE raymarched SDF field ----
-// Instead of 5 separate engines that get torn down and rebuilt on switch
-// (a hard cut), all 5 shapes are distance functions inside a single shader.
-// Switching plays a real liquid morph: uMorph ramps 0→1 and de() blends the
-// outgoing and incoming distance fields together with mix() — since a
-// distance field IS the shape, blending the fields blends the geometry
-// itself, so the surface genuinely deforms from one shape into the next
-// instead of cutting or fading.
-const SHAPE_NAMES = ['Fluff','Gyroid Lattice','Superformula Shape','Mandelbulb Fractal','SDF Morph Field'];
+// ---- all 8 shapes (the original 5 solids + the 3 former "field" cymatics
+// patterns), as ONE raymarched SDF field ----
+// Instead of separate engines that get torn down and rebuilt on switch (a
+// hard cut), every shape — solid or plate — is a distance function inside a
+// single shader. Switching plays a real liquid morph: uMorph ramps 0→1 and
+// de() blends the outgoing and incoming distance fields together with mix()
+// — since a distance field IS the shape, blending the fields blends the
+// geometry itself, so the surface genuinely deforms from one shape into the
+// next instead of cutting or fading. The cymatics patterns used to live on
+// their own vertex-displaced plane in a separate page (field.html) — here
+// they're the exact same height functions, just expressed as a heightfield
+// SDF (`p.y - h(x,z)`, the standard raymarched-terrain trick) so they blend
+// through the same de()/liquid-bulge machinery as the solids instead of
+// requiring a hard page-to-page cut.
+const SHAPE_NAMES = ['Fluff','Gyroid Lattice','Superformula Shape','Mandelbulb Fractal','SDF Morph Field','Wave Interference Field','Chladni Plate','Resonant Spiderweb'];
 const MORPH_FRAG = `
 ${GLSL.snoise3}
 ${GLSL.palette}
@@ -218,12 +227,45 @@ float deSdfMorph(vec3 p){
   }
   return d;
 }
+// The originals were a finite EXTENT=7 plane; a raw heightfield SDF (p.y-h)
+// is an infinite tilted sheet, so each is intersected with a spherical bound
+// (max(...)) — the same trick deGyroid already uses to cap its lattice —
+// producing a bounded patch that fits the same ~2-unit envelope every other
+// shape lives in, so the morph reads as one continuous object throughout.
+float deWaveField(vec3 p){
+  float v=0.0;
+  for(int s=0;s<3;s++){
+    float ang=uTime*0.5+float(s)*2.0943951;
+    float sx=cos(ang)*1.6, sz=sin(ang)*1.6;
+    float d=length(vec2(p.x-sx,p.z-sz));
+    v += sin(d*6.5*(1.0+uMid*0.5)-uTime*4.0)/(1.0+d*0.5);
+  }
+  float h = v*1.0*(0.5+uBass)*0.4;
+  return max(p.y - h, length(p)-2.1);
+}
+float deChladniField(vec3 p){
+  float ext=2.6;
+  float m=4.0+uMid*3.0, n=3.0+uHigh*2.0;
+  float u=p.x/ext+0.5, v=p.z/ext+0.5;
+  float h=(sin(m*3.14159265*u)*sin(n*3.14159265*v)-sin(n*3.14159265*u)*sin(m*3.14159265*v))*0.7*(0.5+uBass);
+  return max(p.y - h, length(p)-2.1);
+}
+float deWebField(vec3 p){
+  float rad=length(p.xz), ang=atan(p.z,p.x);
+  float spoke=pow(abs(cos(ang*7.0)),10.0);
+  float ring=pow(abs(cos(rad*3.6-uTime*0.6)),10.0);
+  float h=(max(spoke,ring)*0.6-0.12)*(0.4+uRms*2.0);
+  return max(p.y - h, length(p)-2.1);
+}
 float deShape(int id, vec3 p){
   if(id==0) return deFluff(p);
   if(id==1) return deGyroid(p);
   if(id==2) return deMandelbulb(p);
   if(id==3) return deSuperformula(p);
-  return deSdfMorph(p);
+  if(id==4) return deSdfMorph(p);
+  if(id==5) return deWaveField(p);
+  if(id==6) return deChladniField(p);
+  return deWebField(p);
 }
 float de(vec3 p){
   float dA=deShape(uCur,p);
@@ -240,7 +282,7 @@ float de(vec3 p){
   return mix(dA,dB,t) - liquid;
 }
 vec3 shapeColor(int id){
-  float hue = id==0 ? 0.08 : id==1 ? 0.55 : id==2 ? 0.75 : id==3 ? 0.33 : 0.9;
+  float hue = id==0 ? 0.08 : id==1 ? 0.55 : id==2 ? 0.75 : id==3 ? 0.33 : id==4 ? 0.9 : id==5 ? 0.58 : id==6 ? 0.82 : 0.62;
   return spectral(hue + uTime*0.02);
 }
 vec3 render(vec3 ro, vec3 rd){

@@ -388,14 +388,11 @@
   .feed-schedule-head{ display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid var(--line); font-size:13.5px; font-weight:600; }
   .feed-schedule-close{ background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; padding:2px 6px; }
   .feed-schedule-preview{ position:relative; width:100%; aspect-ratio:4/3; background:#05060a; }
-  .feed-schedule-frame{ position:absolute; inset:0; width:100%; height:100%; border:0; opacity:0; pointer-events:none; transition:opacity .25s ease; }
+  .feed-schedule-frame{ position:absolute; inset:0; width:100%; height:100%; border:0; opacity:0; pointer-events:none; transition:opacity .9s ease; }
   .feed-schedule-frame[data-active="true"]{ opacity:1; pointer-events:auto; }
   .feed-schedule-shapes{ display:flex; flex-wrap:wrap; gap:6px; padding:10px 14px 0; }
   .feed-schedule-shape-btn{ background:var(--surface-2); color:var(--muted); border:1px solid var(--line); border-radius:99px; padding:6px 12px; font-size:11.5px; cursor:pointer; }
   .feed-schedule-shape-btn[data-active="true"]{ background:var(--accent); color:#04181B; border-color:transparent; font-weight:600; }
-  .feed-schedule-page-toggle{ display:flex; gap:6px; padding:10px 14px 0; }
-  .feed-schedule-page-toggle button{ flex:1; background:var(--surface-2); color:var(--muted); border:1px solid var(--line); border-radius:8px; padding:7px; font-size:12px; cursor:pointer; }
-  .feed-schedule-page-toggle button[data-active="true"]{ background:var(--accent-dim); color:var(--accent); border-color:var(--accent); font-weight:600; }
   .feed-schedule-transport{ display:flex; align-items:center; gap:8px; padding:12px 14px 8px; }
   .feed-schedule-transport button{ background:var(--surface-2); color:var(--muted); border:1px solid var(--line); border-radius:99px; width:36px; height:36px; flex:none; cursor:pointer; font-size:15px; }
   .feed-schedule-transport span{ font-family:var(--font-mono); font-size:12.5px; color:var(--muted); }
@@ -404,17 +401,13 @@
       , var(--surface-2); border:1px solid var(--line); border-radius:10px; cursor:pointer; touch-action:none; }
   .feed-schedule-playhead{ position:absolute; top:0; bottom:0; width:1px; background:var(--ink); opacity:.6; pointer-events:none; }
   .feed-schedule-marker{ position:absolute; top:3px; bottom:3px; width:5px; margin-left:-2.5px; border-radius:3px; cursor:grab; touch-action:none;
-      background:var(--muted); opacity:.55; }
-  .feed-schedule-marker[data-page="sphere"]{ background:var(--accent); }
-  .feed-schedule-marker[data-page="field"]{ background:var(--accent-2); }
+      background:var(--accent); opacity:.55; }
   .feed-schedule-marker[data-selected="true"]{ opacity:1; box-shadow:0 0 0 1px var(--ink); }
   .feed-schedule-add-btn{ margin:10px 14px 0; }
   .feed-schedule-marker-list{ display:flex; flex-direction:column; gap:5px; padding:12px 14px 0; max-height:180px; overflow-y:auto; }
   .feed-schedule-marker-row{ display:flex; align-items:center; gap:8px; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:7px 9px; cursor:pointer; }
   .feed-schedule-marker-row[data-selected="true"]{ border-color:var(--accent); background:color-mix(in srgb, var(--accent) 8%, var(--surface-2)); }
-  .feed-schedule-marker-row .fsr-dot{ width:7px; height:7px; border-radius:50%; flex:none; background:var(--muted); }
-  .feed-schedule-marker-row[data-page="sphere"] .fsr-dot{ background:var(--accent); }
-  .feed-schedule-marker-row[data-page="field"] .fsr-dot{ background:var(--accent-2); }
+  .feed-schedule-marker-row .fsr-dot{ width:7px; height:7px; border-radius:50%; flex:none; background:var(--accent); }
   .feed-schedule-marker-row .fsr-time{ font-family:var(--font-mono); font-size:12px; color:var(--ink); width:40px; }
   .feed-schedule-marker-row .fsr-label{ flex:1; font-size:12px; color:var(--muted); }
   .feed-schedule-marker-row button{ background:none; border:none; color:var(--muted); font-size:12px; cursor:pointer; padding:4px 6px; flex:none; }
@@ -1185,12 +1178,7 @@
           <button class="feed-schedule-close" onclick="app.closeScheduleEditor()">✕</button>
         </div>
         <div class="feed-schedule-preview">
-          <iframe id="feed-schedule-frame-sphere" class="feed-schedule-frame" allow="autoplay"></iframe>
-          <iframe id="feed-schedule-frame-field" class="feed-schedule-frame" allow="autoplay"></iframe>
-        </div>
-        <div class="feed-schedule-page-toggle">
-          <button data-page="sphere" onclick="app.setSelectedMarkerPage('sphere')">Sphere</button>
-          <button data-page="field" onclick="app.setSelectedMarkerPage('field')">Field</button>
+          <iframe id="feed-schedule-frame-sphere" class="feed-schedule-frame" data-active="true" allow="autoplay"></iframe>
         </div>
         <div class="feed-schedule-shapes" id="feed-schedule-shapes"></div>
         <div class="feed-schedule-transport">
@@ -1990,7 +1978,7 @@
   const FEED_PLAYER_LAST_TIME = {}; // effect -> last known playback position, so switching cube/sphere/field mid-song doesn't jump
   addEventListener('message', e=>{
     if(e.data?.type !== 'timeupdate') return;
-    const schedActiveFrame = scheduleFrameCurrentPage && scheduleFrame(scheduleFrameCurrentPage);
+    const schedActiveFrame = scheduleFrame();
     if(schedActiveFrame && schedActiveFrame.contentWindow === e.source){
       scheduleCurrentTime = e.data.currentTime;
       scheduleDuration = e.data.duration || scheduleDuration;
@@ -2161,10 +2149,12 @@
   // playing its own copy of the song; "switching" just shows one iframe and
   // pauses the others in place via postMessage, instead of reloading anything.
   const FEED_EFFECT_CACHE_BUST = 16; // bump this any time destinys-child/sphere/field.html change — the browser/CDN otherwise keeps serving the old iframe content indefinitely since these URLs never change on their own.
+  // 'field' is kept only so posts saved before this merge still render — every
+  // shape (the old sphere solids AND the old field cymatics patterns) now
+  // lives inside sphere.html as one continuously-deformable SDF, so nothing
+  // new is ever authored on the 'field' page again.
   const FEED_EFFECT_PAGES = { cube: 'effects-lab/destinys-child.html?world=1&v=' + FEED_EFFECT_CACHE_BUST, sphere: 'effects-lab/sphere.html?v=' + FEED_EFFECT_CACHE_BUST, field: 'effects-lab/field.html?v=' + FEED_EFFECT_CACHE_BUST };
-  const SPHERE_SHAPE_NAMES = ['Fluff','Gyroid','Superformula','Mandelbulb','SDF Morph'];
-  const FIELD_SHAPE_NAMES = ['Waves','Chladni','Spiderweb'];
-  const SCHEDULE_SHAPE_NAMES = { sphere: SPHERE_SHAPE_NAMES, field: FIELD_SHAPE_NAMES };
+  const SPHERE_SHAPE_NAMES = ['Fluff','Gyroid','Superformula','Mandelbulb','SDF Morph','Waves','Chladni','Spiderweb'];
   // Upload-time timeline editor state — separate from the fullscreen player's
   // own feedPlayer* state above, since this drives one small preview iframe
   // and edits a draft schedule that only gets attached to the post on save.
@@ -2176,47 +2166,25 @@
   let scheduleCurrentTime = 0;
   let schedulePlaying = false;
   let scheduleDragMarker = null;
-  let scheduleFrameCurrentPage = null;
   let scheduleFiredIdx = -1;
-  function scheduleFrame(page){ return document.getElementById('feed-schedule-frame-' + page); }
-  // Both sphere and field preview frames load once and keep running in
-  // lockstep the whole time the editor is open — "switching" just swaps
-  // which one is visible/audible via postMessage, the same trick the real
-  // fullscreen player uses. Reloading a frame's src on every switch (the
-  // first version of this editor) meant restarting that page's audio
-  // decode/connect each time, which is exactly what caused the stutter.
-  function loadScheduleFrames(initialPage, initialShape){
+  function scheduleFrame(){ return document.getElementById('feed-schedule-frame-sphere'); }
+  // Every shape — the old sphere solids and the old field cymatics patterns
+  // — now lives inside sphere.html as ONE raymarched SDF field (see
+  // effects-lab/sphere.html), so there's only ever one frame here. It loads
+  // once and never reloads its src again; every switch, including what used
+  // to be a sphere↔field cut, is a real setShape morph — the same liquid
+  // deform the sphere shapes always had, now covering all 8.
+  function loadScheduleFrame(initialShape){
     if(!scheduleUploadedMedia) return;
-    ['sphere','field'].forEach(page=>{
-      const base = FEED_EFFECT_PAGES[page];
-      const sep = base.endsWith('?') ? '' : '&';
-      const shape = page === initialPage ? initialShape : 0;
-      const src = base + sep + 'song=' + encodeURIComponent(scheduleUploadedMedia.url) + '&driven=1&shape=' + shape + '&muted=1&active=0';
-      scheduleFrame(page).src = src;
-    });
-    scheduleFrameCurrentPage = initialPage;
-    document.querySelectorAll('.feed-schedule-frame').forEach(f=>{
-      f.dataset.active = (f.id === 'feed-schedule-frame-' + initialPage) ? 'true' : 'false';
-    });
-    // give both pages a beat to load before unmuting the starting one
-    setTimeout(()=> scheduleFrame(initialPage).contentWindow?.postMessage({ type:'mute', muted:false }, '*'), 300);
+    const base = FEED_EFFECT_PAGES.sphere;
+    const sep = base.endsWith('?') ? '' : '&';
+    scheduleFrame().src = base + sep + 'song=' + encodeURIComponent(scheduleUploadedMedia.url) + '&driven=1&shape=' + initialShape + '&muted=0&active=0';
   }
-  function switchSchedulePage(page, shape, instant){
-    if(page === scheduleFrameCurrentPage){
-      scheduleFrame(page).contentWindow?.postMessage({ type:'setShape', index:shape, instant }, '*');
-      return;
-    }
-    const outgoing = scheduleFrameCurrentPage, incoming = page;
-    if(outgoing) scheduleFrame(outgoing).contentWindow?.postMessage({ type:'mute', muted:true }, '*');
-    scheduleFrame(incoming).contentWindow?.postMessage({ type:'setShape', index:shape, instant:true }, '*');
-    scheduleFrame(incoming).contentWindow?.postMessage({ type:'mute', muted:false }, '*');
-    document.querySelectorAll('.feed-schedule-frame').forEach(f=>{
-      f.dataset.active = (f.id === 'feed-schedule-frame-' + incoming) ? 'true' : 'false';
-    });
-    scheduleFrameCurrentPage = incoming;
+  function switchScheduleShape(shape, instant){
+    scheduleFrame().contentWindow?.postMessage({ type:'setShape', index:shape, instant }, '*');
   }
   function scheduleBroadcast(msg){
-    ['sphere','field'].forEach(page=> scheduleFrame(page)?.contentWindow?.postMessage(msg, '*'));
+    scheduleFrame()?.contentWindow?.postMessage(msg, '*');
   }
   // Rough energy-novelty pass over the actual audio: chunks the track into
   // 1s blocks, tracks each block's loudness against a rolling baseline of the
@@ -2267,18 +2235,15 @@
     if(idx === scheduleFiredIdx) return;
     scheduleFiredIdx = idx;
     const entry = sched[idx];
-    switchSchedulePage(entry.page, entry.shape, entry.page !== scheduleFrameCurrentPage);
+    switchScheduleShape(entry.shape, false);
   }
   function renderScheduleShapePalette(){
     const m = scheduleDraft?.markers[scheduleSelectedMarkerIdx];
-    document.querySelectorAll('.feed-schedule-page-toggle button').forEach(b=>{
-      b.dataset.active = (m && b.dataset.page === m.page) ? 'true' : 'false';
-    });
     const wrap = document.getElementById('feed-schedule-shapes');
     if(!wrap) return;
     wrap.innerHTML = '';
     if(!m) return;
-    (SCHEDULE_SHAPE_NAMES[m.page] || []).forEach((name,i)=>{
+    SPHERE_SHAPE_NAMES.forEach((name,i)=>{
       const btn = document.createElement('button');
       btn.className = 'feed-schedule-shape-btn';
       btn.textContent = name;
@@ -2302,11 +2267,10 @@
       scheduleDraft.markers.forEach((m,i)=>{
         const el = document.createElement('div');
         el.className = 'feed-schedule-marker';
-        el.dataset.page = m.page;
         el.dataset.selected = (i === scheduleSelectedMarkerIdx) ? 'true' : 'false';
         const p = scheduleDuration > 0 ? (m.t/scheduleDuration)*100 : 0;
         el.style.left = p + '%';
-        const label = (SCHEDULE_SHAPE_NAMES[m.page]||[])[m.shape] || '';
+        const label = SPHERE_SHAPE_NAMES[m.shape] || '';
         el.title = label + ' @ ' + fmtInlineTime(m.t);
         el.addEventListener('pointerdown', ev=>{ ev.stopPropagation(); app.selectMarker(i); scheduleDragMarker = m; });
         track.appendChild(el);
@@ -2323,9 +2287,8 @@
     scheduleDraft.markers.forEach((m,i)=>{
       const row = document.createElement('div');
       row.className = 'feed-schedule-marker-row';
-      row.dataset.page = m.page;
       row.dataset.selected = (i === scheduleSelectedMarkerIdx) ? 'true' : 'false';
-      const label = (SCHEDULE_SHAPE_NAMES[m.page]||[])[m.shape] || '';
+      const label = SPHERE_SHAPE_NAMES[m.shape] || '';
       row.innerHTML = `<span class="fsr-dot"></span><span class="fsr-time">${fmtInlineTime(m.t)}</span><span class="fsr-label">${label}</span>`;
       if(i > 0){
         const back = document.createElement('button'); back.className='fsr-nudge'; back.textContent='−1s';
@@ -7747,14 +7710,13 @@
       document.getElementById('feed-schedule-play').textContent = '▶';
       document.getElementById('feed-schedule-modal').hidden = false;
       renderScheduleShapePalette();
-      loadScheduleFrames(scheduleDraft.markers[0].page, scheduleDraft.markers[0].shape);
+      loadScheduleFrame(scheduleDraft.markers[0].shape);
       renderScheduleTrack();
     },
     closeScheduleEditor(){
       document.getElementById('feed-schedule-modal').hidden = true;
       scheduleBroadcast({ type: 'pause' });
-      ['sphere','field'].forEach(page=> scheduleFrame(page).src = 'about:blank');
-      scheduleFrameCurrentPage = null;
+      scheduleFrame().src = 'about:blank';
       schedulePlaying = false;
     },
     saveScheduleEditor(){
@@ -7780,7 +7742,7 @@
         let idx = 0;
         for(let i=0;i<scheduleDraft.markers.length;i++){ if(scheduleDraft.markers[i].t <= t) idx = i; else break; }
         const entry = scheduleDraft.markers[idx];
-        switchSchedulePage(entry.page, entry.shape, true);
+        switchScheduleShape(entry.shape, true);
       }
       renderScheduleTrack();
     },
@@ -7791,7 +7753,7 @@
       const near = scheduleDraft.markers.findIndex(m => Math.abs(m.t - scheduleCurrentTime) < 0.35);
       if(near >= 0){ app.selectMarker(near); return; }
       const ref = scheduleDraft.markers[scheduleSelectedMarkerIdx] || scheduleDraft.markers[scheduleDraft.markers.length-1];
-      const marker = { t: scheduleCurrentTime, page: ref?.page || 'sphere', shape: ref?.shape ?? 0 };
+      const marker = { t: scheduleCurrentTime, page: 'sphere', shape: ref?.shape ?? 0 };
       scheduleDraft.markers.push(marker);
       scheduleDraft.markers.sort((a,b)=>a.t-b.t);
       scheduleSelectedMarkerIdx = scheduleDraft.markers.indexOf(marker);
@@ -7809,7 +7771,7 @@
       if(!m) return;
       scheduleCurrentTime = m.t;
       scheduleFiredIdx = -1;
-      if(!schedulePlaying) switchSchedulePage(m.page, m.shape, true);
+      if(!schedulePlaying) switchScheduleShape(m.shape, true);
       scheduleBroadcast({ type:'seek', time: m.t });
       renderScheduleTrack();
     },
@@ -7828,21 +7790,13 @@
       renderScheduleShapePalette();
       renderScheduleTrack();
     },
-    setSelectedMarkerPage(page){
-      const m = scheduleDraft?.markers[scheduleSelectedMarkerIdx];
-      if(!m) return;
-      m.page = page; m.shape = 0;
-      renderScheduleShapePalette();
-      renderScheduleTrack();
-      if(!schedulePlaying) switchSchedulePage(m.page, m.shape, true);
-    },
     setSelectedMarkerShape(shapeIdx){
       const m = scheduleDraft?.markers[scheduleSelectedMarkerIdx];
       if(!m) return;
       m.shape = shapeIdx;
       renderScheduleShapePalette();
       renderScheduleTrack();
-      if(!schedulePlaying) switchSchedulePage(m.page, shapeIdx, true);
+      if(!schedulePlaying) switchScheduleShape(shapeIdx, false);
     },
     async suggestSwitchPoints(){
       if(!scheduleDraft || !scheduleUploadedMedia) return;
@@ -7852,18 +7806,13 @@
         const hits = await analyzeWaveformForSwitchPoints(scheduleUploadedMedia.url);
         let added = 0;
         const maxEnergy = hits.reduce((m,h)=>Math.max(m,h.energy), 0.0001);
-        // Ranked calm → intense within each page, so a quiet moment gets a
-        // gentler shape and a hard hit gets the most chaotic one available.
-        const SPHERE_INTENSITY = [0,1,2,4,3]; // Fluff, Gyroid, Superformula, SDF Morph, Mandelbulb
-        const FIELD_INTENSITY = [0,1,2];      // Waves, Chladni, Spiderweb
-        let toggle = 0;
+        // Ranked calm → intense across all 8 shapes, so a quiet moment gets a
+        // gentler one and a hard hit gets the most chaotic one available.
+        const INTENSITY = [5,0,1,6,2,7,4,3]; // Waves, Fluff, Gyroid, Chladni, Superformula, Spiderweb, SDF Morph, Mandelbulb
         hits.forEach(({t, energy})=>{
           if(scheduleDraft.markers.some(m => Math.abs(m.t - t) < 1)) return; // don't crowd an existing/just-added marker
-          const page = toggle % 2 === 0 ? 'sphere' : 'field';
-          toggle++;
-          const order = page === 'sphere' ? SPHERE_INTENSITY : FIELD_INTENSITY;
-          const tier = Math.min(order.length - 1, Math.floor((energy / maxEnergy) * order.length));
-          scheduleDraft.markers.push({ t, page, shape: order[tier] });
+          const tier = Math.min(INTENSITY.length - 1, Math.floor((energy / maxEnergy) * INTENSITY.length));
+          scheduleDraft.markers.push({ t, page: 'sphere', shape: INTENSITY[tier] });
           added++;
         });
         scheduleDraft.markers.sort((a,b)=>a.t-b.t);
