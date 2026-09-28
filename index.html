@@ -2175,7 +2175,9 @@
   // lives inside sphere.html as one continuously-deformable SDF, so nothing
   // new is ever authored on the 'field' page again.
   const FEED_EFFECT_PAGES = { cube: 'effects-lab/destinys-child.html?world=1&v=' + FEED_EFFECT_CACHE_BUST, sphere: 'effects-lab/sphere.html?v=' + FEED_EFFECT_CACHE_BUST, field: 'effects-lab/field.html?v=' + FEED_EFFECT_CACHE_BUST };
-  const SPHERE_SHAPE_NAMES = ['Fluff','Gyroid','Superformula','Mandelbulb','SDF Morph','Waves','Chladni','Spiderweb'];
+  // Keep this in the exact same order as sphere.html's own SHAPE_NAMES —
+  // index here is the shape id both pages agree on.
+  const SPHERE_SHAPE_NAMES = ['Fluff','Gyroid','Superformula','Mandelbulb','SDF Morph','Waves','Chladni','Spiderweb','Sea Anemone','Anemone Spiral','Sand Dunes','Slime Mold','Aurora Curtains','Catenoid Helicoid','Vector Field','Ripple Tank',"Jacob's Ladder",'Virus Capsid','Soap Bubbles','Hilbert Curve','Spin Wave'];
   // Upload-time timeline editor state — separate from the fullscreen player's
   // own feedPlayer* state above, since this drives one small preview iframe
   // and edits a draft schedule that only gets attached to the post on save.
@@ -2246,7 +2248,30 @@
         lastHitBlock = b;
       }
     }
-    return hits;
+    // A relative-onset detector goes quiet through a section that's just
+    // steady — no fast/slow divergence even though there's still a beat
+    // sitting under it — and that read as "not really switching" there. Any
+    // gap wider than maxGapSec (between hits, or before the first/after the
+    // last) gets a few evenly-spaced points using that stretch's own real
+    // (low) energy — still ranked calm by suggestSwitchPoints below, just no
+    // longer a dead stretch with zero movement.
+    const duration = data.length / sr;
+    const maxGapSec = 7;
+    const filled = []; let prevT = 0;
+    const fillGap = (fromT, toT) => {
+      const gap = toT - fromT;
+      if(gap <= maxGapSec) return;
+      const n = Math.floor(gap / maxGapSec);
+      for(let i=1;i<=n;i++){
+        const t = fromT + (gap * i) / (n + 1);
+        const b = Math.min(blocks - 1, Math.max(0, Math.round(t * sr / blockSize)));
+        filled.push({ t, energy: energy[b], ambient: true });
+      }
+    };
+    hits.forEach(h => { fillGap(prevT, h.t); filled.push(h); prevT = h.t; });
+    fillGap(prevT, duration);
+    filled.sort((a,b)=>a.t-b.t);
+    return filled;
   }
   function scheduleApplyTick(){
     if(!scheduleDraft) return;
@@ -7830,9 +7855,13 @@
         const hits = await analyzeWaveformForSwitchPoints(scheduleUploadedMedia.url);
         let added = 0;
         const maxEnergy = hits.reduce((m,h)=>Math.max(m,h.energy), 0.0001);
-        // Ranked calm → intense across all 8 shapes, so a quiet moment gets a
-        // gentler one and a hard hit gets the most chaotic one available.
-        const INTENSITY = [5,0,1,6,2,7,4,3]; // Waves, Fluff, Gyroid, Chladni, Superformula, Spiderweb, SDF Morph, Mandelbulb
+        // Ranked calm → intense across all 21 shapes, so a quiet moment gets a
+        // gentler one (or one of the "ambient" fill points a dead stretch now
+        // gets — see analyzeWaveformForSwitchPoints) and a hard hit gets the
+        // most chaotic one available. More shapes in rotation now too, so a
+        // long song doesn't keep landing on the same handful.
+        const INTENSITY = [5,12,15,10,0,20,18, 1,6,8,9,11,13,19, 4,2,7,3,14,16,17];
+        // Waves,Aurora,RippleTank,SandDunes,Fluff,SpinWave,SoapBubbles | Gyroid,Chladni,SeaAnemone,AnemoneSpiral,SlimeMold,CatenoidHelicoid,HilbertCurve | SDFMorph,Superformula,Spiderweb,Mandelbulb,VectorField,JacobsLadder,VirusCapsid
         hits.forEach(({t, energy})=>{
           if(scheduleDraft.markers.some(m => Math.abs(m.t - t) < 1)) return; // don't crowd an existing/just-added marker
           const tier = Math.min(INTENSITY.length - 1, Math.floor((energy / maxEnergy) * INTENSITY.length));

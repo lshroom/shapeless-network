@@ -10,7 +10,7 @@
   html,body{margin:0;padding:0;height:100%;background:#05060a;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;}
   canvas{display:block;touch-action:none;}
   #stage{position:fixed;inset:0;z-index:1;}
-  #bar{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;align-items:center;justify-content:center;gap:8px;
+  #bar{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;
        padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
        background:linear-gradient(to top,rgba(0,0,0,.75),transparent);}
   .dot{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.35);
@@ -22,6 +22,11 @@
   #ctlBtn.on{background:rgba(139,155,255,.28);border-color:#8b9bff;color:#cdd4ff;}
   #fsBtn{margin-left:auto;padding:6px 9px;font-size:13px;}
   #noSrc{position:fixed;bottom:56px;left:0;right:0;text-align:center;color:rgba(255,255,255,.4);font-size:11px;z-index:5;pointer-events:none;}
+  #prep{position:fixed;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;
+        background:#05060a;color:rgba(255,255,255,.55);font-size:12px;letter-spacing:.02em;}
+  #prep.hidden{display:none;}
+  #prep .spin{width:22px;height:22px;border-radius:50%;border:2px solid rgba(139,155,255,.25);border-top-color:#8b9bff;animation:prepspin .8s linear infinite;}
+  @keyframes prepspin{to{transform:rotate(360deg);}}
   #modeName{position:fixed;top:12px;left:12px;z-index:10;color:#f5f5f7;font-size:13px;font-weight:600;letter-spacing:.02em;background:rgba(10,10,14,.55);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:6px 12px;}
   body.kiosk #bar{padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));}
   #controlPanel{position:fixed;top:12px;right:12px;z-index:10;display:flex;flex-direction:column;gap:6px;
@@ -35,6 +40,7 @@
 </head>
 <body>
 <canvas id="stage"></canvas>
+<div id="prep"><div class="spin"></div><div>Preparing visuals…</div></div>
 <div id="noSrc">waiting for audio…</div>
 <div id="controlPanel"></div>
 <div id="modeName">Fluff</div>
@@ -47,6 +53,19 @@
   <button class="dot" data-i="5" title="Wave Interference Field"></button>
   <button class="dot" data-i="6" title="Chladni Plate"></button>
   <button class="dot" data-i="7" title="Resonant Spiderweb"></button>
+  <button class="dot" data-i="8" title="Sea Anemone"></button>
+  <button class="dot" data-i="9" title="Anemone Spiral"></button>
+  <button class="dot" data-i="10" title="Sand Dunes"></button>
+  <button class="dot" data-i="11" title="Slime Mold"></button>
+  <button class="dot" data-i="12" title="Aurora Curtains"></button>
+  <button class="dot" data-i="13" title="Catenoid Helicoid"></button>
+  <button class="dot" data-i="14" title="Vector Field"></button>
+  <button class="dot" data-i="15" title="Ripple Tank"></button>
+  <button class="dot" data-i="16" title="Jacob's Ladder"></button>
+  <button class="dot" data-i="17" title="Virus Capsid"></button>
+  <button class="dot" data-i="18" title="Soap Bubbles"></button>
+  <button class="dot" data-i="19" title="Hilbert Curve"></button>
+  <button class="dot" data-i="20" title="Spin Wave"></button>
   <button id="beatBtn" class="on">⚡ Auto: ON</button>
   <button id="ctlBtn" title="Controls">⚙</button>
   <button id="fsBtn" title="Fullscreen">⛶</button>
@@ -174,12 +193,14 @@ function sampleAudio() {
 // SDF (`p.y - h(x,z)`, the standard raymarched-terrain trick) so they blend
 // through the same de()/liquid-bulge machinery as the solids instead of
 // requiring a hard page-to-page cut.
-const SHAPE_NAMES = ['Fluff','Gyroid Lattice','Superformula Shape','Mandelbulb Fractal','SDF Morph Field','Wave Interference Field','Chladni Plate','Resonant Spiderweb'];
+const SHAPE_NAMES = ['Fluff','Gyroid Lattice','Superformula Shape','Mandelbulb Fractal','SDF Morph Field','Wave Interference Field','Chladni Plate','Resonant Spiderweb','Sea Anemone','Anemone Spiral','Sand Dunes','Slime Mold','Aurora Curtains','Catenoid Helicoid','Vector Field','Ripple Tank',"Jacob's Ladder",'Virus Capsid','Soap Bubbles','Hilbert Curve','Spin Wave'];
 const MORPH_FRAG = `
 ${GLSL.snoise3}
+${GLSL.hash}
 ${GLSL.palette}
 uniform int uCur, uNext;
 uniform float uMorph;
+uniform vec3 uJitter;
 
 float deFluff(vec3 p){
   float n = snoise(p*2.2+uTime*0.15) + 0.5*snoise(p*4.4-uTime*0.1);
@@ -257,6 +278,133 @@ float deWebField(vec3 p){
   float h=(max(spoke,ring)*0.6-0.12)*(0.4+uRms*2.0);
   return max(p.y - h, length(p)-2.1);
 }
+// ---- second batch: 13 more shapes, contributed for more variety so the
+// morph never feels repetitive over a long song. Same house rules as above —
+// each stays inside the ~2-unit envelope every shape shares, and reacts to
+// uBass/uMid/uHigh/uBeat so it's alive even before it's this song's turn.
+float deAnemoneA(vec3 p){
+  float r=length(p);
+  float ang=atan(p.z,p.x);
+  float el=acos(clamp(p.y/max(r,0.0001),-1.0,1.0));
+  float tentacle=sin(ang*9.0+sin(uTime*1.3+el*3.0)*1.4+uTime*0.6)*0.5+0.5;
+  float wave=sin(uTime*2.2+el*6.0-r*3.0)*0.15*(0.4+uMid);
+  return r-(1.15+tentacle*0.55*(0.3+uBass)*smoothstep(0.2,1.0,el)+wave);
+}
+float deAnemoneB(vec3 p){
+  float r=length(p);
+  float ang=atan(p.z,p.x);
+  float el=acos(clamp(p.y/max(r,0.0001),-1.0,1.0));
+  float spiral=sin(ang*5.0+el*8.0-uTime*1.8)*0.5+0.5;
+  float flick=snoise(vec3(ang*2.0,el*2.0,uTime*0.8))*0.12*(0.3+uHigh);
+  return r-(1.1+spiral*0.5*(0.35+uBass)*smoothstep(0.15,1.0,el)+flick);
+}
+float deSandDunes(vec3 p){
+  float warp=snoise(vec3(p.x*0.6,0.0,p.z*0.6+uTime*0.05))*0.6;
+  float ridge=sin((p.x+warp)*2.2+uTime*0.15)*0.5+sin((p.x*0.5+p.z*0.9+warp)*1.6-uTime*0.1)*0.5;
+  float h=ridge*0.45*(0.4+uBass*0.6)+snoise(vec3(p.x*1.8,p.z*1.8,uTime*0.2))*0.08*(0.3+uMid);
+  return max(p.y-h, length(p)-2.2);
+}
+// A for-loop calling de() ~100x per pixel (the raymarcher) times a large
+// uniform-branch dispatch across every shape was what actually blew up
+// compile time in testing — not any one shape's runtime cost. Fixed 3-term
+// versions below (no dynamic loop) give the compiler far less to chew on
+// than a loop it has to unroll/analyze inside an already-huge function.
+float deTendril(vec3 p, vec3 c, vec3 dir, float r){
+  vec3 q=p-c;
+  float along=clamp(dot(q,dir),-0.7,0.7);
+  return length(p-(c+dir*along))-r;
+}
+float deSlimeMold(vec3 p){
+  float r=(0.1+0.05*sin(uTime*1.5))*(0.6+uBass*0.8);
+  float d=deTendril(p, vec3(sin(uTime*0.35)*0.7,sin(uTime*0.28)*0.5,cos(uTime*0.31)*0.7)*(0.65+uMid*0.5), normalize(vec3(sin(uTime*0.2),0.7,sin(1.1-uTime*0.15))), r);
+  d=sdfSmin(d, deTendril(p, vec3(sin(uTime*0.35+1.9)*0.7,sin(uTime*0.28+2.7)*0.5,cos(uTime*0.31+1.4)*0.7)*(0.65+uMid*0.5), normalize(vec3(sin(3.1+uTime*0.2),cos(2.3),sin(1.1*2.0-uTime*0.15))), r), 0.35);
+  d=sdfSmin(d, deTendril(p, vec3(sin(uTime*0.35+3.8)*0.7,sin(uTime*0.28+5.4)*0.5,cos(uTime*0.31+2.8)*0.7)*(0.65+uMid*0.5), normalize(vec3(sin(6.2+uTime*0.2),cos(4.6),sin(3.3-uTime*0.15))), r), 0.35);
+  return d;
+}
+float deAurora(vec3 p){
+  float sheet=sin(p.x*2.0+snoise(vec3(p.x*0.4,p.y*0.3,uTime*0.25))*2.0-uTime*0.6)*0.4;
+  float thickness=0.16+0.1*sin(p.y*1.5+uTime*0.4)*(0.3+uMid);
+  float d=abs(p.z-sheet)-thickness;
+  float vFall=abs(p.y)-1.6-0.3*uBass;
+  return max(max(d,vFall), length(p)-2.4);
+}
+float deCatHelic(vec3 p){
+  float r=length(p.xz), ang=atan(p.z,p.x);
+  float blend=0.5+0.5*sin(uTime*0.25);
+  float catY=log(max(r,0.05))*0.6;
+  float helY=ang*0.6/3.14159265*1.6;
+  float y=mix(catY,helY,blend);
+  float hgt=p.y-y*(0.6+uMid*0.4);
+  return max(abs(hgt)-0.12*(0.6+uBass*0.5), r-2.0);
+}
+float deVectorField(vec3 p){
+  // Reads as flow strands but stays cheap: curlNoise (3 snoise calls each)
+  // inside a loop, itself called ~600x per pixel by the raymarcher, was what
+  // hung the page outright in testing. Plain trig drift, unrolled to 3 fixed
+  // strands (no dynamic loop) instead — same wandering-streamline feel.
+  float spd=uTime*(0.6+uBass*0.8);
+  float rr=0.08*(0.7+uHigh*0.6);
+  vec3 c0=vec3(sin(0.0),cos(0.0),sin(0.0))*1.3+vec3(sin(spd*1.3),cos(spd*1.1),sin(spd*0.9))*0.6;
+  vec3 c1=vec3(sin(2.4),cos(1.7),sin(3.1))*1.3+vec3(sin(spd*1.3+1.7),cos(spd*1.1+2.3),sin(spd*0.9+3.1))*0.6;
+  vec3 c2=vec3(sin(4.8),cos(3.4),sin(6.2))*1.3+vec3(sin(spd*1.3+3.4),cos(spd*1.1+4.6),sin(spd*0.9+6.2))*0.6;
+  float d=length(p-c0)-rr;
+  d=sdfSmin(d, length(p-c1)-rr, 0.25);
+  d=sdfSmin(d, length(p-c2)-rr, 0.25);
+  return d;
+}
+float deRippleTank(vec3 p){
+  vec2 s1=vec2(0.9,0.0), s2=vec2(-0.9,0.0);
+  float d1=length(p.xz-s1), d2=length(p.xz-s2);
+  float w=sin(d1*7.0-uTime*4.0)+sin(d2*7.0-uTime*4.0*1.05);
+  float h=abs(w)*0.5*(0.35+uBass*0.7)-0.15;
+  return max(p.y-h, length(p)-2.2);
+}
+float deJacobsLadder(vec3 p){
+  float zig=snoise(vec3(p.y*2.5,uTime*2.2,0.0))*0.4*(0.3+uHigh*0.8);
+  vec3 c=vec3(zig,p.y,snoise(vec3(p.y*2.5+50.0,uTime*2.2,0.0))*0.15);
+  float bolt=length(p-c)-(0.045+0.05*uBeat);
+  float rodL=abs(length(p.xz-vec2(0.75,0.0))-0.03);
+  float rodR=abs(length(p.xz-vec2(-0.75,0.0))-0.03);
+  return max(min(bolt,min(rodL,rodR)), length(p)-2.0);
+}
+float deCapsid(vec3 p){
+  vec3 q=normalize(p);
+  float spikes=0.0;
+  spikes=max(spikes,pow(max(dot(q,normalize(vec3(sin(2.4),cos(1.7),sin(3.1)))),0.0),9.0));
+  spikes=max(spikes,pow(max(dot(q,normalize(vec3(sin(5.4),cos(3.4),sin(2.7)))),0.0),9.0));
+  spikes=max(spikes,pow(max(dot(q,normalize(vec3(sin(8.4),cos(5.1),sin(5.5)))),0.0),9.0));
+  spikes=max(spikes,pow(max(dot(q,normalize(vec3(sin(11.4),cos(6.8),sin(7.1)))),0.0),9.0));
+  spikes=max(spikes,pow(max(dot(q,normalize(vec3(sin(14.4),cos(8.5),sin(9.9)))),0.0),9.0));
+  spikes=max(spikes,pow(max(dot(q,normalize(vec3(sin(17.4),cos(10.2),sin(12.3)))),0.0),9.0));
+  float pulse=0.25+0.55*uBeat+0.2*uBass;
+  return length(p)-(1.15+spikes*pulse);
+}
+float deSoapBubbles(vec3 p){
+  float m=0.75+uMid*0.4, r=0.55+uBass*0.25;
+  vec3 c0=vec3(sin(uTime*0.4),cos(uTime*0.33),sin(uTime*0.28))*m;
+  vec3 c1=vec3(sin(uTime*0.4+2.4),cos(uTime*0.33+1.8),sin(uTime*0.28+3.1))*m;
+  vec3 c2=vec3(sin(uTime*0.4+4.8),cos(uTime*0.33+3.6),sin(uTime*0.28+6.2))*m;
+  float d=length(p-c0)-(r+0.18*sin(uTime*0.9));
+  d=sdfSmin(d, length(p-c1)-(r+0.18*sin(uTime*0.9+2.4)), 1.1);
+  d=sdfSmin(d, length(p-c2)-(r+0.18*sin(uTime*0.9+4.8)), 1.1);
+  return d+snoise(p*3.0+uTime*0.3)*0.03*(0.3+uHigh);
+}
+float sdBoxH(vec3 p, vec3 b){ vec3 q=abs(p)-b; return length(max(q,0.0))+min(max(q.x,max(q.y,q.z)),0.0); }
+float deHilbert(vec3 p){
+  float cell=0.5;
+  vec3 q=p/cell, idx=floor(q), f=fract(q)-0.5;
+  float h=hash11(dot(idx,vec3(12.9898,78.233,37.719))+floor(uTime*0.5));
+  float turn=step(0.5,h);
+  vec3 seg=mix(vec3(f.x,f.y*0.15,f.z*0.15), vec3(f.x*0.15,f.y,f.z*0.15), turn);
+  float d=sdBoxH(seg*cell, vec3(0.16,0.05,0.05)*cell*(0.6+uMid*0.5));
+  return max(d, length(p)-2.0);
+}
+float deSpinWave(vec3 p){
+  float r=length(p.xz), ang=atan(p.z,p.x);
+  float spiral=sin(r*5.0-ang*3.0-uTime*3.0*(0.5+uBass))*0.5;
+  float h=spiral*0.35*(0.4+uMid*0.6);
+  return max(p.y-h, length(p)-2.2);
+}
 float deShape(int id, vec3 p){
   if(id==0) return deFluff(p);
   if(id==1) return deGyroid(p);
@@ -265,9 +413,23 @@ float deShape(int id, vec3 p){
   if(id==4) return deSdfMorph(p);
   if(id==5) return deWaveField(p);
   if(id==6) return deChladniField(p);
-  return deWebField(p);
+  if(id==7) return deWebField(p);
+  if(id==8) return deAnemoneA(p);
+  if(id==9) return deAnemoneB(p);
+  if(id==10) return deSandDunes(p);
+  if(id==11) return deSlimeMold(p);
+  if(id==12) return deAurora(p);
+  if(id==13) return deCatHelic(p);
+  if(id==14) return deVectorField(p);
+  if(id==15) return deRippleTank(p);
+  if(id==16) return deJacobsLadder(p);
+  if(id==17) return deCapsid(p);
+  if(id==18) return deSoapBubbles(p);
+  if(id==19) return deHilbert(p);
+  return deSpinWave(p);
 }
 float de(vec3 p){
+  p -= uJitter;
   float dA=deShape(uCur,p);
   if(uMorph<=0.001) return dA;
   float dB=deShape(uNext,p);
@@ -282,7 +444,10 @@ float de(vec3 p){
   return mix(dA,dB,t) - liquid;
 }
 vec3 shapeColor(int id){
-  float hue = id==0 ? 0.08 : id==1 ? 0.55 : id==2 ? 0.75 : id==3 ? 0.33 : id==4 ? 0.9 : id==5 ? 0.58 : id==6 ? 0.82 : 0.62;
+  float hue;
+  if(id==0) hue=0.08; else if(id==1) hue=0.55; else if(id==2) hue=0.75; else if(id==3) hue=0.33;
+  else if(id==4) hue=0.9; else if(id==5) hue=0.58; else if(id==6) hue=0.82; else if(id==7) hue=0.62;
+  else hue=fract(float(id)*0.13+0.05); // golden-ratio-ish spread for the second batch — well-separated hues with no lookup table
   return spectral(hue + uTime*0.02);
 }
 vec3 render(vec3 ro, vec3 rd){
@@ -290,8 +455,24 @@ vec3 render(vec3 ro, vec3 rd){
   for(int i=0;i<100;i++){
     vec3 p=ro+rd*t; float d=de(p);
     if(d<0.0015){
-      vec2 e=vec2(0.002,0.0);
-      vec3 n=normalize(vec3(de(p+e.xyy)-de(p-e.xyy),de(p+e.yxy)-de(p-e.yxy),de(p+e.yyx)-de(p-e.yyx)));
+      // 6 individual de(p+e...) call sites is a documented WebGL compile-time
+      // bomb for exactly this shader shape (a big branchy distance function
+      // called from several unique spots) — one real writeup measured 2s to
+      // 0.2s just from moving this into a loop with a single call site. Same
+      // 6 samples, one call site instead of six.
+      float nx=0.0, ny=0.0, nz=0.0;
+      for(int gi=0;gi<6;gi++){
+        vec3 e=vec3(0.0); float sgn=1.0;
+        if(gi==0){ e=vec3(0.002,0.0,0.0); sgn=1.0; }
+        else if(gi==1){ e=vec3(0.002,0.0,0.0); sgn=-1.0; }
+        else if(gi==2){ e=vec3(0.0,0.002,0.0); sgn=1.0; }
+        else if(gi==3){ e=vec3(0.0,0.002,0.0); sgn=-1.0; }
+        else if(gi==4){ e=vec3(0.0,0.0,0.002); sgn=1.0; }
+        else { e=vec3(0.0,0.0,0.002); sgn=-1.0; }
+        float dsamp=de(p+sgn*e);
+        if(gi==0||gi==1) nx+=dsamp*sgn; else if(gi==2||gi==3) ny+=dsamp*sgn; else nz+=dsamp*sgn;
+      }
+      vec3 n=normalize(vec3(nx,ny,nz));
       float diff=max(dot(n,normalize(vec3(0.6,0.8,0.5))),0.0);
       float fres=pow(1.0-max(dot(n,-rd),0.0),2.5);
       vec3 baseCol=mix(shapeColor(uCur),shapeColor(uNext),smoothstep(0.0,1.0,uMorph));
@@ -316,9 +497,26 @@ ctlBtn.addEventListener('click', ()=>{ panel.hidden = !panel.hidden; ctlBtn.clas
 let switchIntervalSec = 14;
 document.getElementById('switchIntervalCtl').addEventListener('input', e=>{ switchIntervalSec = +e.target.value; });
 
-const { mesh, uniforms } = raymarchQuad(MORPH_FRAG, { uCur:{value:0}, uNext:{value:0}, uMorph:{value:0} });
+const { mesh, uniforms } = raymarchQuad(MORPH_FRAG, { uCur:{value:0}, uNext:{value:0}, uMorph:{value:0}, uJitter:{value:new THREE.Vector3()} });
 scene.add(mesh);
 camera.position.set(0, 0, 6);
+const BASE_FOV = 55;
+
+// Auto camera: slow orbit + gentle wander so the frame never sits dead still
+// during a quiet stretch, but a real drag/pinch from the viewer always wins —
+// autorotate pauses the moment they touch it and only creeps back after they
+// let go for a few seconds.
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.5;
+let userDragging = false, lastUserInteractT = -99;
+controls.addEventListener('start', () => { userDragging = true; controls.autoRotate = false; });
+controls.addEventListener('end', () => { userDragging = false; lastUserInteractT = clock.getElapsedTime(); });
+
+// Rhythmic jitter: the whole shape nudges/bounces on a kick (a spring that
+// gets a kick-sized push and decays back to center) plus a small perpetual
+// sway even with no kicks at all — "travels in space" instead of sitting
+// static through quiet-but-still-has-a-beat sections.
+const jitterVel = new THREE.Vector3(), jitterPos = new THREE.Vector3();
 
 let active = 0, morphTarget = 0, morphing = false, morphStartT = 0, autoBeat = true, lastSwitch = 0;
 const MORPH_SECONDS = 1.6; // the liquid-blend duration — long enough to actually read as one shape dissolving into the next
@@ -356,8 +554,12 @@ function loop(){
   sampleAudio();
   // kick-triggered switch, but never stuck: force-advance if no kick has
   // fired in a while (quiet mix / no sharp bass transients in this track).
-  // Never starts a new morph mid-morph — let the current one finish first.
-  if (autoBeat && !morphing && (t - lastSwitch) > 1.8 && (audio.kick > 0.6 || (t - lastSwitch) > switchIntervalSec)) {
+  // A quiet-but-steady stretch has low audio.rms, so shrink the fallback
+  // interval down toward ~half its slider value there — long dead stretches
+  // with a low but present beat used to just sit on one shape for the full
+  // 14s+ default; now they still breathe, just less abruptly than a real kick.
+  const effInterval = switchIntervalSec * (0.55 + Math.min(1, audio.rms * 3));
+  if (autoBeat && !morphing && (t - lastSwitch) > 1.8 && (audio.kick > 0.6 || (t - lastSwitch) > effInterval)) {
     lastSwitch = t;
     startMorphTo((active + 1) % SHAPE_NAMES.length, t);
   }
@@ -366,15 +568,44 @@ function loop(){
     uniforms.uMorph.value = p;
     if (p >= 1) { active = morphTarget; uniforms.uCur.value = active; uniforms.uMorph.value = 0; morphing = false; }
   }
+  // rhythmic jitter — a kick gives the spring a random shove, a light
+  // perpetual sway keeps it alive even through kick-free stretches, and
+  // damping always pulls it back toward center so it never drifts away.
+  if (audio.kick > 0.6) {
+    jitterVel.set((Math.random()-0.5)*0.6, (Math.random()-0.5)*0.5, (Math.random()-0.5)*0.35);
+  }
+  jitterVel.multiplyScalar(Math.pow(0.85, dt*60));
+  jitterPos.addScaledVector(jitterVel, dt);
+  jitterPos.x += Math.sin(t*0.9)*0.006*(0.3+audio.mid);
+  jitterPos.y += Math.cos(t*0.7)*0.006*(0.3+audio.rms);
+  jitterPos.multiplyScalar(Math.pow(0.9, dt*60));
+  uniforms.uJitter.value.copy(jitterPos);
+  // camera: resume the slow auto-orbit a few seconds after the viewer lets
+  // go, speed up a touch on the beat, and give the FOV a small kick-punch —
+  // all no-ops while they're actively dragging (controls.autoRotate is off
+  // for the whole duration of that gesture, set in the 'start' listener).
+  if (!userDragging && !controls.autoRotate && (t - lastUserInteractT) > 3.5) controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.4 + audio.bass * 1.1;
+  camera.fov = BASE_FOV + audio.beatEnv * 3.5;
+  camera.updateProjectionMatrix();
   pushAudio(uniforms, audio, t);
   uniforms.uRes.value.set(innerWidth, innerHeight);
   uniforms.uCamPos.value.copy(camera.position);
   uniforms.uCamMat.value.copy(camera.matrixWorld);
-  controls.update();
+  controls.update(dt);
   composer.render();
   requestAnimationFrame(loop);
 }
-loop();
+// Compile the shader with a visible "Preparing visuals…" state already
+// painted before this starts. compileAsync (three r160+) polls
+// KHR_parallel_shader_compile's non-blocking completion status instead of a
+// hard-blocking compile call, so the tab stays responsive — no "Page
+// Unresponsive" risk — for however long the real compile takes on this
+// device, instead of a silent frozen canvas. Falls back to the blocking
+// compile() on anything that doesn't support it.
+(renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera)))
+  .catch(e => console.error('shader precompile failed:', e))
+  .finally(() => { document.getElementById('prep').classList.add('hidden'); loop(); });
 
 // ---- feed embed: ?song=<url>[&muted=1] + postMessage({type:'song'|'setActive'|'mute'}) ----
 const songParam = new URLSearchParams(location.search).get('song');
