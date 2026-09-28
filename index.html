@@ -7717,9 +7717,12 @@
       if(!file){ toast('Choose a song first.'); return; }
       if(scheduleUploadedForFile !== file){
         try {
-          setProgress(60, 'Uploading song for preview…');
           const uploadFile = await prepareForUpload(file);
-          scheduleUploadedMedia = await SB.uploadMedia(uploadFile);
+          setProgress(0, 'Uploading song for preview… 0%');
+          scheduleUploadedMedia = await SB.uploadMedia(uploadFile, (frac) => {
+            const pct = Math.round(Math.max(0, Math.min(1, frac)) * 100);
+            setProgress(pct, `Uploading song for preview… ${pct}%`);
+          });
           scheduleUploadedForFile = file;
           hideProgress();
         } catch(e){ hideProgress(); toast('Could not upload for preview — try again.'); return; }

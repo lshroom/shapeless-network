@@ -97,13 +97,30 @@
     listActivityOptOuts: () => rest('shapeless_profiles?hide_activity_from_feed=eq.true&select=id'),
 
     // ---- media uploads (comments: photos, audio) ----
-    uploadMedia: async (file) => {
+    uploadMedia: async (file, onProgress) => {
       const { data: { session } } = await client.auth.getSession();
       if (!session && currentUser) { currentUser = null; notifyAuth(); throw new Error('signed out — please sign in again'); }
+      const token = session?.access_token || KEY;
       const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
       const path = `${currentUser?.id || 'anon'}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { error } = await client.storage.from('voyage-media').upload(path, file, { upsert: false });
-      if (error) throw error;
+      // supabase-js's storage upload() wraps fetch(), which has no upload-progress
+      // event — a big file (post-compression, still tens of MB) sat on a static
+      // percentage the whole time it was actually uploading, reading as "stuck".
+      // XHR gives us real byte-level progress via upload.onprogress.
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${URL}/storage/v1/object/voyage-media/${path}`);
+        xhr.setRequestHeader('apikey', KEY);
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+        xhr.setRequestHeader('x-upsert', 'false');
+        xhr.upload.onprogress = (e) => {
+          if (onProgress && e.lengthComputable) onProgress(e.loaded / e.total);
+        };
+        xhr.onload = () => { xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`${xhr.status} ${xhr.responseText}`)); };
+        xhr.onerror = () => reject(new Error('network error during upload'));
+        xhr.send(file);
+      });
       const { data } = client.storage.from('voyage-media').getPublicUrl(path);
       const kind = file.type.startsWith('audio/') ? 'audio' : file.type.startsWith('video/') ? 'video' : file.type.startsWith('image/') ? 'image' : 'file';
       return { url: data.publicUrl, kind, name: file.name };
