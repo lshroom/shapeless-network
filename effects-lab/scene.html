@@ -371,10 +371,10 @@ vec3 colorAt(vec3 p, vec3 n){
 // public/h5555/engines/batch10.js; Aurora Borealis: batch03.js; Cloudscape:
 // batch13.js) — reduced iteration counts since this now runs alongside the
 // foreground raymarch every frame instead of alone.
-float fbmBg(vec3 p){ float f=0.0,a=0.5; for(int i=0;i<5;i++){ f+=a*snoise(p); p*=2.02; a*=0.5; } return f; }
+float fbmBg(vec3 p){ float f=0.0,a=0.5; for(int i=0;i<3;i++){ f+=a*snoise(p); p*=2.02; a*=0.5; } return f; }
 vec3 bgNebula(vec3 ro, vec3 rd){
   vec3 col=vec3(0.0); float t=0.5;
-  for(int i=0;i<30;i++){
+  for(int i=0;i<12;i++){
     vec3 p=ro+rd*t; float d=fbmBg(p*0.5+vec3(0.0,0.0,uTime*0.03));
     float dens=clamp(d*1.1-0.1,0.0,1.0)*smoothstep(9.0,2.0,length(p));
     if(dens>0.01){ vec3 gc=spectral(0.62+d*0.2); col+=gc*dens*0.09*(0.7+uGlowMid*0.6); }
@@ -385,7 +385,7 @@ vec3 bgNebula(vec3 ro, vec3 rd){
 }
 vec3 bgAurora(vec3 ro, vec3 rd){
   vec3 col=vec3(0.01,0.02,0.04); float trans=1.0; float t=0.5;
-  for(int i=0;i<28;i++){
+  for(int i=0;i<12;i++){
     vec3 p=ro+rd*t;
     float curtain=snoise(vec3(p.x*0.4+uTime*0.2, uTime*0.1, p.z*0.4))*0.5+0.5;
     curtain=pow(curtain,2.0);
@@ -401,7 +401,7 @@ vec3 bgCloudscape(vec3 ro, vec3 rd){
   vec3 sky=mix(vec3(0.05,0.06,0.09),vec3(0.02,0.03,0.06),clamp(rd.y*1.5+0.3,0.0,1.0));
   vec3 col=sky; float t=1.0; float trans=1.0;
   float thresh=1.0-0.7*0.45;
-  for(int i=0;i<26;i++){
+  for(int i=0;i<12;i++){
     vec3 p=ro+rd*t; p.x+=uTime*0.4; float d=fbmBg(p*0.45)*0.5+0.5;
     float slab=smoothstep(3.0,0.5,abs(p.y-0.5));
     float dens=clamp((d-thresh)*3.0,0.0,1.0)*slab*(0.5+uGlowMid*0.7);
@@ -421,7 +421,7 @@ vec3 bgColor(vec3 ro, vec3 rd){
 }
 vec3 render(vec3 ro, vec3 rd){
   float t=0.0; bool didHit=false; vec3 col=vec3(0.0);
-  for(int i=0;i<110;i++){
+  for(int i=0;i<100;i++){
     vec3 p=ro+rd*t; float d=de(p);
     if(d<0.0015){
       vec2 e=vec2(0.002,0.0);
@@ -429,7 +429,7 @@ vec3 render(vec3 ro, vec3 rd){
       float diff=max(dot(n,normalize(vec3(0.6,0.8,0.5))),0.0);
       float fres=pow(1.0-max(dot(n,-rd),0.0),2.5);
       vec3 baseCol = colorAt(p,n);
-      float ao=1.0-float(i)/110.0;
+      float ao=1.0-float(i)/100.0;
       col=baseCol*(0.3+0.7*diff)*ao+fres*0.4*baseCol;
       didHit=true;
       break;
