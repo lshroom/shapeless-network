@@ -1166,7 +1166,6 @@
       </div>
       <div class="feed-composer-row" id="feed-post-effect-row" hidden>
         <button class="btn btn-ghost btn-sm" id="feed-post-schedule-btn" onclick="app.openScheduleEditor()">Design the visuals</button>
-        <button class="btn btn-ghost btn-sm" onclick="app.previewBlendedSphere()">🌈 Preview blended</button>
         <span class="pad-hint" id="feed-post-schedule-status">defaults to Sphere</span>
       </div>
       <div class="feed-post-progress" id="feed-post-progress" hidden>
@@ -1178,7 +1177,8 @@
     <div class="feed-schedule-modal" id="feed-schedule-modal" hidden>
       <div class="feed-schedule-panel">
         <div class="feed-schedule-head">
-          <span>Schedule the switches</span>
+          <span id="feed-schedule-head-label">Schedule the switches</span>
+          <button class="btn btn-ghost btn-sm" id="feed-schedule-blend-toggle" onclick="app.toggleBlendedPreview()" style="margin-left:auto;margin-right:8px;">🌈 Blended preview</button>
           <button class="feed-schedule-close" onclick="app.closeScheduleEditor()">✕</button>
         </div>
         <div class="feed-schedule-preview">
@@ -2205,8 +2205,9 @@
   let schedulePlaying = false;
   let scheduleDragMarker = null;
   let scheduleFiredIdx = -1;
+  let scheduleBlendedMode = false;
   function scheduleFrame(){ return document.getElementById('feed-schedule-frame-sphere'); }
-  // Shared by openScheduleEditor and previewBlendedSphere — uploads the
+  // Shared by openScheduleEditor and toggleBlendedPreview — uploads the
   // chosen song once (for preview) and reuses that same upload for both, and
   // for the real post if one follows, instead of uploading twice.
   async function ensureScheduleSongUploaded(){
@@ -7789,17 +7790,6 @@
         setProgress(0, 'Could not post: ' + (e?.message || e?.error_description || 'unknown error'), true);
       }
     },
-    async previewBlendedSphere(){
-      if(!requireAuth()) return;
-      const media = await ensureScheduleSongUploaded();
-      if(!media) return;
-      // The blended 4-layer view (all 3 banks + background, composited with
-      // CSS mix-blend-mode) only exists as the standalone page's default —
-      // it isn't wired into the timeline/schedule editor, which assumes one
-      // active bank at a time. Opens the real page in a new tab so it can be
-      // tested with the actual uploaded song, from the actual post flow.
-      window.open(FEED_EFFECT_PAGES.sphere.split('?')[0] + '?song=' + encodeURIComponent(media.url), '_blank');
-    },
     async openScheduleEditor(){
       if(!requireAuth()) return;
       const media = await ensureScheduleSongUploaded();
@@ -7809,17 +7799,40 @@
       scheduleSelectedMarkerIdx = 0;
       scheduleFiredIdx = -1;
       schedulePlaying = false;
+      scheduleBlendedMode = false;
       document.getElementById('feed-schedule-play').textContent = '▶';
       document.getElementById('feed-schedule-modal').hidden = false;
       renderScheduleShapePalette();
       loadScheduleFrame(scheduleDraft.markers[0].shape);
       renderScheduleTrack();
     },
+    // Same modal, same iframe, same "Design the visuals" entry point — just
+    // swaps the frame between the single-bank marker-timeline view (driven=1)
+    // and the all-4-layers blended view (no driven param). The marker-editing
+    // UI only makes sense for the single-bank view, so it hides while blended
+    // preview is active instead of trying to show both at once.
+    toggleBlendedPreview(){
+      scheduleBlendedMode = !scheduleBlendedMode;
+      const btn = document.getElementById('feed-schedule-blend-toggle');
+      btn.classList.toggle('on', scheduleBlendedMode);
+      document.getElementById('feed-schedule-head-label').textContent = scheduleBlendedMode ? 'Blended preview' : 'Schedule the switches';
+      for (const id of ['feed-schedule-banks','feed-schedule-shapes','feed-schedule-transport','feed-schedule-track','feed-schedule-add-btn','feed-schedule-marker-list','feed-schedule-hint']) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = scheduleBlendedMode ? 'none' : '';
+      }
+      if (scheduleBlendedMode) {
+        const base = FEED_EFFECT_PAGES.sphere.split('?')[0];
+        scheduleFrame().src = base + '?song=' + encodeURIComponent(scheduleUploadedMedia.url) + '&muted=0';
+      } else {
+        loadScheduleFrame(scheduleDraft.markers[scheduleSelectedMarkerIdx]?.shape ?? scheduleDraft.markers[0].shape);
+      }
+    },
     closeScheduleEditor(){
       document.getElementById('feed-schedule-modal').hidden = true;
       scheduleBroadcast({ type: 'pause' });
       scheduleFrame().src = 'about:blank';
       schedulePlaying = false;
+      scheduleBlendedMode = false;
     },
     setScheduleBank(bankIdx){
       if(!scheduleDraft || bankIdx === (scheduleDraft.bank || 0)) return;

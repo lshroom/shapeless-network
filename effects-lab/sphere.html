@@ -140,7 +140,12 @@ function sampleAudio() {
   b/=bEnd; m/=(mEnd-bEnd); h/=(n-mEnd);
   let rms=0; for(let i=0;i<timeData.length;i++){ const v=(timeData[i]-128)/128; rms+=v*v; } rms=Math.sqrt(rms/timeData.length);
   bassS+=(b-bassS)*0.3; midS+=(m-midS)*0.3; highS+=(h-highS)*0.3; rmsS+=(rms-rmsS)*0.3;
-  audio.bass=bassS; audio.mid=midS; audio.high=highS; audio.rms=rmsS;
+  // Raw analyser bands read as quiet/subtle next to the shapes' always-on
+  // idle motion (autorotate, idle breathing) — boost them here, once, so the
+  // amplification reaches every shape formula and flourish that already
+  // reads audio.bass/mid/high/rms, instead of retuning 21 shape functions.
+  const boost = v => Math.min(1, v * 1.8);
+  audio.bass=boost(bassS); audio.mid=boost(midS); audio.high=boost(highS); audio.rms=boost(rmsS);
 
   bassFast += (b - bassFast) * 0.55;
   bassSlow += (b - bassSlow) * 0.045;
@@ -527,30 +532,37 @@ function buildMaterial(bankIdx){
 // state so the 3 layers in blended mode drift out of phase with each other
 // instead of all doing the same thing in lockstep — driven mode just never
 // creates more than one of these.
-function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1 }){
+// `camera` is now ALWAYS the one shared module-level camera (see "SHARED
+// CAMERA" below) — every layer renders through the exact same camera object,
+// so a drag/orbit gesture (driven by the one OrbitControls bound to it) moves
+// every layer in lockstep instead of only whichever canvas happens to be on
+// top of the pointer-event stack. Each layer keeps its own independent
+// jitter/rotation-wobble/pulse/hue flourishes (those are shader uniforms, not
+// camera state) so they still don't all look identical.
+function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera }){
   const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha, powerPreference:'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
   renderer.setClearColor(0x05060a, alpha ? 0 : 1);
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.01, 200);
-  camera.position.set(0, 0, 6);
-  const controls = new OrbitControls(camera, canvas);
-  controls.enableDamping = true; controls.dampingFactor = 0.08;
-  controls.autoRotate = true; controls.autoRotateSpeed = 0.5;
-  let userDragging = false, lastUserInteractT = -99;
-  controls.addEventListener('start', () => { userDragging = true; controls.autoRotate = false; });
-  controls.addEventListener('end', () => { userDragging = false; lastUserInteractT = clock.getElapsedTime(); });
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.42, 0.7, 0.85);
-  composer.addPass(bloom);
+  // UnrealBloomPass composites its glow with an internal pass that forces the
+  // output alpha to 1 everywhere — fine for the single opaque driven-mode
+  // layer, but on a transparent (alpha:true) blended-mode layer it turns
+  // every "no hit" pixel into an opaque black square, blotting out whatever
+  // is stacked underneath (the background layer, and any layer beneath it).
+  // So only opaque layers get bloom; transparent ones skip straight to output.
+  let bloom = null;
+  if (!alpha) {
+    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.42, 0.7, 0.85);
+    composer.addPass(bloom);
+  }
   composer.addPass(new OutputPass());
   function resize() {
     const w = innerWidth, h = innerHeight;
     renderer.setSize(w, h); composer.setSize(w, h);
-    camera.aspect = w / h; camera.updateProjectionMatrix();
-    bloom.resolution.set(w, h);
+    bloom?.resolution.set(w, h);
   }
   addEventListener('resize', resize); resize();
 
@@ -561,11 +573,10 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1 }){
   mesh.frustumCulled = false;
   mesh.renderOrder = -1;
   scene.add(mesh);
-  const BASE_FOV = 55;
 
   const jitterVel = new THREE.Vector3(), jitterPos = new THREE.Vector3();
   const rotVel = new THREE.Vector3(), rotOffset = new THREE.Vector3();
-  let spinDir = 1, fovPunch = 0, pulseVel = 0, pulseVal = 0;
+  let pulseVel = 0, pulseVal = 0;
   let active = 0, morphTarget = 0, morphing = false, morphStartT = 0;
   let lastSwitch = Math.random() * 3; // staggered starts so layers don't all switch on the same beat
   let switchIntervalSec = 14 * intervalMult;
@@ -587,18 +598,15 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1 }){
   function onBeatMove(){
     // Pulse (the shape itself swelling/breathing) fires on EVERY beat — it's
     // the one flourish that's actually geometry, not camera. The rest are
-    // occasional variety on top of that, picked randomly each hit.
+    // occasional variety on top of that, picked randomly each hit. Camera
+    // flourishes (orbit spin flip, FOV punch) now live at module level since
+    // the camera is shared across every layer.
     pulseVel += 1.6 + audio.bass * 0.8;
     const roll = Math.random();
-    if (roll < 0.22) {
-      spinDir *= -1;
-      controls.autoRotateSpeed = (0.4 + audio.bass * 1.1) * (1.4 + Math.random()) * spinDir;
-    } else if (roll < 0.44) {
+    if (roll < 0.38) {
       rotVel.set((Math.random()-0.5)*3.2, (Math.random()-0.5)*3.2, (Math.random()-0.5)*3.2);
-    } else if (roll < 0.66) {
+    } else if (roll < 0.72) {
       jitterVel.set((Math.random()-0.5)*1.1, (Math.random()-0.5)*0.95, (Math.random()-0.5)*0.7);
-    } else if (roll < 0.85) {
-      fovPunch = 10 + Math.random() * 10;
     } else {
       uniforms.uHueKick.value = 1;
     }
@@ -636,22 +644,17 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1 }){
     rotOffset.multiplyScalar(Math.pow(0.25, dt));
     uniforms.uJitterRot.value.setFromMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rotOffset.x, rotOffset.y, rotOffset.z)));
     uniforms.uHueKick.value *= Math.pow(0.2, dt);
-    fovPunch *= Math.pow(0.15, dt);
     pulseVel *= Math.pow(0.25, dt);
     pulseVal += pulseVel * dt;
     pulseVal *= Math.pow(0.35, dt);
     const idleBreath = Math.sin(t*0.55)*0.028 + Math.sin(t*1.3+1.7)*0.016;
     uniforms.uPulse.value = Math.max(-0.35, Math.min(0.9, pulseVal + idleBreath));
-    if (!userDragging && !controls.autoRotate && (t - lastUserInteractT) > 3.5) controls.autoRotate = true;
-    const baseRotSpeed = (0.4 + audio.bass * 1.1) * spinDir;
-    controls.autoRotateSpeed += (baseRotSpeed - controls.autoRotateSpeed) * Math.min(1, dt * 1.5);
-    camera.fov = BASE_FOV + audio.beatEnv * 3.5 + fovPunch;
-    camera.updateProjectionMatrix();
+    // camera is the shared one — its own orbit/fov update happens once at
+    // module level, not per layer; this just reads its current pose.
     pushAudio(uniforms, audio, t);
     uniforms.uRes.value.set(innerWidth, innerHeight);
     uniforms.uCamPos.value.copy(camera.position);
     uniforms.uCamMat.value.copy(camera.matrixWorld);
-    controls.update(dt);
     composer.render();
   }
 
@@ -661,7 +664,7 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1 }){
   }
 
   return {
-    canvas, controls,
+    canvas,
     get bank(){ return bank; },
     setShapeInstant, startMorphTo, step, precompile,
     setAutoBeat(v){ autoBeat = v; },
@@ -743,6 +746,41 @@ function createBackgroundLayer({ canvas }){
   };
 }
 
+// ================= SHARED CAMERA =================
+// One camera + one OrbitControls for the whole page (not per layer) — every
+// layer's RenderPass/precompile renders through this exact object, so a drag
+// gesture moves every layer together instead of just whichever canvas
+// happens to be topmost in the CSS stacking order.
+const BASE_FOV = 55;
+const camera = new THREE.PerspectiveCamera(BASE_FOV, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(0, 0, 6);
+const controls = new OrbitControls(camera, document.getElementById('layers'));
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.6;
+controls.enablePan = false;
+controls.minDistance = 2.5;
+controls.maxDistance = 14;
+let spinDir = 1, fovPunch = 0;
+let userDragging = false, lastUserInteractT = 0;
+controls.addEventListener('start', () => { userDragging = true; controls.autoRotate = false; });
+controls.addEventListener('end', () => { userDragging = false; lastUserInteractT = clock.getElapsedTime(); });
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+function stepCamera(dt, t) {
+  if (!userDragging && !controls.autoRotate && (t - lastUserInteractT) > 3.5) controls.autoRotate = true;
+  const baseRotSpeed = (0.4 + audio.bass * 1.1) * spinDir;
+  controls.autoRotateSpeed += (baseRotSpeed - controls.autoRotateSpeed) * Math.min(1, dt * 1.5);
+  fovPunch *= Math.pow(0.15, dt);
+  camera.fov = BASE_FOV + audio.beatEnv * 3.5 + fovPunch;
+  camera.updateProjectionMatrix();
+  controls.update(dt);
+}
+function cameraBeatFlourish() {
+  if (Math.random() < 0.5) spinDir *= -1;
+  else fovPunch += 6 + audio.bass * 4;
+}
+
 // ================= MODE SELECT =================
 const layersEl = document.getElementById('layers');
 const driven = new URLSearchParams(location.search).get('driven') === '1';
@@ -757,7 +795,7 @@ if (driven) {
   let bankIdx = 0;
   { const bp = parseInt(new URLSearchParams(location.search).get('bank'), 10); if (Number.isInteger(bp) && bp >= 0 && bp < BANKS.length) bankIdx = bp; }
   const modeNameEl = document.getElementById('modeName');
-  const layer = createLayer({ canvas, bankIdx, alpha:false, onLabel:(name)=>{ modeNameEl.textContent = name; } });
+  const layer = createLayer({ canvas, bankIdx, alpha:false, onLabel:(name)=>{ modeNameEl.textContent = name; }, camera });
   layer.setAutoBeat(false); // uploader/editor drives shape choice externally
   layers = [layer];
   document.getElementById('bar').style.display = 'none';
@@ -834,7 +872,7 @@ if (driven) {
     canvas.style.mixBlendMode = def.blend;
     canvas.style.transform = `scale(${def.scale})`;
     layersEl.appendChild(canvas);
-    const layer = createLayer({ canvas, bankIdx: def.bank, alpha: true, intervalMult: def.mult });
+    const layer = createLayer({ canvas, bankIdx: def.bank, alpha: true, intervalMult: def.mult, camera });
     layer.blend = def.blend;
     layer.scale = def.scale;
     layer.label = BANKS[def.bank].label;
@@ -907,6 +945,8 @@ document.getElementById('fsBtn').addEventListener('click', ()=>{
 function loop(){
   const dt = clock.getDelta(), t = clock.getElapsedTime();
   sampleAudio();
+  if (audio.hit) cameraBeatFlourish();
+  stepCamera(dt, t);
   layers.forEach(l => l.step(dt, t));
   requestAnimationFrame(loop);
 }
