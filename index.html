@@ -431,11 +431,16 @@
   #feed-post-stems-status{ flex-basis:100%; }
   .feed-stems-auto{ flex-basis:100%; display:flex; align-items:center; gap:8px; }
   .feed-stems-layers{ flex-basis:100%; display:flex; flex-direction:column; gap:6px; margin-top:4px; padding-top:8px; border-top:1px solid var(--line); }
-  .feed-stems-layer-row{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:4px 0; }
-  .fsl-label{ font-size:11px; color:var(--muted); min-width:58px; }
+  .feed-stems-layer-row{ display:flex; flex-wrap:wrap; align-items:flex-start; gap:6px; padding:4px 0; }
+  .fsl-label{ font-size:11px; color:var(--muted); min-width:58px; padding-top:5px; }
   .feed-stems-layer-row select{ background:var(--surface-2); border:1px solid var(--line); border-radius:6px; padding:5px 6px; color:var(--text); font-size:11.5px; font-family:inherit; }
   .feed-stems-layer-row input[type=range]{ accent-color:var(--accent); width:90px; }
-  .fsl-snare-label{ font-size:10.5px; color:var(--muted); }
+  .fsl-ctl-btn{ background:rgba(255,255,255,.08); color:var(--text); border:1px solid var(--line); border-radius:99px; width:26px; height:26px; font-size:13px; cursor:pointer; }
+  .fsl-ctl-btn.on{ background:rgba(139,155,255,.22); border-color:#8b9bff; color:#cdd4ff; }
+  .fsl-controls-panel{ display:flex; flex-wrap:wrap; align-items:flex-end; gap:10px; width:100%; padding:8px; margin-top:2px; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; }
+  .fsl-controls-panel[hidden]{ display:none; }
+  .fsl-controls-panel label{ display:flex; flex-direction:column; gap:3px; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
+  .fsl-snare-label{ font-size:10px; }
   .feed-item{ position:relative; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
   .feed-item-activity{ cursor:pointer; border-left:3px solid var(--accent); }
   .feed-item-head{ display:flex; align-items:center; gap:9px; margin-bottom:8px; }
@@ -1230,13 +1235,16 @@
               <option value="orbit">Orbit</option>
               <option value="glow">Background glow</option>
             </select>
-            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('drums', this.value)" hidden>
-            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-              <option value="0">None (color tint only)</option>
-              <option value="1">Stellar Nebula (surrounds everything)</option>
-              <option value="2">Aurora Borealis (surrounds everything)</option>
-              <option value="3">Cloudscape (surrounds everything)</option>
-            </select>
+            <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('drums')">⚙</button>
+            <div class="fsl-controls-panel" hidden>
+              <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('drums', this.value)" hidden></label>
+              <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
+                <option value="0">None (color tint only)</option>
+                <option value="1">Stellar Nebula (surrounds everything)</option>
+                <option value="2">Aurora Borealis (surrounds everything)</option>
+                <option value="3">Cloudscape (surrounds everything)</option>
+              </select>
+            </div>
           </div>
           <div class="feed-stems-layer-row" data-stem="kick">
             <span class="fsl-label">Kick</span>
@@ -1247,18 +1255,20 @@
               <option value="orbit">Orbit</option>
               <option value="glow">Background glow</option>
             </select>
-            <select class="fsl-shape" hidden onchange="app.setStemShape('kick', this.value)"></select>
-            <span class="fsl-snare-label" hidden>on snare hit, shift to</span>
-            <select class="fsl-kick-snare" hidden onchange="app.setKickSnareShape(this.value)"><option value="">(no morph)</option></select>
-            <span class="fsl-pos-label" hidden>X</span><input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('kick','x',this.value)">
-            <span class="fsl-pos-label" hidden>Z</span><input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('kick','z',this.value)">
-            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('kick', this.value)" hidden>
-            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-              <option value="0">None (color tint only)</option>
-              <option value="1">Stellar Nebula (surrounds everything)</option>
-              <option value="2">Aurora Borealis (surrounds everything)</option>
-              <option value="3">Cloudscape (surrounds everything)</option>
-            </select>
+            <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('kick')">⚙</button>
+            <div class="fsl-controls-panel" hidden>
+              <label>Shape<select class="fsl-shape" hidden onchange="app.setStemShape('kick', this.value)"></select></label>
+              <label class="fsl-snare-label" hidden>on snare hit, shift to<select class="fsl-kick-snare" onchange="app.setKickSnareShape(this.value)"><option value="">(no morph)</option></select></label>
+              <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('kick','x',this.value)"></label>
+              <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('kick','z',this.value)"></label>
+              <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('kick', this.value)" hidden></label>
+              <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
+                <option value="0">None (color tint only)</option>
+                <option value="1">Stellar Nebula (surrounds everything)</option>
+                <option value="2">Aurora Borealis (surrounds everything)</option>
+                <option value="3">Cloudscape (surrounds everything)</option>
+              </select>
+            </div>
           </div>
           <div class="feed-stems-layer-row" data-stem="cymbals">
             <span class="fsl-label">Cymbals</span>
@@ -1269,16 +1279,19 @@
               <option value="orbit">Orbit</option>
               <option value="glow">Background glow</option>
             </select>
-            <select class="fsl-shape" hidden onchange="app.setStemShape('cymbals', this.value)"></select>
-            <span class="fsl-pos-label" hidden>X</span><input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('cymbals','x',this.value)">
-            <span class="fsl-pos-label" hidden>Z</span><input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('cymbals','z',this.value)">
-            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('cymbals', this.value)" hidden>
-            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-              <option value="0">None (color tint only)</option>
-              <option value="1">Stellar Nebula (surrounds everything)</option>
-              <option value="2">Aurora Borealis (surrounds everything)</option>
-              <option value="3">Cloudscape (surrounds everything)</option>
-            </select>
+            <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('cymbals')">⚙</button>
+            <div class="fsl-controls-panel" hidden>
+              <label>Shape<select class="fsl-shape" hidden onchange="app.setStemShape('cymbals', this.value)"></select></label>
+              <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('cymbals','x',this.value)"></label>
+              <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('cymbals','z',this.value)"></label>
+              <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('cymbals', this.value)" hidden></label>
+              <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
+                <option value="0">None (color tint only)</option>
+                <option value="1">Stellar Nebula (surrounds everything)</option>
+                <option value="2">Aurora Borealis (surrounds everything)</option>
+                <option value="3">Cloudscape (surrounds everything)</option>
+              </select>
+            </div>
           </div>
           <div class="feed-stems-layer-row" data-stem="bass">
             <span class="fsl-label">Bass</span>
@@ -1289,16 +1302,19 @@
               <option value="orbit">Orbit</option>
               <option value="glow">Background glow</option>
             </select>
-            <select class="fsl-shape" hidden onchange="app.setStemShape('bass', this.value)"></select>
-            <span class="fsl-pos-label" hidden>X</span><input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('bass','x',this.value)">
-            <span class="fsl-pos-label" hidden>Z</span><input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('bass','z',this.value)">
-            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('bass', this.value)" hidden>
-            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-              <option value="0">None (color tint only)</option>
-              <option value="1">Stellar Nebula (surrounds everything)</option>
-              <option value="2">Aurora Borealis (surrounds everything)</option>
-              <option value="3">Cloudscape (surrounds everything)</option>
-            </select>
+            <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('bass')">⚙</button>
+            <div class="fsl-controls-panel" hidden>
+              <label>Shape<select class="fsl-shape" hidden onchange="app.setStemShape('bass', this.value)"></select></label>
+              <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('bass','x',this.value)"></label>
+              <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('bass','z',this.value)"></label>
+              <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('bass', this.value)" hidden></label>
+              <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
+                <option value="0">None (color tint only)</option>
+                <option value="1">Stellar Nebula (surrounds everything)</option>
+                <option value="2">Aurora Borealis (surrounds everything)</option>
+                <option value="3">Cloudscape (surrounds everything)</option>
+              </select>
+            </div>
           </div>
           <div class="feed-stems-layer-row" data-stem="vocals">
             <span class="fsl-label">Vocals</span>
@@ -1309,16 +1325,19 @@
               <option value="orbit">Orbit</option>
               <option value="glow">Background glow</option>
             </select>
-            <select class="fsl-shape" hidden onchange="app.setStemShape('vocals', this.value)"></select>
-            <span class="fsl-pos-label" hidden>X</span><input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('vocals','x',this.value)">
-            <span class="fsl-pos-label" hidden>Z</span><input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('vocals','z',this.value)">
-            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('vocals', this.value)" hidden>
-            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-              <option value="0">None (color tint only)</option>
-              <option value="1">Stellar Nebula (surrounds everything)</option>
-              <option value="2">Aurora Borealis (surrounds everything)</option>
-              <option value="3">Cloudscape (surrounds everything)</option>
-            </select>
+            <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('vocals')">⚙</button>
+            <div class="fsl-controls-panel" hidden>
+              <label>Shape<select class="fsl-shape" hidden onchange="app.setStemShape('vocals', this.value)"></select></label>
+              <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('vocals','x',this.value)"></label>
+              <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('vocals','z',this.value)"></label>
+              <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('vocals', this.value)" hidden></label>
+              <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
+                <option value="0">None (color tint only)</option>
+                <option value="1">Stellar Nebula (surrounds everything)</option>
+                <option value="2">Aurora Borealis (surrounds everything)</option>
+                <option value="3">Cloudscape (surrounds everything)</option>
+              </select>
+            </div>
           </div>
           <div class="feed-stems-layer-row" data-stem="harmony">
             <span class="fsl-label">Harmony</span>
@@ -1329,16 +1348,19 @@
               <option value="orbit">Orbit</option>
               <option value="glow">Background glow</option>
             </select>
-            <select class="fsl-shape" hidden onchange="app.setStemShape('harmony', this.value)"></select>
-            <span class="fsl-pos-label" hidden>X</span><input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('harmony','x',this.value)">
-            <span class="fsl-pos-label" hidden>Z</span><input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" hidden oninput="app.setStemPos('harmony','z',this.value)">
-            <input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('harmony', this.value)" hidden>
-            <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
-              <option value="0">None (color tint only)</option>
-              <option value="1">Stellar Nebula (surrounds everything)</option>
-              <option value="2">Aurora Borealis (surrounds everything)</option>
-              <option value="3">Cloudscape (surrounds everything)</option>
-            </select>
+            <button class="fsl-ctl-btn" title="Controls" hidden onclick="app.toggleStemControls('harmony')">⚙</button>
+            <div class="fsl-controls-panel" hidden>
+              <label>Shape<select class="fsl-shape" hidden onchange="app.setStemShape('harmony', this.value)"></select></label>
+              <label class="fsl-pos-label" hidden>X<input type="range" class="fsl-pos-x" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('harmony','x',this.value)"></label>
+              <label class="fsl-pos-label" hidden>Z<input type="range" class="fsl-pos-z" min="-3" max="3" step="0.1" value="0" oninput="app.setStemPos('harmony','z',this.value)"></label>
+              <label>Size<input type="range" class="fsl-size" min="0.5" max="2" step="0.1" value="1" oninput="app.setStemEffectSize('harmony', this.value)" hidden></label>
+              <select class="fsl-bg" hidden onchange="app.setGlowBg(this.value)">
+                <option value="0">None (color tint only)</option>
+                <option value="1">Stellar Nebula (surrounds everything)</option>
+                <option value="2">Aurora Borealis (surrounds everything)</option>
+                <option value="3">Cloudscape (surrounds everything)</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -2433,6 +2455,7 @@
       effect: row.querySelector('.fsl-effect'), size: row.querySelector('.fsl-size'), bg: row.querySelector('.fsl-bg'),
       shape: row.querySelector('.fsl-shape'), snareLabel: row.querySelector('.fsl-snare-label'), snareShape: row.querySelector('.fsl-kick-snare'),
       posX: row.querySelector('.fsl-pos-x'), posZ: row.querySelector('.fsl-pos-z'), posLabels: row.querySelectorAll('.fsl-pos-label'),
+      ctlBtn: row.querySelector('.fsl-ctl-btn'), panel: row.querySelector('.fsl-controls-panel'),
     };
   }
   function resetStemLayerCfg(){
@@ -2443,17 +2466,19 @@
     stemLayerCfg.pos = clonePos();
     stemLayerCfg.glowBg = 0;
     STEMS.forEach(stem=>{
-      const { effect, size, bg, shape, snareLabel, snareShape, posX, posZ, posLabels } = stemLayerRowEls(stem);
+      const { effect, size, bg, shape, snareLabel, snareShape, posX, posZ, posLabels, ctlBtn, panel } = stemLayerRowEls(stem);
       const val = stemLayerCfg.assign[stem];
       if(effect) effect.value = val;
       if(size){ size.value = 1; size.hidden = (val === 'off' || val === 'glow'); }
       if(bg){ bg.value = '0'; bg.hidden = (val !== 'glow'); }
       if(shape){ shape.value = String(stemLayerCfg.shapeChoice[stem] || 0); shape.hidden = (val !== 'center'); }
-      if(snareShape){ snareShape.value = ''; snareShape.hidden = (val !== 'center'); }
+      if(snareShape) snareShape.value = '';
       if(snareLabel) snareLabel.hidden = (val !== 'center');
-      if(posX && DEFAULT_POS[stem]){ posX.value = DEFAULT_POS[stem].x; posX.hidden = (val !== 'center'); }
-      if(posZ && DEFAULT_POS[stem]){ posZ.value = DEFAULT_POS[stem].z; posZ.hidden = (val !== 'center'); }
+      if(posX && DEFAULT_POS[stem]) posX.value = DEFAULT_POS[stem].x;
+      if(posZ && DEFAULT_POS[stem]) posZ.value = DEFAULT_POS[stem].z;
       if(posLabels) posLabels.forEach(l=>{ l.hidden = (val !== 'center'); });
+      if(ctlBtn){ ctlBtn.hidden = (val === 'off'); ctlBtn.classList.remove('on'); }
+      if(panel) panel.hidden = true;
     });
   }
   function deriveSceneCfg(){
@@ -8198,16 +8223,24 @@
         });
       }
       stemLayerCfg.assign[stem] = val;
-      const { size, bg, shape, snareLabel, snareShape, posX, posZ, posLabels } = stemLayerRowEls(stem);
+      const { size, bg, shape, snareLabel, snareShape, posLabels, ctlBtn, panel } = stemLayerRowEls(stem);
       if(size) size.hidden = (val === 'off' || val === 'glow');
       if(bg) bg.hidden = (val !== 'glow');
       if(shape) shape.hidden = (val !== 'center');
       if(snareLabel) snareLabel.hidden = (val !== 'center');
-      if(snareShape) snareShape.hidden = (val !== 'center');
-      if(posX) posX.hidden = (val !== 'center');
-      if(posZ) posZ.hidden = (val !== 'center');
       if(posLabels) posLabels.forEach(l=>{ l.hidden = (val !== 'center'); });
+      // the ⚙ Controls button (same pattern as sphere.html/field.html's own
+      // gear button) shows whenever this row is doing anything, and its
+      // panel auto-collapses on every change so the row stays tidy.
+      if(ctlBtn){ ctlBtn.hidden = (val === 'off'); ctlBtn.classList.remove('on'); }
+      if(panel) panel.hidden = true;
       pushPreviewCfg();
+    },
+    toggleStemControls(stem){
+      const { ctlBtn, panel } = stemLayerRowEls(stem);
+      if(!panel) return;
+      panel.hidden = !panel.hidden;
+      if(ctlBtn) ctlBtn.classList.toggle('on', !panel.hidden);
     },
     setStemEffectSize(stem, val){ stemLayerCfg.sizes[stem] = parseFloat(val); pushPreviewCfg(); },
     setStemShape(stem, val){ stemLayerCfg.shapeChoice[stem] = parseInt(val, 10); pushPreviewCfg(); },
