@@ -1,0 +1,410 @@
+<!doctype html>
+<!-- effect #2 for the Feed player: a "sphere" that cycles between 4 sub-effects —
+     fluff (deformed icosahedron), gyroid lattice, superformula shape, mandelbulb —
+     auto-switching on the kick, or manually via the dots. Orbit-controllable (drag/scroll). -->
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>sphere — fluff / gyroid / superformula / mandelbulb</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#05060a;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;}
+  canvas{display:block;touch-action:none;}
+  #stage{position:fixed;inset:0;z-index:1;}
+  #bar{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;align-items:center;justify-content:center;gap:8px;
+       padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
+       background:linear-gradient(to top,rgba(0,0,0,.75),transparent);}
+  .dot{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.35);
+       cursor:pointer;padding:0;transition:background .15s,transform .15s;}
+  .dot.on{background:#8b9bff;border-color:#8b9bff;transform:scale(1.25);}
+  #beatBtn,#ctlBtn,#fsBtn{background:rgba(255,255,255,.08);color:#f5f5f7;border:1px solid rgba(255,255,255,.18);border-radius:99px;
+       padding:6px 12px;font-size:11px;cursor:pointer;margin-left:10px;}
+  #beatBtn.on{background:rgba(139,155,255,.28);border-color:#8b9bff;color:#cdd4ff;}
+  #ctlBtn.on{background:rgba(139,155,255,.28);border-color:#8b9bff;color:#cdd4ff;}
+  #fsBtn{margin-left:auto;padding:6px 9px;font-size:13px;}
+  #noSrc{position:fixed;bottom:56px;left:0;right:0;text-align:center;color:rgba(255,255,255,.4);font-size:11px;z-index:5;pointer-events:none;}
+  #modeName{position:fixed;top:12px;left:12px;z-index:10;color:#f5f5f7;font-size:13px;font-weight:600;letter-spacing:.02em;background:rgba(10,10,14,.55);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:6px 12px;}
+  body.kiosk #bar{padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));}
+  #controlPanel{position:fixed;top:12px;right:12px;z-index:10;display:flex;flex-direction:column;gap:6px;
+       background:rgba(10,10,14,.55);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12);
+       border-radius:10px;padding:10px 12px;max-width:200px;}
+  .ctl-row{display:flex;flex-direction:column;gap:3px;}
+  .ctl-label{color:rgba(255,255,255,.6);font-size:10px;text-transform:uppercase;letter-spacing:.03em;}
+  .ctl-row input[type=range]{width:100%;accent-color:#8b9bff;}
+  .ctl-row select, .ctl-row input[type=color]{width:100%;}
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="noSrc">waiting for audio…</div>
+<div id="controlPanel"></div>
+<div id="modeName">Fluff</div>
+<div id="bar">
+  <button class="dot" data-i="0" title="Fluff"></button>
+  <button class="dot" data-i="1" title="Gyroid Lattice"></button>
+  <button class="dot" data-i="2" title="Superformula Shape"></button>
+  <button class="dot" data-i="3" title="Mandelbulb Fractal"></button>
+  <button class="dot" data-i="4" title="SDF Morph Field"></button>
+  <button id="beatBtn" class="on">⚡ Auto: ON</button>
+  <button id="ctlBtn" title="Controls">⚙</button>
+  <button id="fsBtn" title="Fullscreen">⛶</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GLSL, raymarchQuad, pushAudio } from '/h5555/core.js';
+
+// ---- renderer / scene / camera ----
+const canvas = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+renderer.setClearColor(0x05060a, 1);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(55, 1, 0.01, 200);
+camera.position.set(0, 0, 6);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.45, 0.7, 0.85);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h); composer.setSize(w, h);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+  bloom.resolution.set(w, h);
+}
+addEventListener('resize', resize); resize();
+
+// ---- audio ----
+const audio = { bass:0, mid:0, high:0, rms:0, beatEnv:0, kick:0 };
+let actx, analyser, freqData, timeData, srcNode;
+let audioEl = null;
+function ensureCtx() {
+  if (actx) return;
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = actx.createAnalyser();
+  analyser.fftSize = 2048; analyser.smoothingTimeConstant = 0.8;
+  freqData = new Uint8Array(analyser.frequencyBinCount);
+  timeData = new Uint8Array(analyser.fftSize);
+  analyser.connect(actx.destination);
+}
+function loadSongUrl(url, muted, startTime, active) {
+  if (!url) return;
+  ensureCtx();
+  if (audioEl) { try { audioEl.pause(); } catch(_){} }
+  audioEl = new Audio(url);
+  window.audioEl = audioEl; window.actx = actx; // debug/QA hooks — module scope isn't visible from outside otherwise
+  audioEl.crossOrigin = 'anonymous'; audioEl.loop = true;
+  audioEl.muted = !!muted; // muted autoplay is never blocked — used for inline Feed previews
+  if (startTime > 0) audioEl.addEventListener('loadedmetadata', () => { audioEl.currentTime = startTime; }, { once: true });
+  if (srcNode) { try { srcNode.disconnect(); } catch(_){} }
+  srcNode = actx.createMediaElementSource(audioEl);
+  srcNode.connect(analyser);
+  actx.resume();
+  // active === false means this frame is one of the fullscreen player's non-
+  // selected effects — it must load and stay ready to seek, but NOT sound,
+  // otherwise all 3 effect frames play the song at once on fullscreen open.
+  if (active !== false) audioEl.play().catch(()=>{});
+  document.getElementById('noSrc').style.display = 'none';
+  audioEl.addEventListener('timeupdate', () => {
+    try { parent.postMessage({ type: 'timeupdate', currentTime: audioEl.currentTime, duration: audioEl.duration || 0 }, '*'); } catch(_){}
+  });
+}
+window._sphereSetSongUrl = loadSongUrl;
+
+let bassS=0, midS=0, highS=0, rmsS=0;
+// Onset detector: a FAST envelope of the bass band vs a SLOW rolling baseline
+// of the same band. A kick is a fast envelope spiking well above the recent
+// local loudness — this reacts to the actual transient instead of drifting
+// with a smoothed derivative, and a refractory window stops it double-firing
+// on one hit. Works straight off the mixed signal, no stem separation needed.
+let bassFast=0, bassSlow=0, kickRefractory=0, kickPulse=0;
+function sampleAudio() {
+  if (!analyser) return;
+  analyser.getByteFrequencyData(freqData);
+  analyser.getByteTimeDomainData(timeData);
+  const n = freqData.length;
+  let b=0,m=0,h=0; const bEnd=(n*0.08)|0, mEnd=(n*0.4)|0;
+  for (let i=0;i<n;i++){ const v=freqData[i]/255; if(i<bEnd)b+=v; else if(i<mEnd)m+=v; else h+=v; }
+  b/=bEnd; m/=(mEnd-bEnd); h/=(n-mEnd);
+  let rms=0; for(let i=0;i<timeData.length;i++){ const v=(timeData[i]-128)/128; rms+=v*v; } rms=Math.sqrt(rms/timeData.length);
+  bassS+=(b-bassS)*0.3; midS+=(m-midS)*0.3; highS+=(h-highS)*0.3; rmsS+=(rms-rmsS)*0.3;
+  audio.bass=bassS; audio.mid=midS; audio.high=highS; audio.rms=rmsS;
+
+  bassFast += (b - bassFast) * 0.55;
+  bassSlow += (b - bassSlow) * 0.045;
+  const now = performance.now() / 1000;
+  let hit = false;
+  if (bassFast > bassSlow * 1.35 + 0.06 && (now - kickRefractory) > 0.14) {
+    hit = true; kickRefractory = now;
+  }
+  kickPulse = Math.max(kickPulse * 0.7, hit ? 1 : 0);
+  audio.beatEnv = Math.max(audio.beatEnv*0.9, kickPulse);
+  audio.kick = kickPulse;
+}
+
+// ---- the 5 shapes, as ONE raymarched SDF field ----
+// Instead of 5 separate engines that get torn down and rebuilt on switch
+// (a hard cut), all 5 shapes are distance functions inside a single shader.
+// Switching plays a real liquid morph: uMorph ramps 0→1 and de() blends the
+// outgoing and incoming distance fields together with mix() — since a
+// distance field IS the shape, blending the fields blends the geometry
+// itself, so the surface genuinely deforms from one shape into the next
+// instead of cutting or fading.
+const SHAPE_NAMES = ['Fluff','Gyroid Lattice','Superformula Shape','Mandelbulb Fractal','SDF Morph Field'];
+const MORPH_FRAG = `
+${GLSL.snoise3}
+${GLSL.palette}
+uniform int uCur, uNext;
+uniform float uMorph;
+
+float deFluff(vec3 p){
+  float n = snoise(p*2.2+uTime*0.15) + 0.5*snoise(p*4.4-uTime*0.1);
+  return length(p) - (1.35 + n*0.22*(0.4+uBass));
+}
+float deGyroid(vec3 p){
+  float s=3.0+uBass*2.0; vec3 q=p*s;
+  float g=dot(sin(q),cos(q.yzx));
+  float lattice=(abs(g)-0.14*(1.0+uMid))/s;
+  float ball=length(p)-1.9;
+  return max(lattice,ball);
+}
+float deMandelbulb(vec3 p){
+  vec3 z=p*0.85; float dr=1.0; float r=0.0;
+  float pw=8.0+sin(uTime*0.3)*1.0+uBass*2.0;
+  for(int i=0;i<8;i++){
+    r=length(z); if(r>2.0)break;
+    float th=acos(z.z/r); float ph=atan(z.y,z.x);
+    dr=pow(r,pw-1.0)*pw*dr+1.0;
+    float zr=pow(r,pw); th*=pw; ph*=pw;
+    z=zr*vec3(sin(th)*cos(ph),sin(ph)*sin(th),cos(th))+p*0.85;
+  }
+  return (0.5*log(r)*r/dr) / 0.85;
+}
+float sfR(float angle, float m, float n1){
+  float t1=pow(abs(cos(m*angle/4.0)),1.7);
+  float t2=pow(abs(sin(m*angle/4.0)),1.7);
+  return pow(t1+t2,-1.0/n1);
+}
+float deSuperformula(vec3 p){
+  float m=6.0+uMid*3.0, n1=0.5+uBass;
+  float len=max(length(p),0.0001);
+  float theta=atan(p.z,p.x), phi=asin(clamp(p.y/len,-1.0,1.0));
+  float rad=1.6*sfR(theta,m,n1)*sfR(phi,m,n1);
+  return len-rad;
+}
+float sdfSmin(float a,float b,float k){ float h=clamp(0.5+0.5*(b-a)/k,0.0,1.0); return mix(b,a,h)-k*h*(1.0-h); }
+float deSdfMorph(vec3 p){
+  float d=10.0;
+  for(int i=0;i<6;i++){
+    float fi=float(i);
+    vec3 c=vec3(sin(uTime*0.5+fi*2.1),cos(uTime*0.4+fi*1.7),sin(uTime*0.3+fi*1.3))*(1.1+uBass*0.8);
+    float r=0.35+0.28*sin(uTime+fi)+uMid*0.25;
+    d=sdfSmin(d,length(p-c)-r,0.7);
+  }
+  return d;
+}
+float deShape(int id, vec3 p){
+  if(id==0) return deFluff(p);
+  if(id==1) return deGyroid(p);
+  if(id==2) return deMandelbulb(p);
+  if(id==3) return deSuperformula(p);
+  return deSdfMorph(p);
+}
+float de(vec3 p){
+  float dA=deShape(uCur,p);
+  if(uMorph<=0.001) return dA;
+  float dB=deShape(uNext,p);
+  float t=smoothstep(0.0,1.0,uMorph);
+  // A plain mix() of two distance FIELDS doesn't read as a dissolve — the two
+  // shapes have very different distance magnitudes, so the surface tends to
+  // pop to whichever field dominates instead of visibly blending. Pulling the
+  // surface inward through the middle of the transition (peaking at t=0.5)
+  // forces a soft, swollen, liquid bulge where the two shapes genuinely melt
+  // into each other instead of one popping over the other.
+  float liquid = 4.0*t*(1.0-t) * 0.55;
+  return mix(dA,dB,t) - liquid;
+}
+vec3 shapeColor(int id){
+  float hue = id==0 ? 0.08 : id==1 ? 0.55 : id==2 ? 0.75 : id==3 ? 0.33 : 0.9;
+  return spectral(hue + uTime*0.02);
+}
+vec3 render(vec3 ro, vec3 rd){
+  float t=0.0; vec3 col=vec3(0.0);
+  for(int i=0;i<100;i++){
+    vec3 p=ro+rd*t; float d=de(p);
+    if(d<0.0015){
+      vec2 e=vec2(0.002,0.0);
+      vec3 n=normalize(vec3(de(p+e.xyy)-de(p-e.xyy),de(p+e.yxy)-de(p-e.yxy),de(p+e.yyx)-de(p-e.yyx)));
+      float diff=max(dot(n,normalize(vec3(0.6,0.8,0.5))),0.0);
+      float fres=pow(1.0-max(dot(n,-rd),0.0),2.5);
+      vec3 baseCol=mix(shapeColor(uCur),shapeColor(uNext),smoothstep(0.0,1.0,uMorph));
+      float ao=1.0-float(i)/100.0;
+      col=baseCol*(0.28+0.72*diff)*ao+fres*0.4*baseCol;
+      break;
+    }
+    t+=d; if(t>16.0)break;
+  }
+  return col;
+}`;
+
+// Controls panel: off by default, toggled by the gear button — just the one
+// timing slider for now (how long auto-switch waits before forcing a change
+// when the kick isn't firing one on its own).
+const panel = document.getElementById('controlPanel');
+panel.hidden = true;
+panel.innerHTML = `<div class="ctl-row"><span class="ctl-label">switch every (max)</span>
+  <input id="switchIntervalCtl" type="range" min="4" max="30" step="1" value="14"></div>`;
+const ctlBtn = document.getElementById('ctlBtn');
+ctlBtn.addEventListener('click', ()=>{ panel.hidden = !panel.hidden; ctlBtn.classList.toggle('on', !panel.hidden); });
+let switchIntervalSec = 14;
+document.getElementById('switchIntervalCtl').addEventListener('input', e=>{ switchIntervalSec = +e.target.value; });
+
+const { mesh, uniforms } = raymarchQuad(MORPH_FRAG, { uCur:{value:0}, uNext:{value:0}, uMorph:{value:0} });
+scene.add(mesh);
+camera.position.set(0, 0, 6);
+
+let active = 0, morphTarget = 0, morphing = false, morphStartT = 0, autoBeat = true, lastSwitch = 0;
+const MORPH_SECONDS = 1.6; // the liquid-blend duration — long enough to actually read as one shape dissolving into the next
+document.getElementById('modeName').textContent = SHAPE_NAMES[0];
+document.querySelector('.dot[data-i="0"]')?.classList.add('on');
+
+function startMorphTo(i, tNow){
+  if (i === active && !morphing) return;
+  uniforms.uCur.value = active;
+  uniforms.uNext.value = i;
+  morphTarget = i;
+  morphing = true;
+  morphStartT = tNow;
+  document.getElementById('modeName').textContent = SHAPE_NAMES[i];
+  document.querySelectorAll('.dot').forEach((d,di)=>d.classList.toggle('on', di===i));
+}
+document.querySelectorAll('.dot').forEach(d=>d.addEventListener('click', ()=>{
+  autoBeat=false; syncBeatBtn(); startMorphTo(+d.dataset.i, clock.getElapsedTime());
+}));
+function syncBeatBtn(){
+  const btn = document.getElementById('beatBtn');
+  btn.classList.toggle('on', autoBeat);
+  btn.textContent = autoBeat ? '⚡ Auto: ON' : '⏸ Auto: OFF';
+}
+document.getElementById('beatBtn').addEventListener('click', ()=>{ autoBeat=!autoBeat; syncBeatBtn(); });
+document.getElementById('fsBtn').addEventListener('click', ()=>{
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen?.().catch(()=>{});
+});
+
+// ---- render loop ----
+const clock = new THREE.Clock();
+function loop(){
+  const dt = clock.getDelta(), t = clock.getElapsedTime();
+  sampleAudio();
+  // kick-triggered switch, but never stuck: force-advance if no kick has
+  // fired in a while (quiet mix / no sharp bass transients in this track).
+  // Never starts a new morph mid-morph — let the current one finish first.
+  if (autoBeat && !morphing && (t - lastSwitch) > 1.8 && (audio.kick > 0.6 || (t - lastSwitch) > switchIntervalSec)) {
+    lastSwitch = t;
+    startMorphTo((active + 1) % SHAPE_NAMES.length, t);
+  }
+  if (morphing) {
+    const p = Math.min(1, (t - morphStartT) / MORPH_SECONDS);
+    uniforms.uMorph.value = p;
+    if (p >= 1) { active = morphTarget; uniforms.uCur.value = active; uniforms.uMorph.value = 0; morphing = false; }
+  }
+  pushAudio(uniforms, audio, t);
+  uniforms.uRes.value.set(innerWidth, innerHeight);
+  uniforms.uCamPos.value.copy(camera.position);
+  uniforms.uCamMat.value.copy(camera.matrixWorld);
+  controls.update();
+  composer.render();
+  requestAnimationFrame(loop);
+}
+loop();
+
+// ---- feed embed: ?song=<url>[&muted=1] + postMessage({type:'song'|'setActive'|'mute'}) ----
+const songParam = new URLSearchParams(location.search).get('song');
+const mutedParam = new URLSearchParams(location.search).get('muted') === '1';
+const startTimeParam = parseFloat(new URLSearchParams(location.search).get('t') || '0');
+const activeParam = new URLSearchParams(location.search).get('active') !== '0';
+if (songParam) loadSongUrl(decodeURIComponent(songParam), mutedParam, startTimeParam, activeParam);
+// Inline Feed preview: the parent page draws its own single transport bar
+// below the preview — this page's own bottom bar would be a second one.
+if (new URLSearchParams(location.search).get('embed') === 'inline') {
+  const bar = document.getElementById('bar'); if (bar) bar.style.display = 'none';
+}
+// "driven" mode: an uploader-defined timeline (or this page's own live editor
+// preview) is choosing the shape externally via postMessage — the built-in
+// kick-autoswitch and manual bar/controls are someone else's job now.
+const drivenParam = new URLSearchParams(location.search).get('driven') === '1';
+if (drivenParam) {
+  autoBeat = false;
+  const bar = document.getElementById('bar'); if (bar) bar.style.display = 'none';
+  document.getElementById('controlPanel').style.display = 'none';
+  const shapeParam = parseInt(new URLSearchParams(location.search).get('shape'), 10);
+  if (Number.isInteger(shapeParam) && shapeParam >= 0 && shapeParam < SHAPE_NAMES.length) {
+    active = shapeParam; morphTarget = shapeParam;
+    uniforms.uCur.value = shapeParam; uniforms.uNext.value = shapeParam;
+    document.getElementById('modeName').textContent = SHAPE_NAMES[shapeParam];
+  }
+}
+addEventListener('message', e=>{
+  if (e.data?.type === 'song') loadSongUrl(e.data.url || null, e.data.muted);
+  if (e.data?.type === 'setShape' && Number.isInteger(e.data.index)) {
+    const i = Math.max(0, Math.min(SHAPE_NAMES.length-1, e.data.index));
+    if (e.data.instant) {
+      active = i; morphTarget = i; morphing = false;
+      uniforms.uCur.value = i; uniforms.uNext.value = i; uniforms.uMorph.value = 0;
+      document.getElementById('modeName').textContent = SHAPE_NAMES[i];
+    } else {
+      startMorphTo(i, clock.getElapsedTime());
+    }
+  }
+  if (e.data?.type === 'setActive') {
+    if (e.data.active) {
+      // Sync to the switch-time position sent by the parent — this frame has
+      // been sitting paused since it loaded, so without this it resumes from
+      // a stale time and the song visibly jumps on every effect switch.
+      if (audioEl && isFinite(e.data.time) && Math.abs(audioEl.currentTime - e.data.time) > 0.4) audioEl.currentTime = e.data.time;
+      actx?.resume().catch(()=>{}); audioEl?.play().catch(()=>{});
+    }
+    else audioEl?.pause();
+  }
+  if (e.data?.type === 'mute' && audioEl) {
+    audioEl.muted = !!e.data.muted;
+    if (!e.data.muted) { actx?.resume().catch(()=>{}); audioEl.play().catch(()=>{}); }
+  }
+  if (e.data?.type === 'play' && audioEl) { actx?.resume().catch(()=>{}); audioEl.play().catch(()=>{}); }
+  if (e.data?.type === 'pause' && audioEl) audioEl.pause();
+  if (e.data?.type === 'seek' && audioEl && isFinite(e.data.time)) audioEl.currentTime = e.data.time;
+  if (e.data?.type === 'volume' && audioEl) {
+    audioEl.volume = e.data.value; audioEl.muted = e.data.value <= 0;
+    if (e.data.value > 0) { actx?.resume().catch(()=>{}); audioEl.play().catch(()=>{}); }
+  }
+});
+// Fallback: a real tap/drag directly on this canvas (orbiting, switching modes)
+// is a genuine gesture in THIS frame. AudioContext.resume() alone isn't
+// enough — the <audio> element's own play() call is a SEPARATE autoplay gate
+// and needs its own retry once we're inside a real gesture.
+addEventListener('pointerdown', () => {
+  actx?.resume().catch(()=>{});
+  if (audioEl && !audioEl.muted) audioEl.play().catch(()=>{});
+}, { once: true });
+
+// ---- kiosk: hide nothing here by default (bar is already minimal), but
+// keep the API surface consistent with destinys-child's embed pattern.
+</script>
+</body>
+</html>

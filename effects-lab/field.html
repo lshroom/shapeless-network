@@ -1,0 +1,356 @@
+<!doctype html>
+<!-- effect #3 for the Feed player: "field" — cymatics/resonance trio —
+     wave interference field, chladni plate 3d, resonant spiderweb —
+     auto-switching on the kick, or manually via the dots. Orbit-controllable (drag/scroll). -->
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>field — wave interference / chladni plate / spiderweb</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#05060a;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;}
+  canvas{display:block;touch-action:none;}
+  #stage{position:fixed;inset:0;z-index:1;}
+  #bar{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;align-items:center;justify-content:center;gap:8px;
+       padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
+       background:linear-gradient(to top,rgba(0,0,0,.75),transparent);}
+  .dot{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.35);
+       cursor:pointer;padding:0;transition:background .15s,transform .15s;}
+  .dot.on{background:#8b9bff;border-color:#8b9bff;transform:scale(1.25);}
+  #beatBtn,#ctlBtn,#fsBtn{background:rgba(255,255,255,.08);color:#f5f5f7;border:1px solid rgba(255,255,255,.18);border-radius:99px;
+       padding:6px 12px;font-size:11px;cursor:pointer;margin-left:10px;}
+  #beatBtn.on{background:rgba(139,155,255,.28);border-color:#8b9bff;color:#cdd4ff;}
+  #ctlBtn.on{background:rgba(139,155,255,.28);border-color:#8b9bff;color:#cdd4ff;}
+  #fsBtn{margin-left:auto;padding:6px 9px;font-size:13px;}
+  #noSrc{position:fixed;bottom:56px;left:0;right:0;text-align:center;color:rgba(255,255,255,.4);font-size:11px;z-index:5;pointer-events:none;}
+  #controlPanel{position:fixed;top:12px;right:12px;z-index:10;display:flex;flex-direction:column;gap:6px;
+       background:rgba(10,10,14,.55);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12);
+       border-radius:10px;padding:10px 12px;max-width:200px;}
+  .ctl-row{display:flex;flex-direction:column;gap:3px;}
+  .ctl-label{color:rgba(255,255,255,.6);font-size:10px;text-transform:uppercase;letter-spacing:.03em;}
+  .ctl-row input[type=range]{width:100%;accent-color:#8b9bff;}
+  #modeName{position:fixed;top:12px;left:12px;z-index:10;color:#f5f5f7;font-size:13px;font-weight:600;letter-spacing:.02em;background:rgba(10,10,14,.55);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:6px 12px;}
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="noSrc">waiting for audio…</div>
+<div id="controlPanel"></div>
+<div id="modeName">Wave Interference Field</div>
+<div id="bar">
+  <button class="dot" data-i="0" title="Wave Interference Field"></button>
+  <button class="dot" data-i="1" title="Chladni Plate 3D"></button>
+  <button class="dot" data-i="2" title="Resonant Spiderweb"></button>
+  <button id="beatBtn" class="on">⚡ Auto: ON</button>
+  <button id="ctlBtn" title="Controls">⚙</button>
+  <button id="fsBtn" title="Fullscreen">⛶</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { pal } from '/h5555/core.js';
+
+// ---- renderer / scene / camera ----
+const canvas = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+renderer.setClearColor(0x05060a, 1);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(55, 1, 0.01, 200);
+camera.position.set(0, 0, 6);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.45, 0.7, 0.85);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h); composer.setSize(w, h);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+  bloom.resolution.set(w, h);
+}
+addEventListener('resize', resize); resize();
+
+// ---- audio ----
+const audio = { bass:0, mid:0, high:0, rms:0, beatEnv:0, kick:0 };
+let actx, analyser, freqData, timeData, srcNode;
+let audioEl = null;
+function ensureCtx() {
+  if (actx) return;
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = actx.createAnalyser();
+  analyser.fftSize = 2048; analyser.smoothingTimeConstant = 0.8;
+  freqData = new Uint8Array(analyser.frequencyBinCount);
+  timeData = new Uint8Array(analyser.fftSize);
+  analyser.connect(actx.destination);
+}
+function loadSongUrl(url, muted, startTime, active) {
+  if (!url) return;
+  ensureCtx();
+  if (audioEl) { try { audioEl.pause(); } catch(_){} }
+  audioEl = new Audio(url);
+  window.audioEl = audioEl; window.actx = actx; // debug/QA hooks — module scope isn't visible from outside otherwise
+  audioEl.crossOrigin = 'anonymous'; audioEl.loop = true;
+  audioEl.muted = !!muted;
+  if (startTime > 0) audioEl.addEventListener('loadedmetadata', () => { audioEl.currentTime = startTime; }, { once: true });
+  if (srcNode) { try { srcNode.disconnect(); } catch(_){} }
+  srcNode = actx.createMediaElementSource(audioEl);
+  srcNode.connect(analyser);
+  actx.resume();
+  // active === false: this is a non-selected fullscreen effect frame — load and
+  // stay ready to seek, but don't sound, or all 3 frames play at once on open.
+  if (active !== false) audioEl.play().catch(()=>{});
+  document.getElementById('noSrc').style.display = 'none';
+  audioEl.addEventListener('timeupdate', () => {
+    try { parent.postMessage({ type: 'timeupdate', currentTime: audioEl.currentTime, duration: audioEl.duration || 0 }, '*'); } catch(_){}
+  });
+}
+window._fieldSetSongUrl = loadSongUrl;
+
+let bassS=0, midS=0, highS=0, rmsS=0;
+// Onset detector: a FAST envelope of the bass band vs a SLOW rolling baseline
+// of the same band. A kick is a fast envelope spiking well above the recent
+// local loudness — this reacts to the actual transient instead of drifting
+// with a smoothed derivative, and a refractory window stops it double-firing
+// on one hit. Works straight off the mixed signal, no stem separation needed.
+let bassFast=0, bassSlow=0, kickRefractory=0, kickPulse=0;
+function sampleAudio() {
+  if (!analyser) return;
+  analyser.getByteFrequencyData(freqData);
+  analyser.getByteTimeDomainData(timeData);
+  const n = freqData.length;
+  let b=0,m=0,h=0; const bEnd=(n*0.08)|0, mEnd=(n*0.4)|0;
+  for (let i=0;i<n;i++){ const v=freqData[i]/255; if(i<bEnd)b+=v; else if(i<mEnd)m+=v; else h+=v; }
+  b/=bEnd; m/=(mEnd-bEnd); h/=(n-mEnd);
+  let rms=0; for(let i=0;i<timeData.length;i++){ const v=(timeData[i]-128)/128; rms+=v*v; } rms=Math.sqrt(rms/timeData.length);
+  bassS+=(b-bassS)*0.3; midS+=(m-midS)*0.3; highS+=(h-highS)*0.3; rmsS+=(rms-rmsS)*0.3;
+  audio.bass=bassS; audio.mid=midS; audio.high=highS; audio.rms=rmsS;
+
+  bassFast += (b - bassFast) * 0.55;
+  bassSlow += (b - bassSlow) * 0.045;
+  const now = performance.now() / 1000;
+  let hit = false;
+  if (bassFast > bassSlow * 1.35 + 0.06 && (now - kickRefractory) > 0.14) {
+    hit = true; kickRefractory = now;
+  }
+  kickPulse = Math.max(kickPulse * 0.7, hit ? 1 : 0);
+  audio.beatEnv = Math.max(audio.beatEnv*0.9, kickPulse);
+  audio.kick = kickPulse;
+}
+
+// ---- the 3 fields, as ONE continuously-deformable grid ----
+// Same idea as the sphere page: instead of tearing down and rebuilding a
+// separate mesh per mode (a hard cut), all 3 patterns are height functions
+// over ONE shared grid, and switching lerps vertex heights + colors from the
+// current pattern to the next over ~1.6s — the ripples genuinely melt from
+// one pattern into the next instead of cutting.
+const FIELD_NAMES = ['Wave Interference Field','Chladni Plate 3D','Resonant Spiderweb'];
+const GRID = 120, EXTENT = 7;
+const fieldGeo = new THREE.PlaneGeometry(EXTENT, EXTENT, GRID-1, GRID-1);
+fieldGeo.rotateX(-Math.PI/2);
+const fieldColArr = new Float32Array(GRID*GRID*3);
+fieldGeo.setAttribute('color', new THREE.BufferAttribute(fieldColArr, 3));
+const fieldMat = new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.35, metalness:0.45, side:THREE.DoubleSide });
+const fieldMesh = new THREE.Mesh(fieldGeo, fieldMat);
+scene.add(fieldMesh);
+scene.add(new THREE.AmbientLight(0x335577, 0.7));
+const fieldDL = new THREE.DirectionalLight(0xffffff, 1.5); fieldDL.position.set(2,5,3); scene.add(fieldDL);
+camera.position.set(0, 6, 9); controls.target.set(0, 0, 0);
+
+function heightInterference(x,z,t,a){
+  let v=0;
+  for(let s=0;s<3;s++){ const ang=t*0.5+s*2.0943951; const sx=Math.cos(ang)*2.2, sz=Math.sin(ang)*2.2;
+    const d=Math.hypot(x-sx,z-sz); v+=Math.sin(d*5*(1+a.mid*0.5)-t*4)/(1+d*0.35); }
+  return v*1.4*(0.5+a.bass)*0.4;
+}
+function heightChladni(x,z,t,a){
+  const m=4+a.mid*3, n=3+a.high*2;
+  const u=x/EXTENT+0.5, v=z/EXTENT+0.5;
+  return (Math.sin(m*Math.PI*u)*Math.sin(n*Math.PI*v)-Math.sin(n*Math.PI*u)*Math.sin(m*Math.PI*v)) * 0.9*(0.5+a.bass);
+}
+function heightWeb(x,z,t,a){
+  const rad=Math.hypot(x,z), ang=Math.atan2(z,x);
+  const spoke=Math.pow(Math.abs(Math.cos(ang*7)),10);
+  const ring=Math.pow(Math.abs(Math.cos(rad*5-t*0.6)),10);
+  return (Math.max(spoke,ring)*0.7-0.15) * (0.4+a.rms*2);
+}
+function heightFor(id,x,z,t,a){ return id===0?heightInterference(x,z,t,a):id===1?heightChladni(x,z,t,a):heightWeb(x,z,t,a); }
+function colorFor(id,v,a){
+  if(id===0) return pal(0.5+v*0.2+a.high*0.2,[0.4,0.45,0.6],[0.5,0.5,0.5],[1,1,1],[0.1,0.3,0.6]);
+  if(id===1) return pal(0.5+v*0.3,[0.5,0.4,0.5],[0.5,0.5,0.5],[1,1,1],[0.1,0.3,0.6]);
+  return pal(0.55+a.high*0.2,[0.6,0.6,0.7],[0.3,0.3,0.3],[1,1,1],[0.5,0.6,0.7]);
+}
+const smoothstepJS = t => t*t*(3-2*t);
+
+let active = 0, morphTarget = 0, morphing = false, morphStartT = 0, autoBeat = true, lastSwitch = 0;
+const MORPH_SECONDS = 1.6;
+document.getElementById('modeName').textContent = FIELD_NAMES[0];
+document.querySelector('.dot[data-i="0"]')?.classList.add('on');
+
+const fieldPos = fieldGeo.attributes.position;
+function updateField(t){
+  const p = morphing ? Math.min(1, (t - morphStartT) / MORPH_SECONDS) : 0;
+  const mt = smoothstepJS(p);
+  // Same liquid trick as the sphere page: a bulge that peaks mid-transition
+  // so the surface visibly ripples/melts between patterns instead of a flat
+  // linear cross-fade, which reads as two things overlapping rather than one
+  // thing becoming another.
+  const liquidAmt = 4*mt*(1-mt)*0.45;
+  let k=0, ci=0;
+  for (let iz=0; iz<GRID; iz++){
+    for (let ix=0; ix<GRID; ix++){
+      const x=(ix/(GRID-1)-0.5)*EXTENT, z=(iz/(GRID-1)-0.5)*EXTENT;
+      let y, col;
+      if (!morphing) {
+        y = heightFor(active,x,z,t,audio);
+        col = colorFor(active,y,audio);
+      } else {
+        const yA=heightFor(active,x,z,t,audio), yB=heightFor(morphTarget,x,z,t,audio);
+        y = yA*(1-mt) + yB*mt + liquidAmt*Math.sin(x*2.2+z*2.2+t*3.0);
+        col = colorFor(active,yA,audio).lerp(colorFor(morphTarget,yB,audio), mt);
+      }
+      fieldPos.setY(k, y);
+      fieldColArr[ci]=col.r; fieldColArr[ci+1]=col.g; fieldColArr[ci+2]=col.b;
+      k++; ci+=3;
+    }
+  }
+  fieldPos.needsUpdate = true;
+  fieldGeo.attributes.color.needsUpdate = true;
+  fieldGeo.computeVertexNormals();
+}
+
+function startMorphTo(i, tNow){
+  if (i === active && !morphing) return;
+  morphTarget = i; morphing = true; morphStartT = tNow;
+  document.getElementById('modeName').textContent = FIELD_NAMES[i];
+  document.querySelectorAll('.dot').forEach((d,di)=>d.classList.toggle('on', di===i));
+}
+document.querySelectorAll('.dot').forEach(d=>d.addEventListener('click', ()=>{
+  autoBeat=false; syncBeatBtn(); startMorphTo(+d.dataset.i, clock.getElapsedTime());
+}));
+function syncBeatBtn(){
+  const btn = document.getElementById('beatBtn');
+  btn.classList.toggle('on', autoBeat);
+  btn.textContent = autoBeat ? '⚡ Auto: ON' : '⏸ Auto: OFF';
+}
+document.getElementById('beatBtn').addEventListener('click', ()=>{ autoBeat=!autoBeat; syncBeatBtn(); });
+document.getElementById('fsBtn').addEventListener('click', ()=>{
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen?.().catch(()=>{});
+});
+
+// Controls panel: off by default, toggled by the gear button.
+const panel = document.getElementById('controlPanel');
+panel.hidden = true;
+panel.innerHTML = `<div class="ctl-row"><span class="ctl-label">switch every (max)</span>
+  <input id="switchIntervalCtl" type="range" min="4" max="30" step="1" value="14"></div>`;
+const ctlBtn = document.getElementById('ctlBtn');
+ctlBtn.addEventListener('click', ()=>{ panel.hidden = !panel.hidden; ctlBtn.classList.toggle('on', !panel.hidden); });
+let switchIntervalSec = 14;
+document.getElementById('switchIntervalCtl').addEventListener('input', e=>{ switchIntervalSec = +e.target.value; });
+
+// ---- render loop ----
+const clock = new THREE.Clock();
+function loop(){
+  const dt = clock.getDelta(), t = clock.getElapsedTime();
+  sampleAudio();
+  // kick-triggered switch, but never stuck: force-advance if no kick has
+  // fired in a while (quiet mix / no sharp bass transients in this track).
+  if (autoBeat && !morphing && (t - lastSwitch) > 1.8 && (audio.kick > 0.6 || (t - lastSwitch) > switchIntervalSec)) {
+    lastSwitch = t;
+    startMorphTo((active + 1) % FIELD_NAMES.length, t);
+  }
+  if (morphing && (t - morphStartT) >= MORPH_SECONDS) { active = morphTarget; morphing = false; }
+  updateField(t);
+  fieldMesh.rotation.y += dt * 0.04;
+  controls.update();
+  composer.render();
+  requestAnimationFrame(loop);
+}
+loop();
+
+// ---- feed embed: ?song=<url>[&muted=1] + postMessage({type:'song'|'setActive'|'mute'}) ----
+const songParam = new URLSearchParams(location.search).get('song');
+const mutedParam = new URLSearchParams(location.search).get('muted') === '1';
+const startTimeParam = parseFloat(new URLSearchParams(location.search).get('t') || '0');
+const activeParam = new URLSearchParams(location.search).get('active') !== '0';
+if (songParam) loadSongUrl(decodeURIComponent(songParam), mutedParam, startTimeParam, activeParam);
+// Inline Feed preview: the parent page draws its own single transport bar
+// below the preview — this page's own bottom bar would be a second one.
+if (new URLSearchParams(location.search).get('embed') === 'inline') {
+  const bar = document.getElementById('bar'); if (bar) bar.style.display = 'none';
+}
+// "driven" mode: an uploader-defined timeline (or this page's own live editor
+// preview) is choosing the pattern externally via postMessage — the built-in
+// kick-autoswitch and manual bar/controls are someone else's job now.
+const drivenParam = new URLSearchParams(location.search).get('driven') === '1';
+if (drivenParam) {
+  autoBeat = false;
+  const bar = document.getElementById('bar'); if (bar) bar.style.display = 'none';
+  document.getElementById('controlPanel').style.display = 'none';
+  const shapeParam = parseInt(new URLSearchParams(location.search).get('shape'), 10);
+  if (Number.isInteger(shapeParam) && shapeParam >= 0 && shapeParam < FIELD_NAMES.length) {
+    active = shapeParam; morphTarget = shapeParam;
+    document.getElementById('modeName').textContent = FIELD_NAMES[shapeParam];
+  }
+}
+addEventListener('message', e=>{
+  if (e.data?.type === 'song') loadSongUrl(e.data.url || null, e.data.muted);
+  if (e.data?.type === 'setShape' && Number.isInteger(e.data.index)) {
+    const i = Math.max(0, Math.min(FIELD_NAMES.length-1, e.data.index));
+    if (e.data.instant) {
+      active = i; morphTarget = i; morphing = false;
+      document.getElementById('modeName').textContent = FIELD_NAMES[i];
+    } else {
+      startMorphTo(i, clock.getElapsedTime());
+    }
+  }
+  if (e.data?.type === 'setActive') {
+    if (e.data.active) {
+      // Sync to the switch-time position sent by the parent — this frame has
+      // been sitting paused since it loaded, so without this it resumes from
+      // a stale time and the song visibly jumps on every effect switch.
+      if (audioEl && isFinite(e.data.time) && Math.abs(audioEl.currentTime - e.data.time) > 0.4) audioEl.currentTime = e.data.time;
+      actx?.resume().catch(()=>{}); audioEl?.play().catch(()=>{});
+    }
+    else audioEl?.pause();
+  }
+  if (e.data?.type === 'mute' && audioEl) {
+    audioEl.muted = !!e.data.muted;
+    // unmuting needs the underlying audio context awake too — it starts
+    // suspended by default and stays silent even once the element isn't muted.
+    if (!e.data.muted) { ensureCtx(); actx.resume().catch(()=>{}); audioEl.play().catch(()=>{}); }
+  }
+  if (e.data?.type === 'play' && audioEl) { actx?.resume().catch(()=>{}); audioEl.play().catch(()=>{}); }
+  if (e.data?.type === 'pause' && audioEl) audioEl.pause();
+  if (e.data?.type === 'seek' && audioEl && isFinite(e.data.time)) audioEl.currentTime = e.data.time;
+  if (e.data?.type === 'volume' && audioEl) {
+    audioEl.volume = e.data.value; audioEl.muted = e.data.value <= 0;
+    if (e.data.value > 0) { actx?.resume().catch(()=>{}); audioEl.play().catch(()=>{}); }
+  }
+});
+// Fallback: a real tap/drag directly on this canvas is a genuine gesture in
+// THIS frame. AudioContext.resume() alone isn't enough — the <audio>
+// element's own play() call is a SEPARATE autoplay gate that needs its own
+// retry once we're inside a real gesture.
+addEventListener('pointerdown', () => {
+  actx?.resume().catch(()=>{});
+  if (audioEl && !audioEl.muted) audioEl.play().catch(()=>{});
+}, { once: true });
+</script>
+</body>
+</html>

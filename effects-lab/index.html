@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>effects lab</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  html,body { margin:0; height:100%; background:#02030a; color:#cfd; font:13px/1.35 system-ui,Inter,monospace; overflow:hidden; }
+  canvas { display:block; }
+  #scene { position:fixed; inset:0; z-index:0; background:#02030a; }
+
+  #top { position:fixed; top:0; left:0; right:0; height:44px; z-index:10; display:flex; align-items:center; gap:8px; padding:0 12px; background:linear-gradient(to bottom,rgba(0,0,0,.9),rgba(0,0,0,.5)); border-bottom:1px solid rgba(255,255,255,.06); }
+  #top button { background:transparent; color:#cfd; border:1px solid rgba(255,255,255,.18); border-radius:6px; padding:5px 10px; cursor:pointer; font:inherit; font-size:11px; }
+  #top button:hover { background:rgba(255,255,255,.06); }
+  #top .file { color:rgba(255,255,255,.55); font-size:11px; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #top label { color:rgba(255,255,255,.45); font-size:10px; letter-spacing:1px; }
+  #top input[type=range] { width:90px; }
+  .meter { width:50px; height:8px; background:#161a26; border-radius:3px; overflow:hidden; display:inline-block; vertical-align:middle; }
+  .meter > span { display:block; height:100%; width:0; }
+
+  #tabs { position:fixed; top:44px; left:0; right:0; z-index:10; display:flex; align-items:center; flex-wrap:wrap; gap:1px; padding:4px 8px; background:rgba(0,0,0,.6); border-bottom:1px solid rgba(255,255,255,.04); }
+  #panel { top: auto; }
+  .tab { background:transparent; color:rgba(255,255,255,.55); border:0; padding:6px 10px; cursor:pointer; font:inherit; font-size:11px; border-radius:6px 6px 0 0; white-space:nowrap; flex-shrink:0; }
+  .tab.active { background:rgba(255,255,255,.06); color:#fff; }
+  .tab .dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:5px; vertical-align:middle; opacity:0.6; }
+
+  #panel { position:fixed; top:auto; right:10px; width:280px; z-index:10; background:rgba(8,10,18,.88); border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:12px; backdrop-filter:blur(8px); max-height:calc(100vh - 200px); overflow-y:auto; }
+  #panel h3 { margin:0 0 10px; font-size:13px; letter-spacing:1px; }
+  .knob { display:grid; grid-template-columns:84px 1fr 44px; align-items:center; gap:6px; margin:5px 0; font-size:11px; }
+  .knob label { color:rgba(255,255,255,.6); }
+  .knob input[type=range] { width:100%; }
+  .knob .val { color:#fff; text-align:right; font-variant-numeric:tabular-nums; font-size:10px; }
+  .knob select, .knob input[type=color] { background:#0a0e18; color:#fff; border:1px solid rgba(255,255,255,.15); border-radius:4px; padding:2px 4px; font:inherit; font-size:10px; width:100%; }
+  .knob input[type=color] { padding:0; height:22px; cursor:pointer; }
+
+  #noSrc { position:fixed; bottom:30px; left:0; right:0; text-align:center; color:rgba(255,255,255,.5); font-size:12px; z-index:5; pointer-events:none; }
+  .hint { position:fixed; bottom:8px; left:14px; right:14px; color:rgba(255,255,255,.3); font-size:10px; text-align:center; z-index:5; pointer-events:none; }
+</style>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<div id="top">
+  <button id="loadBtn">+ load music</button>
+  <input type="file" id="file" accept="audio/*" hidden />
+  <button id="playBtn" disabled>▶ play</button>
+  <button id="micBtn">🎤 mic</button>
+  <span class="file" id="fileName">no audio</span>
+  <span style="flex:1"></span>
+  <label>BASS</label><span class="meter"><span id="bassFill" style="background:#5ad9ff"></span></span>
+  <label>MID</label><span class="meter"><span id="midFill"  style="background:#5fe17a"></span></span>
+  <label>HIGH</label><span class="meter"><span id="highFill" style="background:#ffa840"></span></span>
+  <label>VOL</label><input id="master" type="range" min="0" max="1" step="0.01" value="0.85" />
+</div>
+
+<div id="tabs"></div>
+<div id="panel"></div>
+<div id="noSrc">load a music file or enable mic — effects react to real audio only, no fake idle</div>
+<div class="hint">drag to orbit · scroll to zoom · pick a tab above for each effect</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer }  from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass }      from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { audio } from './_audio.js';
+import { disposeObject } from './_helpers.js';
+
+/* ─── effects registry ─── */
+import curl       from './effects/01_curl.js';
+import fluff      from './effects/02_fluff.js';
+import bars       from './effects/03_bars.js';
+import ribbon     from './effects/04_ribbon.js';
+import scope      from './effects/05_scope.js';
+import sculpt     from './effects/06_sculpt.js';
+import waterfall  from './effects/07_waterfall.js';
+import entropy    from './effects/08_entropy.js';
+import floor      from './effects/09_floor.js';
+import trail      from './effects/10_trail.js';
+import emitter    from './effects/11_emitter.js';
+import skydust    from './effects/12_skydust.js';
+import seqDisc    from './effects/13_seqdisc.js';
+import loopStack  from './effects/14_loopstack.js';
+import range      from './effects/15_range.js';
+import aura       from './effects/16_aura.js';
+import wall       from './effects/17_wall.js';
+import beat       from './effects/18_beat.js';
+import ticker     from './effects/19_ticker.js';
+import router     from './effects/20_router.js';
+import sampler    from './effects/21_sampler.js';
+import tunnel     from './effects/22_tunnel.js';
+import cellular   from './effects/23_cellular.js';
+import hairball   from './effects/24_hairball.js';
+import fluffNew   from './effects/25_fluff.js';
+import textCloud  from './effects/26_text.js';
+import sculptNew  from './effects/27_sculpt.js';
+const EFFECTS = [curl,fluff,bars,ribbon,scope,sculpt,waterfall,entropy,floor,trail,emitter,skydust,seqDisc,loopStack,range,aura,wall,beat,ticker,router,sampler,tunnel,cellular,hairball,fluffNew,textCloud,sculptNew];
+
+/* ─── base 3D ─── */
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(0x02030a, 1);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x02030a, 25, 80);
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 300);
+camera.position.set(0, 4, 16);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+
+const composer = new EffectComposer(renderer);
+const renderPass = new RenderPass(scene, camera);
+composer.addPass(renderPass);
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.9, 0.45, 0.2);
+bloomPass.enabled = false;
+composer.addPass(bloomPass);
+
+/* shared rig for effects */
+const rig = { THREE, scene, camera, renderer, controls, composer, bloomPass, audio };
+
+/* ─── mount / swap ─── */
+const tabsEl = document.getElementById('tabs');
+const panelEl = document.getElementById('panel');
+let current = null;
+
+function clearScene() {
+  // remove children that aren't permanent (we have no permanent lights — effects add their own)
+  while (scene.children.length) {
+    const c = scene.children[0];
+    scene.remove(c);
+    disposeObject(c);
+  }
+  // reset post-processing
+  bloomPass.enabled = false;
+}
+
+function makeControl(c, onChange) {
+  const wrap = document.createElement('div'); wrap.className = 'knob';
+  const lab = document.createElement('label'); lab.textContent = c.label; wrap.appendChild(lab);
+  let inp, val;
+  if (c.type === 'color') {
+    inp = document.createElement('input'); inp.type = 'color'; inp.value = c.val;
+    inp.addEventListener('input', () => onChange(c.p, inp.value));
+  } else if (c.type === 'select') {
+    inp = document.createElement('select');
+    c.options.forEach(o => { const op = document.createElement('option'); op.value = o.v; op.textContent = o.l; if (o.v == c.val) op.selected = true; inp.appendChild(op); });
+    inp.addEventListener('change', () => onChange(c.p, isNaN(+inp.value) ? inp.value : +inp.value));
+  } else {
+    inp = document.createElement('input'); inp.type = 'range'; inp.min = c.min; inp.max = c.max; inp.step = c.step; inp.value = c.val;
+    val = document.createElement('span'); val.className = 'val'; val.textContent = c.val;
+    inp.addEventListener('input', () => { onChange(c.p, +inp.value); val.textContent = (+inp.value >= 100 ? Math.round(+inp.value) : (+inp.value).toFixed(2)); });
+  }
+  wrap.appendChild(inp);
+  if (val) wrap.appendChild(val); else wrap.appendChild(Object.assign(document.createElement('span'), { className:'val' }));
+  return wrap;
+}
+
+function mount(effect) {
+  if (current?.dispose) current.dispose();
+  clearScene();
+  panelEl.innerHTML = '';
+
+  // header
+  const h = document.createElement('h3');
+  h.textContent = effect.label.toUpperCase();
+  h.style.color = '#' + effect.color.toString(16).padStart(6,'0');
+  panelEl.appendChild(h);
+
+  current = effect.init(rig);
+
+  // controls
+  (effect.controls || []).forEach(c => {
+    panelEl.appendChild(makeControl(c, (p, v) => current.set?.(p, v)));
+    if (current.set) current.set(c.p, c.type === 'select' ? (isNaN(+c.val) ? c.val : +c.val) : c.val);
+  });
+
+  // active tab
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.id === effect.id));
+}
+
+EFFECTS.forEach(fx => {
+  const t = document.createElement('button');
+  t.className = 'tab'; t.dataset.id = fx.id; t.style.color = '#' + fx.color.toString(16).padStart(6,'0');
+  t.innerHTML = `<span class="dot" style="background:#${fx.color.toString(16).padStart(6,'0')}"></span>${fx.label}`;
+  t.onclick = () => mount(fx);
+  tabsEl.appendChild(t);
+});
+
+// position panel below tabs
+function repositionPanel() {
+  const h = tabsEl.getBoundingClientRect().bottom;
+  panelEl.style.top = (h + 8) + 'px';
+}
+repositionPanel();
+new ResizeObserver(repositionPanel).observe(tabsEl);
+
+/* ─── top bar wiring ─── */
+const fileInput = document.getElementById('file');
+const fileName  = document.getElementById('fileName');
+const loadBtn   = document.getElementById('loadBtn');
+const playBtn   = document.getElementById('playBtn');
+const micBtn    = document.getElementById('micBtn');
+const masterIn  = document.getElementById('master');
+const bassFill = document.getElementById('bassFill');
+const midFill  = document.getElementById('midFill');
+const highFill = document.getElementById('highFill');
+const noSrc    = document.getElementById('noSrc');
+
+masterIn.addEventListener('input', () => audio.setMasterVolume(+masterIn.value));
+loadBtn.onclick = () => fileInput.click();
+fileInput.onchange = async e => { if (e.target.files[0]) { await audio.loadFile(e.target.files[0]); fileName.textContent = e.target.files[0].name; playBtn.disabled = false; playBtn.textContent = '▶ play'; } };
+['dragover','drop'].forEach(t => document.body.addEventListener(t, e => e.preventDefault()));
+document.body.addEventListener('drop', async e => { const f = e.dataTransfer.files[0]; if (f && f.type.startsWith('audio')) { await audio.loadFile(f); fileName.textContent = f.name; playBtn.disabled = false; } });
+playBtn.onclick = async () => { if (!audio.hasFile()) return; if (audio.isPaused()) { audio.play(); playBtn.textContent='⏸ pause'; } else { audio.pause(); playBtn.textContent='▶ play'; } };
+micBtn.onclick = async () => {
+  try {
+    if (audio.hasSource() && !audio.hasFile()) { audio.detachMic(); fileName.textContent='no audio'; micBtn.textContent='🎤 mic'; return; }
+    const ok = await audio.attachMic();
+    if (ok) { fileName.textContent='🎤 live mic'; micBtn.textContent='🎤 mic ON'; }
+  } catch (e) { fileName.textContent = 'mic error: ' + e.message; }
+};
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+});
+
+/* ─── render loop ─── */
+const clock = new THREE.Clock();
+function tick() {
+  const dt = clock.getDelta();
+  const t  = clock.getElapsedTime();
+  audio.read();
+  noSrc.style.display = audio.hasSource() ? 'none' : 'block';
+  bassFill.style.width = (audio.bass*100)+'%';
+  midFill.style.width  = (audio.mid*100)+'%';
+  highFill.style.width = (audio.high*100)+'%';
+  current?.update?.(t, dt);
+  controls.update();
+  if (bloomPass.enabled) composer.render(); else renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+tick();
+
+mount(EFFECTS[0]); // start on first effect
+</script>
+</body>
+</html>

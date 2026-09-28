@@ -10,7 +10,7 @@ create table if not exists shapeless_seeds (
   theme text not null,
   step text default '',
   doers int default 0,
-  threshold int default 8,
+  threshold int default 1,
   promoted boolean default false,
   energy int default 1,
   created_at timestamptz default now()

@@ -42,7 +42,11 @@ http.createServer((req, res) => {
       fs.createReadStream(filePath, { start, end }).pipe(res);
       return;
     }
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Content-Length': stat.size });
+    const headers = { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Content-Length': stat.size };
+    // html/js/json change constantly during development — never let the browser's
+    // own HTTP cache serve a stale copy without at least revalidating first.
+    if (ext === '.html' || ext === '.js' || ext === '.json') headers['Cache-Control'] = 'no-cache';
+    res.writeHead(200, headers);
     fs.createReadStream(filePath).pipe(res);
   });
 }).listen(PORT, () => console.log(`Shapeless PWA serving on :${PORT}`));

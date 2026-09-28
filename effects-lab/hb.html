@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<title>Hairball — dense fur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#08080a; --ink:#f5f5f7; --ink-mute:rgba(245,245,247,.58); --ink-faint:rgba(245,245,247,.38);
+    --hair:rgba(255,255,255,.08); --hair-strong:rgba(255,255,255,.14);
+    --panel:rgba(18,18,22,.55); --chip:rgba(255,255,255,.06); --chip-hover:rgba(255,255,255,.11);
+    --accent:#ffb37a; --accent-tint:rgba(255,179,122,.18);
+    --radius:14px; --shadow:0 12px 40px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.04) inset;
+    --font:"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+    --ease:cubic-bezier(.22,.61,.36,1);
+  }
+  html, body { margin:0; padding:0; height:100%; background:var(--bg); color:var(--ink); font-family:var(--font); overflow:hidden; -webkit-font-smoothing:antialiased; letter-spacing:-0.01em; }
+  canvas#c { display:block; touch-action:none; position:fixed; inset:0; width:100vw; height:100vh; z-index:0; }
+  #brand { position:fixed; top:14px; left:16px; z-index:14; display:flex; align-items:center; gap:10px; pointer-events:none; }
+  #brand .wm { font-size:13px; font-weight:500; color:var(--ink); opacity:.92; letter-spacing:.02em; }
+  .panel{ position:fixed; z-index:10; background:var(--panel); border:1px solid var(--hair); border-radius:var(--radius); backdrop-filter:blur(28px) saturate(160%); -webkit-backdrop-filter:blur(28px) saturate(160%); box-shadow:var(--shadow); font-size:13px; line-height:1.5; overflow:hidden; }
+  .panel .panel-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; cursor:pointer; user-select:none; }
+  .panel .panel-body{ padding:4px 14px 14px; max-height:80vh; overflow:auto; transition:max-height .32s var(--ease), opacity .24s var(--ease), padding .28s var(--ease); }
+  .panel.collapsed .panel-body{ max-height:0; opacity:0; padding-top:0; padding-bottom:0; }
+  h1{ font-size:11px; margin:0; letter-spacing:.14em; text-transform:uppercase; font-weight:600; color:var(--ink); }
+  h2{ font-size:10px; margin:14px 0 8px; color:var(--ink-mute); letter-spacing:.12em; text-transform:uppercase; font-weight:600; }
+  .min-btn{ background:transparent; border:0; color:var(--ink-mute); width:22px; height:22px; border-radius:50%; font-size:14px; cursor:pointer; padding:0; }
+  .min-btn:hover{ background:var(--chip); color:var(--ink); }
+  #masterPanel{ left:16px; top:62px; width:300px; max-width:92vw; }
+  button{ background:var(--chip); color:var(--ink); border:1px solid var(--hair); padding:7px 12px; border-radius:9px; cursor:pointer; font:inherit; font-size:12px; font-weight:500; }
+  button:hover{ background:var(--chip-hover); border-color:var(--hair-strong); }
+  button.on{ background:var(--accent-tint); border-color:rgba(255,179,122,.45); color:#ffe5d2; }
+  input[type=range]{ -webkit-appearance:none; appearance:none; width:100%; height:18px; background:transparent; flex:1; min-width:80px; }
+  input[type=range]::-webkit-slider-runnable-track{ height:2px; background:var(--hair-strong); border-radius:2px; }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:12px; height:12px; border-radius:50%; background:var(--ink); margin-top:-5px; cursor:pointer; box-shadow:0 0 0 3px rgba(0,0,0,.4); }
+  select{ background:#111; color:var(--ink); border:1px solid #333; padding:6px 8px; border-radius:6px; font:inherit; font-size:12px; }
+  .row{ margin:8px 0; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .key{ color:var(--ink-faint); font-size:10px; min-width:78px; letter-spacing:.08em; text-transform:uppercase; font-weight:500; }
+  .val{ color:var(--ink); font-size:11px; font-variant-numeric:tabular-nums; min-width:38px; text-align:right; }
+  input[type=color]{ width:46px; height:24px; border:1px solid var(--hair); background:transparent; border-radius:4px; padding:0; cursor:pointer; }
+</style></head>
+<body>
+<canvas id="c"></canvas>
+<div id="brand"><span class="wm">hairball</span></div>
+
+<div id="masterPanel" class="panel">
+  <div class="panel-head"><h1>HAIRBALL · DENSE FUR</h1><button class="min-btn" data-min="masterPanel">−</button></div>
+  <div class="panel-body">
+    <h2>SHAPE</h2>
+    <div class="row">
+      <select id="sShape">
+        <option value="sphere" selected>sphere</option>
+        <option value="torus">torus</option>
+        <option value="icosa">icosahedron</option>
+      </select>
+      <button id="autoRotBtn" class="on">⟳ rotate</button>
+    </div>
+    <div class="row"><span class="key">detail</span><input type="range" id="sDetail" min="40" max="220" step="2" value="120"/><span class="val" id="vDetail">120</span></div>
+
+    <h2>FUR</h2>
+    <div class="row"><span class="key">shells</span><input type="range" id="sShells" min="8" max="100" step="1" value="64"/><span class="val" id="vShells">64</span></div>
+    <div class="row"><span class="key">length</span><input type="range" id="sLen" min="0.02" max="0.6" step="0.005" value="0.085"/><span class="val" id="vLen">.085</span></div>
+    <div class="row"><span class="key">density</span><input type="range" id="sDens" min="20" max="500" step="2" value="180"/><span class="val" id="vDens">180</span></div>
+    <div class="row"><span class="key">thickness</span><input type="range" id="sThick" min="0.001" max="0.05" step="0.0005" value="0.004"/><span class="val" id="vThick">.004</span></div>
+    <div class="row"><span class="key">curl</span><input type="range" id="sCurl" min="0" max="0.5" step="0.005" value="0.18"/><span class="val" id="vCurl">.18</span></div>
+    <div class="row"><span class="key">droop</span><input type="range" id="sDroop" min="0" max="0.5" step="0.005" value="0.0"/><span class="val" id="vDroop">0</span></div>
+    <div class="row"><span class="key">sway</span><input type="range" id="sSway" min="0" max="1" step="0.01" value="0.0"/><span class="val" id="vSway">0</span></div>
+
+    <h2>COLOR</h2>
+    <div class="row"><span class="key">root</span><input type="color" id="cRoot" value="#2a1308"/></div>
+    <div class="row"><span class="key">tip</span><input type="color" id="cTip" value="#c98655"/></div>
+    <div class="row"><span class="key">light</span><input type="color" id="cLite" value="#ffe9c8"/></div>
+    <div class="row"><span class="key">light dir</span><input type="range" id="sLdx" min="-1" max="1" step="0.02" value="-0.4"/><span class="val" id="vLdx">-.40</span></div>
+    <div class="row"><span class="key">ambient</span><input type="range" id="sAmb" min="0" max="0.6" step="0.005" value="0.18"/><span class="val" id="vAmb">.18</span></div>
+    <div class="row"><span class="key">rim</span><input type="range" id="sRim" min="0" max="2" step="0.01" value="0.7"/><span class="val" id="vRim">.70</span></div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(0x08080a, 1);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, innerWidth/innerHeight, 0.01, 100);
+camera.position.set(0, 0, 4.6);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+});
+
+// Shell-fur material. Each instance renders one shell at depth t = uShell/uShellCount.
+// Vertex pushes out along normal by t * uLength + curl/droop offsets.
+// Fragment uses tiled noise on (uv * density) to produce per-strand circular dots,
+// alpha = strand_mask - t (tapers strands to a point at the tip).
+const VERT = `
+varying vec2 vUv;
+varying vec3 vN;
+varying vec3 vWP;
+varying float vT;
+uniform float uShell;
+uniform float uShellCount;
+uniform float uLength;
+uniform float uCurl;
+uniform float uDroop;
+uniform float uSway;
+uniform float uTime;
+
+float hash(vec3 p){ p = fract(p*0.3183099+vec3(.71,.113,.419)); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+float vnoise(vec3 p){
+  vec3 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),
+                 mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x), f.y),
+             mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),
+                 mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x), f.y), f.z);
+}
+
+void main(){
+  vUv = uv;
+  vT = uShell / uShellCount;            // 0 = root, 1 = tip
+  vec3 n = normalize(normal);
+  // base position with shell offset along normal
+  vec3 wp = position + n * vT * uLength;
+  // curl: small lateral wobble that grows with t
+  vec3 tangent = normalize(cross(n, vec3(0.0, 1.0, 0.0001)));
+  vec3 bitan   = cross(n, tangent);
+  float w1 = vnoise(position * 6.0 + vec3(uTime * uSway));
+  float w2 = vnoise(position * 6.0 + vec3(13.7));
+  wp += (tangent * (w1 - 0.5) + bitan * (w2 - 0.5)) * uCurl * vT;
+  // droop: gravity pull down, scales with t^2 so tips droop most
+  wp.y -= uDroop * vT * vT;
+  vN = normalize(normalMatrix * n);
+  vec4 mv = modelViewMatrix * vec4(wp, 1.0);
+  vWP = wp;
+  gl_Position = projectionMatrix * mv;
+}
+`;
+
+const FRAG = `
+precision highp float;
+varying vec2 vUv;
+varying vec3 vN;
+varying vec3 vWP;
+varying float vT;
+uniform float uDensity;
+uniform float uThick;
+uniform vec3  uRoot;
+uniform vec3  uTip;
+uniform vec3  uLight;
+uniform vec3  uLdir;
+uniform float uAmb;
+uniform float uRim;
+
+float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
+void main(){
+  float alpha;
+  if (vT < 0.001) {
+    // root shell: solid skin so the ball reads as a mass
+    alpha = 1.0;
+  } else {
+    vec2 cellUv = vUv * uDensity;
+    vec2 cellId = floor(cellUv);
+    // jitter strand center within its cell
+    vec2 jitter = vec2(h2(cellId), h2(cellId + 7.3)) - 0.5;
+    vec2 local  = fract(cellUv) - 0.5 - jitter * 0.6;
+    float d = length(local);
+    // radius = strand half-width in cell units (cell is 1.0). taper toward tip.
+    float radius = clamp(uThick * uDensity * (1.0 - vT * 0.8), 0.05, 0.55);
+    float strand = smoothstep(radius, radius * 0.55, d);
+    // random drop so density varies and base shows through
+    float keep = step(h2(cellId + 1.7), 0.85);
+    alpha = strand * keep;
+    alpha *= 1.0 - smoothstep(0.9, 1.0, vT);
+    if (alpha < 0.03) discard;
+  }
+
+  // shading: directional + ambient + rim
+  vec3 N = normalize(vN);
+  vec3 L = normalize(uLdir);
+  float lambert = max(dot(N, L), 0.0);
+  // simulate self-shadow at the base — root darker, tip brighter
+  float ao = mix(0.35, 1.0, vT);
+  // per-strand jitter so it doesn't look plastic-uniform
+  vec2 _id = floor(vUv * uDensity);
+  float jit = h2(_id + 5.1) * 0.45 + 0.65;       // 0.65..1.10
+  float warm = h2(_id + 2.3) * 0.25 - 0.10;      // -.10..+.15 hue push
+  vec3 base = mix(uRoot, uTip, pow(vT, 0.85)) * jit;
+  base.r *= 1.0 + warm; base.g *= 1.0 - warm * 0.5;
+  vec3 col = base * (uAmb + lambert * uLight * ao);
+  // rim
+  vec3 V = normalize(cameraPosition - vWP);
+  float rim = pow(1.0 - max(dot(N, V), 0.0), 2.0);
+  col += rim * uRim * uTip * vT;
+  // tone shape
+  col = col / (1.0 + col * 0.6);
+  gl_FragColor = vec4(col, alpha);
+}
+`;
+
+const params = {
+  shells: 64, length: 0.085, density: 180, thick: 0.004, curl: 0.18, droop: 0.0, sway: 0.0,
+  root: new THREE.Color('#2a1308'), tip: new THREE.Color('#c98655'), light: new THREE.Color('#ffe9c8'),
+  ldir: new THREE.Vector3(-0.2, 0.7, 0.7).normalize(),
+  amb: 0.18, rim: 0.7,
+  shape: 'sphere', detail: 120, autoRot: true,
+};
+
+let group = null;
+function buildShells(){
+  if (group){ scene.remove(group); group.traverse(o => { if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); }
+  group = new THREE.Group();
+  let geo;
+  if (params.shape === 'sphere')      geo = new THREE.SphereGeometry(1, params.detail, params.detail);
+  else if (params.shape === 'torus')  geo = new THREE.TorusGeometry(0.85, 0.36, Math.max(24, params.detail/2), params.detail);
+  else                                geo = new THREE.IcosahedronGeometry(1.05, Math.max(2, Math.floor(params.detail/30)));
+  for (let i = 0; i < params.shells; i++){
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        uShell:      { value: i },
+        uShellCount: { value: params.shells },
+        uLength:     { value: params.length },
+        uCurl:       { value: params.curl },
+        uDroop:      { value: params.droop },
+        uSway:       { value: params.sway },
+        uTime:       { value: 0 },
+        uDensity:    { value: params.density },
+        uThick:      { value: params.thick },
+        uRoot:       { value: params.root },
+        uTip:        { value: params.tip },
+        uLight:      { value: params.light },
+        uLdir:       { value: params.ldir },
+        uAmb:        { value: params.amb },
+        uRim:        { value: params.rim },
+      },
+      vertexShader: VERT,
+      fragmentShader: FRAG,
+      transparent: true,
+      depthWrite: i === 0,    // only innermost shell writes depth so outer shells composite
+      side: THREE.FrontSide,
+    });
+    const m = new THREE.Mesh(geo, mat);
+    m.renderOrder = i;
+    group.add(m);
+  }
+  scene.add(group);
+}
+buildShells();
+
+function setUniformAll(key, val){
+  group.children.forEach(m => { m.material.uniforms[key].value = val; });
+}
+
+function bind(id, valId, cb, parse=parseFloat){
+  const el = document.getElementById(id), v = document.getElementById(valId);
+  const upd = () => { const x = parse(el.value); cb(x); v.textContent = (Math.abs(x)<1?x.toFixed(2).replace(/^0/,'').replace(/^-0/,'-'):x.toFixed(x%1?1:0)); };
+  el.addEventListener('input', upd); upd();
+}
+
+bind('sShells','vShells', x => { params.shells = x; buildShells(); }, v=>parseInt(v));
+bind('sLen','vLen', x => { params.length = x; setUniformAll('uLength', x); });
+bind('sDens','vDens', x => { params.density = x; setUniformAll('uDensity', x); });
+bind('sThick','vThick', x => { params.thick = x; setUniformAll('uThick', x); });
+bind('sCurl','vCurl', x => { params.curl = x; setUniformAll('uCurl', x); });
+bind('sDroop','vDroop', x => { params.droop = x; setUniformAll('uDroop', x); });
+bind('sSway','vSway', x => { params.sway = x; setUniformAll('uSway', x); });
+bind('sLdx','vLdx', x => { params.ldir.set(x, 0.6, 0.7).normalize(); setUniformAll('uLdir', params.ldir); });
+bind('sAmb','vAmb', x => { params.amb = x; setUniformAll('uAmb', x); });
+bind('sRim','vRim', x => { params.rim = x; setUniformAll('uRim', x); });
+
+document.getElementById('cRoot').addEventListener('input', e => { params.root.set(e.target.value); });
+document.getElementById('cTip').addEventListener('input', e => { params.tip.set(e.target.value); });
+document.getElementById('cLite').addEventListener('input', e => { params.light.set(e.target.value); });
+
+const sShape = document.getElementById('sShape');
+const sDet = document.getElementById('sDetail'), vDet = document.getElementById('vDetail');
+sShape.addEventListener('change', e => { params.shape = e.target.value; buildShells(); });
+sDet.addEventListener('input', e => { params.detail = parseInt(e.target.value); vDet.textContent = params.detail; buildShells(); });
+
+const arBtn = document.getElementById('autoRotBtn');
+arBtn.addEventListener('click', () => { params.autoRot = !params.autoRot; arBtn.classList.toggle('on', params.autoRot); });
+
+document.querySelectorAll('.min-btn').forEach(b => b.addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById(b.dataset.min).classList.toggle('collapsed');
+}));
+document.querySelectorAll('.panel-head').forEach(h => h.addEventListener('click', () => {
+  h.parentElement.classList.toggle('collapsed');
+}));
+
+const clock = new THREE.Clock();
+function tick(){
+  const dt = clock.getDelta();
+  setUniformAll('uTime', performance.now() * 0.001);
+  if (params.autoRot && group){ group.rotation.y += dt * 0.25; }
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+tick();
+</script>
+
+<script src="/shapeless-auth.js"></script>
+<script src="/snapshot-overlay.js" data-snap-page="hairball"></script>
+</body></html>

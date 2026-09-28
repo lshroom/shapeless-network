@@ -1,0 +1,1580 @@
+{
+  "808": [
+    {
+      "name": "808_main_short_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/001_808_main_short_C.wav"
+    },
+    {
+      "name": "MO_GT_clap_808_nightmare",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/005_MO_GT_clap_808_nightmare.wav"
+    },
+    {
+      "name": "MO_GT_clap_808_phantasm",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/006_MO_GT_clap_808_phantasm.wav"
+    },
+    {
+      "name": "MO_GT_clap_808_gamma",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/004_MO_GT_clap_808_gamma.wav"
+    },
+    {
+      "name": "EUD_808_glide_backout_C_m",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/002_EUD_808_glide_backout_C_m.wav"
+    },
+    {
+      "name": "MO_GT_clap_808_dwarf_star",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/003_MO_GT_clap_808_dwarf_star.wav"
+    },
+    {
+      "name": "MO_GT_clap_808_starved_neutron",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/011_MO_GT_clap_808_starved_neutron.wav"
+    },
+    {
+      "name": "MO_GT_clap_808_pin_art",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/008_MO_GT_clap_808_pin_art.wav"
+    },
+    {
+      "name": "MO_GT_clap_808_succubus",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/012_MO_GT_clap_808_succubus.wav"
+    },
+    {
+      "name": "MO_GT_clap_808_photon",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/007_MO_GT_clap_808_photon.wav"
+    },
+    {
+      "name": "MO_GT_clap_808_reactor",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/009_MO_GT_clap_808_reactor.wav"
+    },
+    {
+      "name": "MO_GT_clap_808_sandman",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/010_MO_GT_clap_808_sandman.wav"
+    },
+    {
+      "name": "MO_GT_clap_808_zap",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/014_MO_GT_clap_808_zap.wav"
+    },
+    {
+      "name": "MO_GT_clap_808_unholy_volt",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/013_MO_GT_clap_808_unholy_volt.wav"
+    },
+    {
+      "name": "MO_GT_cymbal_808_banshee",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/015_MO_GT_cymbal_808_banshee.wav"
+    },
+    {
+      "name": "MO_GT_cymbal_808_classic",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/017_MO_GT_cymbal_808_classic.wav"
+    },
+    {
+      "name": "MO_GT_cymbal_808_broken_microwave",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/016_MO_GT_cymbal_808_broken_microwave.wav"
+    },
+    {
+      "name": "MO_GT_cymbal_808_counter_earth",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/018_MO_GT_cymbal_808_counter_earth.wav"
+    },
+    {
+      "name": "MO_GT_cymbal_808_extra_crispy",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/020_MO_GT_cymbal_808_extra_crispy.wav"
+    },
+    {
+      "name": "MO_GT_hihat_808_classic",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/022_MO_GT_hihat_808_classic.wav"
+    },
+    {
+      "name": "MO_GT_hihat_808_crackle",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/023_MO_GT_hihat_808_crackle.wav"
+    },
+    {
+      "name": "MO_GT_hihat_808_signal",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/024_MO_GT_hihat_808_signal.wav"
+    },
+    {
+      "name": "MO_GT_cymbal_808_vinyl_sword",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/021_MO_GT_cymbal_808_vinyl_sword.wav"
+    },
+    {
+      "name": "MO_GT_cymbal_808_dream_demon",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/019_MO_GT_cymbal_808_dream_demon.wav"
+    },
+    {
+      "name": "MO_GT_hihat_808_tape",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/025_MO_GT_hihat_808_tape.wav"
+    },
+    {
+      "name": "MO_GT_hihat_808_zip",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/026_MO_GT_hihat_808_zip.wav"
+    },
+    {
+      "name": "MO_GT_kick_808_cactus",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/027_MO_GT_kick_808_cactus.wav"
+    },
+    {
+      "name": "MO_GT_kick_808_dreamreaper_harmonic",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/030_MO_GT_kick_808_dreamreaper_harmonic.wav"
+    },
+    {
+      "name": "MO_GT_kick_808_corrosive",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/028_MO_GT_kick_808_corrosive.wav"
+    },
+    {
+      "name": "MO_GT_kick_808_dreamreaper_buzzy",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/029_MO_GT_kick_808_dreamreaper_buzzy.wav"
+    },
+    {
+      "name": "MO_GT_kick_808_fuzzy_blasting_booster_cut",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/032_MO_GT_kick_808_fuzzy_blasting_booster_cut.wav"
+    },
+    {
+      "name": "MO_GT_kick_808_dune",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/031_MO_GT_kick_808_dune.wav"
+    },
+    {
+      "name": "MO_GT_kick_808_fuzzy_blasting_booster_reese",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/033_MO_GT_kick_808_fuzzy_blasting_booster_reese.wav"
+    },
+    {
+      "name": "MO_GT_kick_808_fuzzy_blasting_booster_soft",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/034_MO_GT_kick_808_fuzzy_blasting_booster_soft.wav"
+    },
+    {
+      "name": "MO_GT_kick_808_fuzzy_elecyton_fuzz_chirp",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/036_MO_GT_kick_808_fuzzy_elecyton_fuzz_chirp.wav"
+    },
+    {
+      "name": "MO_GT_kick_808_fuzzy_blasting_booster_sustain",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/035_MO_GT_kick_808_fuzzy_blasting_booster_sustain.wav"
+    },
+    {
+      "name": "MO_GT_kick_808_fuzzy_elecyton_fuzz_full",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/037_MO_GT_kick_808_fuzzy_elecyton_fuzz_full.wav"
+    },
+    {
+      "name": "MO_GT_kick_808_fuzzy_elecyton_fuzz_scream",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/038_MO_GT_kick_808_fuzzy_elecyton_fuzz_scream.wav"
+    },
+    {
+      "name": "MO_GT_kick_808_gnat",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/040_MO_GT_kick_808_gnat.wav"
+    },
+    {
+      "name": "MO_GT_kick_808_fuzzy_harmonic_antagonizer",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/808/039_MO_GT_kick_808_fuzzy_harmonic_antagonizer.wav"
+    }
+  ],
+  "kick": [
+    {
+      "name": "SS_CLDS_115_kick_one_shot_phonic",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/003_SS_CLDS_115_kick_one_shot_phonic.wav"
+    },
+    {
+      "name": "SS_CLDS_130_kick_one_shot_bombay",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/004_SS_CLDS_130_kick_one_shot_bombay.wav"
+    },
+    {
+      "name": "SS_CLDS_115_kick_one_shot_pablow",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/002_SS_CLDS_115_kick_one_shot_pablow.wav"
+    },
+    {
+      "name": "SS_CLDS_130_kick_one_shot_yellow",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/005_SS_CLDS_130_kick_one_shot_yellow.wav"
+    },
+    {
+      "name": "SS_CLDS_130_kick_one_shot_cinema",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/001_SS_CLDS_130_kick_one_shot_cinema.wav"
+    },
+    {
+      "name": "TL_Kick_01",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/007_TL_Kick_01.wav"
+    },
+    {
+      "name": "TL_Kick_02",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/008_TL_Kick_02.wav"
+    },
+    {
+      "name": "TL_Kick_04",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/010_TL_Kick_04.wav"
+    },
+    {
+      "name": "TL_Kick_03",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/009_TL_Kick_03.wav"
+    },
+    {
+      "name": "TL_Kick_05",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/011_TL_Kick_05.wav"
+    },
+    {
+      "name": "SS_CLDS_100_kick_one_shot_breath",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/006_SS_CLDS_100_kick_one_shot_breath.wav"
+    },
+    {
+      "name": "TL_Kick_08",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/013_TL_Kick_08.wav"
+    },
+    {
+      "name": "TL_Kick_07",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/012_TL_Kick_07.wav"
+    },
+    {
+      "name": "TL_Kick_09",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/014_TL_Kick_09.wav"
+    },
+    {
+      "name": "TL_Kick_12",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/017_TL_Kick_12.wav"
+    },
+    {
+      "name": "TL_Kick_10",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/015_TL_Kick_10.wav"
+    },
+    {
+      "name": "TL_Kick_14",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/019_TL_Kick_14.wav"
+    },
+    {
+      "name": "TL_Kick_15",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/020_TL_Kick_15.wav"
+    },
+    {
+      "name": "TL_Kick_13",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/018_TL_Kick_13.wav"
+    },
+    {
+      "name": "TL_Kick_11",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/016_TL_Kick_11.wav"
+    },
+    {
+      "name": "TL_Kick_16",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/021_TL_Kick_16.wav"
+    },
+    {
+      "name": "TL_Kick_17",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/022_TL_Kick_17.wav"
+    },
+    {
+      "name": "TL_Kick_18",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/023_TL_Kick_18.wav"
+    },
+    {
+      "name": "TL_Kick_19",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/024_TL_Kick_19.wav"
+    },
+    {
+      "name": "TL_Kick_20",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/025_TL_Kick_20.wav"
+    },
+    {
+      "name": "TL_KickClap_01",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/027_TL_KickClap_01.wav"
+    },
+    {
+      "name": "TL_Kick_21",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/026_TL_Kick_21.wav"
+    },
+    {
+      "name": "TL_KickClap_02",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/028_TL_KickClap_02.wav"
+    },
+    {
+      "name": "TL_KickClap_03",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/029_TL_KickClap_03.wav"
+    },
+    {
+      "name": "TL_KickClap_04",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/030_TL_KickClap_04.wav"
+    },
+    {
+      "name": "TL_KickClap_05",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/031_TL_KickClap_05.wav"
+    },
+    {
+      "name": "TL_KickClap_06",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/032_TL_KickClap_06.wav"
+    },
+    {
+      "name": "TL_KickDelay_01",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/033_TL_KickDelay_01.wav"
+    },
+    {
+      "name": "TL_KickHat_01",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/034_TL_KickHat_01.wav"
+    },
+    {
+      "name": "TL_KickHat_03",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/036_TL_KickHat_03.wav"
+    },
+    {
+      "name": "TL_KickHat_02",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/035_TL_KickHat_02.wav"
+    },
+    {
+      "name": "TL_KickHat_04",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/037_TL_KickHat_04.wav"
+    },
+    {
+      "name": "TL_KickHat_05",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/038_TL_KickHat_05.wav"
+    },
+    {
+      "name": "MO_GT_kick_cartoon",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/040_MO_GT_kick_cartoon.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_dream_reaper_serum_enhanced_kicker_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/kick/039_MO_GT_synth_bass_dream_reaper_serum_enhanced_kicker_C.wav"
+    }
+  ],
+  "snare": [
+    {
+      "name": "BOI1DA_snare_25",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/001_BOI1DA_snare_25.wav"
+    },
+    {
+      "name": "SS_CLDS_130_snare_one_shot_cinema",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/002_SS_CLDS_130_snare_one_shot_cinema.wav"
+    },
+    {
+      "name": "SS_CLDS_115_snare_one_shot_pablow",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/003_SS_CLDS_115_snare_one_shot_pablow.wav"
+    },
+    {
+      "name": "SS_CLDS_130_snare_one_shot_bombay",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/005_SS_CLDS_130_snare_one_shot_bombay.wav"
+    },
+    {
+      "name": "SS_CLDS_130_snare_one_shot_yellow",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/006_SS_CLDS_130_snare_one_shot_yellow.wav"
+    },
+    {
+      "name": "SS_CLDS_115_snare_one_shot_phonic",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/004_SS_CLDS_115_snare_one_shot_phonic.wav"
+    },
+    {
+      "name": "SS_CLDS_100_snare_one_shot_breath",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/007_SS_CLDS_100_snare_one_shot_breath.wav"
+    },
+    {
+      "name": "TL_Snare_03",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/010_TL_Snare_03.wav"
+    },
+    {
+      "name": "TL_Snare_01",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/008_TL_Snare_01.wav"
+    },
+    {
+      "name": "TL_Snare_02",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/009_TL_Snare_02.wav"
+    },
+    {
+      "name": "fs3_snare_livecrack",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/013_fs3_snare_livecrack.wav"
+    },
+    {
+      "name": "002_Snare_And_Clap_-__FOCUSPROGHOUSE_Zenhiser",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/011_002_Snare_And_Clap_-__FOCUSPROGHOUSE_Zenhiser.wav"
+    },
+    {
+      "name": "MO_GT_snare_buzzing",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/014_MO_GT_snare_buzzing.wav"
+    },
+    {
+      "name": "MO_GT_snare_computer_death",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/015_MO_GT_snare_computer_death.wav"
+    },
+    {
+      "name": "MO_GT_snare_computer_hurt",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/016_MO_GT_snare_computer_hurt.wav"
+    },
+    {
+      "name": "Snare_Hollow",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/012_Snare_Hollow.wav"
+    },
+    {
+      "name": "MO_GT_snare_mess",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/017_MO_GT_snare_mess.wav"
+    },
+    {
+      "name": "MO_GT_snare_messier",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/018_MO_GT_snare_messier.wav"
+    },
+    {
+      "name": "MO_GT_snare_metal_higher",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/020_MO_GT_snare_metal_higher.wav"
+    },
+    {
+      "name": "MO_GT_snare_metal_chunk",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/019_MO_GT_snare_metal_chunk.wav"
+    },
+    {
+      "name": "MO_GT_snare_metal_lower",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/021_MO_GT_snare_metal_lower.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_dreamreaper_classic",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/022_MO_GT_snare_808_dreamreaper_classic.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_dreamreaper_noise",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/023_MO_GT_snare_808_dreamreaper_noise.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_dreamreaper_scream",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/024_MO_GT_snare_808_dreamreaper_scream.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_fuzzy_amianto",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/025_MO_GT_snare_808_fuzzy_amianto.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_fuzzy_antichthon_crush",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/026_MO_GT_snare_808_fuzzy_antichthon_crush.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_fuzzy_blasting_booster_chant",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/028_MO_GT_snare_808_fuzzy_blasting_booster_chant.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_fuzzy_antichthon_double",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/027_MO_GT_snare_808_fuzzy_antichthon_double.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_fuzzy_blasting_booster_hit",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/029_MO_GT_snare_808_fuzzy_blasting_booster_hit.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_fuzzy_blasting_booster_tonal_clean",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/030_MO_GT_snare_808_fuzzy_blasting_booster_tonal_clean.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_fuzzy_blasting_booster_tonal_soft",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/032_MO_GT_snare_808_fuzzy_blasting_booster_tonal_soft.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_fuzzy_blasting_booster_tonal_crushed",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/031_MO_GT_snare_808_fuzzy_blasting_booster_tonal_crushed.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_fuzzy_harmonic_antagonizer_acid",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/033_MO_GT_snare_808_fuzzy_harmonic_antagonizer_acid.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_fuzzy_harmonic_antagonizer_laser",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/034_MO_GT_snare_808_fuzzy_harmonic_antagonizer_laser.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_fuzzy_harmonic_antagonizer_tonal",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/036_MO_GT_snare_808_fuzzy_harmonic_antagonizer_tonal.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_starved_dream_starved_reaper",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/037_MO_GT_snare_808_starved_dream_starved_reaper.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_fuzzy_harmonic_antagonizer_noise",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/035_MO_GT_snare_808_fuzzy_harmonic_antagonizer_noise.wav"
+    },
+    {
+      "name": "MO_GT_snare_808_starved_gangbang_starved",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/038_MO_GT_snare_808_starved_gangbang_starved.wav"
+    },
+    {
+      "name": "AB_IND_Skimmy_Snare_One_Shot_Banned",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/039_AB_IND_Skimmy_Snare_One_Shot_Banned.wav"
+    },
+    {
+      "name": "AB_IND_Skimmy_Snare_One_Shot_Base_Is_Loaded",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/snare/040_AB_IND_Skimmy_Snare_One_Shot_Base_Is_Loaded.wav"
+    }
+  ],
+  "clap": [
+    {
+      "name": "SS_CLDS_130_clap_one_shot_cinema",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/001_SS_CLDS_130_clap_one_shot_cinema.wav"
+    },
+    {
+      "name": "TL_Clap_02",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/003_TL_Clap_02.wav"
+    },
+    {
+      "name": "TL_Clap_01",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/002_TL_Clap_01.wav"
+    },
+    {
+      "name": "TL_Clap_03",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/004_TL_Clap_03.wav"
+    },
+    {
+      "name": "TL_Clap_04",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/005_TL_Clap_04.wav"
+    },
+    {
+      "name": "FNF_AD_drums_snare_cymbal_clap_alt_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/006_FNF_AD_drums_snare_cymbal_clap_alt_dry.wav"
+    },
+    {
+      "name": "FNF_AD_drums_snare_cymbal_clap_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/007_FNF_AD_drums_snare_cymbal_clap_dry.wav"
+    },
+    {
+      "name": "GHIGH_clap_angeless",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/008_GHIGH_clap_angeless.wav"
+    },
+    {
+      "name": "GHIGH_clap_dmz_winter",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/009_GHIGH_clap_dmz_winter.wav"
+    },
+    {
+      "name": "GHIGH_clap_gummybear",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/010_GHIGH_clap_gummybear.wav"
+    },
+    {
+      "name": "GHIGH_clap_poison",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/012_GHIGH_clap_poison.wav"
+    },
+    {
+      "name": "GHIGH_clap_gummybear_alt",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/011_GHIGH_clap_gummybear_alt.wav"
+    },
+    {
+      "name": "GHIGH_clap_rock_seoul",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/014_GHIGH_clap_rock_seoul.wav"
+    },
+    {
+      "name": "GHIGH_clap_poison_alt",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/013_GHIGH_clap_poison_alt.wav"
+    },
+    {
+      "name": "FL_NJP_Clap_One_Shot_Crunch",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/015_FL_NJP_Clap_One_Shot_Crunch.wav"
+    },
+    {
+      "name": "FL_NJP_Clap_One_Shot_Fast",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/016_FL_NJP_Clap_One_Shot_Fast.wav"
+    },
+    {
+      "name": "FL_NJP_Clap_One_Shot_Flat",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/017_FL_NJP_Clap_One_Shot_Flat.wav"
+    },
+    {
+      "name": "FL_NJP_Clap_One_Shot_Laser",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/018_FL_NJP_Clap_One_Shot_Laser.wav"
+    },
+    {
+      "name": "FL_NJP_Clap_One_Shot_Layer",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/019_FL_NJP_Clap_One_Shot_Layer.wav"
+    },
+    {
+      "name": "FL_NJP_Clap_One_Shot_Mid",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/020_FL_NJP_Clap_One_Shot_Mid.wav"
+    },
+    {
+      "name": "FL_NJP_Clap_One_Shot_Minimal",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/021_FL_NJP_Clap_One_Shot_Minimal.wav"
+    },
+    {
+      "name": "FL_NJP_Clap_One_Shot_Open",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/022_FL_NJP_Clap_One_Shot_Open.wav"
+    },
+    {
+      "name": "FL_NJP_Clap_One_Shot_Pitched",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/023_FL_NJP_Clap_One_Shot_Pitched.wav"
+    },
+    {
+      "name": "FL_NJP_Clap_One_Shot_Rasp",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/024_FL_NJP_Clap_One_Shot_Rasp.wav"
+    },
+    {
+      "name": "FL_NJP_Perc_One_Shot_Clap",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/025_FL_NJP_Perc_One_Shot_Clap.wav"
+    },
+    {
+      "name": "NW_RN_clap_12bit",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/028_NW_RN_clap_12bit.wav"
+    },
+    {
+      "name": "TRKTRN_PP3SPBDR_Clap_One_Shot_Dust",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/026_TRKTRN_PP3SPBDR_Clap_One_Shot_Dust.wav"
+    },
+    {
+      "name": "TRKTRN_PP3SPBDR_Clap_One_Shot_Lost",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/027_TRKTRN_PP3SPBDR_Clap_One_Shot_Lost.wav"
+    },
+    {
+      "name": "NW_RN_clap_animal",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/029_NW_RN_clap_animal.wav"
+    },
+    {
+      "name": "NW_RN_clap_celebrate",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/030_NW_RN_clap_celebrate.wav"
+    },
+    {
+      "name": "NW_RN_clap_gated",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/031_NW_RN_clap_gated.wav"
+    },
+    {
+      "name": "NW_RN_clap_organic",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/033_NW_RN_clap_organic.wav"
+    },
+    {
+      "name": "NW_RN_clap_marvin",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/032_NW_RN_clap_marvin.wav"
+    },
+    {
+      "name": "NW_RN_clap_scarface",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/035_NW_RN_clap_scarface.wav"
+    },
+    {
+      "name": "NW_RN_clap_smack",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/036_NW_RN_clap_smack.wav"
+    },
+    {
+      "name": "NW_RN_clap_phantom",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/034_NW_RN_clap_phantom.wav"
+    },
+    {
+      "name": "NW_RN_clap_tonal_Bb",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/037_NW_RN_clap_tonal_Bb.wav"
+    },
+    {
+      "name": "clap-01",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/040_clap-01.wav"
+    },
+    {
+      "name": "clap-01",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/039_clap-01.wav"
+    },
+    {
+      "name": "NW_RN_snare_clap_layer",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/clap/038_NW_RN_snare_clap_layer.wav"
+    }
+  ],
+  "hihat": [
+    {
+      "name": "hi-hat-closed-01",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/002_hi-hat-closed-01.wav"
+    },
+    {
+      "name": "hi-hat-closed-01",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/003_hi-hat-closed-01.wav"
+    },
+    {
+      "name": "hi-hat-closed-01",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/001_hi-hat-closed-01.wav"
+    },
+    {
+      "name": "005_SEEH_-_Hihat",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/004_005_SEEH_-_Hihat.wav"
+    },
+    {
+      "name": "OS_VV2_hihat_dirt",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/006_OS_VV2_hihat_dirt.wav"
+    },
+    {
+      "name": "OS_VV2_hihat_bell",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/005_OS_VV2_hihat_bell.wav"
+    },
+    {
+      "name": "OS_VV2_hihat_don",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/007_OS_VV2_hihat_don.wav"
+    },
+    {
+      "name": "OS_VV2_hihat_edge",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/008_OS_VV2_hihat_edge.wav"
+    },
+    {
+      "name": "OS_VV2_hihat_fierce",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/009_OS_VV2_hihat_fierce.wav"
+    },
+    {
+      "name": "OS_VV2_hihat_hiphop",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/011_OS_VV2_hihat_hiphop.wav"
+    },
+    {
+      "name": "OS_VV2_hihat_fuzz",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/010_OS_VV2_hihat_fuzz.wav"
+    },
+    {
+      "name": "OS_VV2_hihat_light",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/012_OS_VV2_hihat_light.wav"
+    },
+    {
+      "name": "OS_VV2_hihat_noisy",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/014_OS_VV2_hihat_noisy.wav"
+    },
+    {
+      "name": "OS_VV2_hihat_metal",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/013_OS_VV2_hihat_metal.wav"
+    },
+    {
+      "name": "OS_VV2_hihat_shelter",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/015_OS_VV2_hihat_shelter.wav"
+    },
+    {
+      "name": "OS_VV2_hihat_shiny",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/016_OS_VV2_hihat_shiny.wav"
+    },
+    {
+      "name": "OS_VV2_hihat_smooth",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/017_OS_VV2_hihat_smooth.wav"
+    },
+    {
+      "name": "OS_VV2_hihat_tiny",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/018_OS_VV2_hihat_tiny.wav"
+    },
+    {
+      "name": "OS_VV2_hihat_vinyl",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/019_OS_VV2_hihat_vinyl.wav"
+    },
+    {
+      "name": "OS_VV2_open_hihat_bell",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/020_OS_VV2_open_hihat_bell.wav"
+    },
+    {
+      "name": "OS_VV2_open_hihat_close",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/021_OS_VV2_open_hihat_close.wav"
+    },
+    {
+      "name": "OS_VV2_open_hihat_quick",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/022_OS_VV2_open_hihat_quick.wav"
+    },
+    {
+      "name": "OS_VV2_open_hihat_release",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/023_OS_VV2_open_hihat_release.wav"
+    },
+    {
+      "name": "OS_VV2_open_hihat_snappy",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/hihat/024_OS_VV2_open_hihat_snappy.wav"
+    }
+  ],
+  "perc": [
+    {
+      "name": "SS_CLDS_130_shaker_one_shot_cinema",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/001_SS_CLDS_130_shaker_one_shot_cinema.wav"
+    },
+    {
+      "name": "SS_CLDS_100_shaker_one_shot_breath",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/002_SS_CLDS_100_shaker_one_shot_breath.wav"
+    },
+    {
+      "name": "TL_Perc_01",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/004_TL_Perc_01.wav"
+    },
+    {
+      "name": "TL_PercDelay_01",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/003_TL_PercDelay_01.wav"
+    },
+    {
+      "name": "TL_Perc_02",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/005_TL_Perc_02.wav"
+    },
+    {
+      "name": "TL_Perc_03",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/006_TL_Perc_03.wav"
+    },
+    {
+      "name": "TL_Perc_06",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/009_TL_Perc_06.wav"
+    },
+    {
+      "name": "TL_Perc_04",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/007_TL_Perc_04.wav"
+    },
+    {
+      "name": "TL_Perc_05",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/008_TL_Perc_05.wav"
+    },
+    {
+      "name": "TL_Perc_07",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/010_TL_Perc_07.wav"
+    },
+    {
+      "name": "TL_Perc_08",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/011_TL_Perc_08.wav"
+    },
+    {
+      "name": "TL_Perc_09",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/012_TL_Perc_09.wav"
+    },
+    {
+      "name": "TL_Perc_12",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/015_TL_Perc_12.wav"
+    },
+    {
+      "name": "TL_Perc_10",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/013_TL_Perc_10.wav"
+    },
+    {
+      "name": "TL_Perc_11",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/014_TL_Perc_11.wav"
+    },
+    {
+      "name": "TL_Perc_13",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/016_TL_Perc_13.wav"
+    },
+    {
+      "name": "TL_Perc_16",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/019_TL_Perc_16.wav"
+    },
+    {
+      "name": "TL_Perc_14",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/017_TL_Perc_14.wav"
+    },
+    {
+      "name": "TL_Perc_18",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/021_TL_Perc_18.wav"
+    },
+    {
+      "name": "TL_Perc_17",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/020_TL_Perc_17.wav"
+    },
+    {
+      "name": "TL_Perc_15",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/018_TL_Perc_15.wav"
+    },
+    {
+      "name": "TL_Perc_19",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/022_TL_Perc_19.wav"
+    },
+    {
+      "name": "TL_Perc_20",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/023_TL_Perc_20.wav"
+    },
+    {
+      "name": "DECAP_percussion_one_shot_breath_high",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/025_DECAP_percussion_one_shot_breath_high.wav"
+    },
+    {
+      "name": "TL_Perc_21",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/024_TL_Perc_21.wav"
+    },
+    {
+      "name": "MO_GT_perc_808_fuzzy_antichthon_chirp",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/026_MO_GT_perc_808_fuzzy_antichthon_chirp.wav"
+    },
+    {
+      "name": "MO_GT_perc_808_fuzzy_blasting_booster_chime",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/027_MO_GT_perc_808_fuzzy_blasting_booster_chime.wav"
+    },
+    {
+      "name": "MO_GT_perc_808_fuzzy_blasting_booster_cowbell",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/028_MO_GT_perc_808_fuzzy_blasting_booster_cowbell.wav"
+    },
+    {
+      "name": "MO_GT_perc_808_fuzzy_blasting_booster_hi_tom",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/030_MO_GT_perc_808_fuzzy_blasting_booster_hi_tom.wav"
+    },
+    {
+      "name": "MO_GT_perc_808_fuzzy_blasting_booster_glitch",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/029_MO_GT_perc_808_fuzzy_blasting_booster_glitch.wav"
+    },
+    {
+      "name": "MO_GT_perc_808_fuzzy_elecyton_fuzz_note",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/033_MO_GT_perc_808_fuzzy_elecyton_fuzz_note.wav"
+    },
+    {
+      "name": "MO_GT_perc_808_fuzzy_blasting_booster_mid_tom",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/031_MO_GT_perc_808_fuzzy_blasting_booster_mid_tom.wav"
+    },
+    {
+      "name": "MO_GT_perc_808_fuzzy_blasting_booster_plate",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/032_MO_GT_perc_808_fuzzy_blasting_booster_plate.wav"
+    },
+    {
+      "name": "MO_GT_perc_808_fuzzy_harmonic_antagonizer_blast",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/034_MO_GT_perc_808_fuzzy_harmonic_antagonizer_blast.wav"
+    },
+    {
+      "name": "MO_GT_perc_808_fuzzy_harmonic_antagonizer_clack",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/037_MO_GT_perc_808_fuzzy_harmonic_antagonizer_clack.wav"
+    },
+    {
+      "name": "MO_GT_perc_808_fuzzy_harmonic_antagonizer_chirp",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/036_MO_GT_perc_808_fuzzy_harmonic_antagonizer_chirp.wav"
+    },
+    {
+      "name": "MO_GT_perc_808_fuzzy_harmonic_antagonizer_button",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/035_MO_GT_perc_808_fuzzy_harmonic_antagonizer_button.wav"
+    },
+    {
+      "name": "MO_GT_perc_808_fuzzy_harmonic_antagonizer_click",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/038_MO_GT_perc_808_fuzzy_harmonic_antagonizer_click.wav"
+    },
+    {
+      "name": "MO_GT_perc_808_fuzzy_harmonic_antagonizer_cowbell_killer",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/039_MO_GT_perc_808_fuzzy_harmonic_antagonizer_cowbell_killer.wav"
+    },
+    {
+      "name": "Bounce_Perc19",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/perc/040_Bounce_Perc19.wav"
+    }
+  ],
+  "bass": [
+    {
+      "name": "CRMNCCI_bass_02_Cmaj",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/001_CRMNCCI_bass_02_Cmaj.wav"
+    },
+    {
+      "name": "ff2_bass_one_shot_eclectusparrot_Emaj",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/004_ff2_bass_one_shot_eclectusparrot_Emaj.wav"
+    },
+    {
+      "name": "EBT_Bass_Sustain_E10",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/002_EBT_Bass_Sustain_E10.wav"
+    },
+    {
+      "name": "ELI_bass_oneshot_breakfast_D",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/003_ELI_bass_oneshot_breakfast_D.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_animato_serum_enhance_mid_cut_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/005_MO_GT_synth_bass_animato_serum_enhance_mid_cut_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_antichthon_serum_enhanced_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/006_MO_GT_synth_bass_antichthon_serum_enhanced_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_dream_reaper_serum_enhanced_beast_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/007_MO_GT_synth_bass_dream_reaper_serum_enhanced_beast_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_dream_reaper_serum_enhanced_burst_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/008_MO_GT_synth_bass_dream_reaper_serum_enhanced_burst_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_dream_reaper_serum_enhanced_sharp_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/010_MO_GT_synth_bass_dream_reaper_serum_enhanced_sharp_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_dream_reaper_serum_enhanced_groan_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/009_MO_GT_synth_bass_dream_reaper_serum_enhanced_groan_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_gangbang_serum_enhanced_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/011_MO_GT_synth_bass_gangbang_serum_enhanced_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_harmonic_antagonizer_serum_enhanced_body_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/012_MO_GT_synth_bass_harmonic_antagonizer_serum_enhanced_body_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_harmonic_antagonizer_serum_enhanced_heft_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/013_MO_GT_synth_bass_harmonic_antagonizer_serum_enhanced_heft_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_harmonic_antagonizer_serum_enhanced_reso_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/014_MO_GT_synth_bass_harmonic_antagonizer_serum_enhanced_reso_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_rml_electron_serum_enhanced_crispy_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/015_MO_GT_synth_bass_rml_electron_serum_enhanced_crispy_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_rml_electron_serum_enhanced_reso_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/017_MO_GT_synth_bass_rml_electron_serum_enhanced_reso_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_starved_antichthon_serum_enhanced_insect_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/018_MO_GT_synth_bass_starved_antichthon_serum_enhanced_insect_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_starved_antichthon_serum_enhanced_roar_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/019_MO_GT_synth_bass_starved_antichthon_serum_enhanced_roar_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_animato_bark_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/020_MO_GT_synth_bass_animato_bark_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_animato_deep_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/021_MO_GT_synth_bass_animato_deep_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_rml_electron_serum_enhanced_metal_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/016_MO_GT_synth_bass_rml_electron_serum_enhanced_metal_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_animato_harmonic_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/022_MO_GT_synth_bass_animato_harmonic_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_animato_short_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/023_MO_GT_synth_bass_animato_short_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_antichthon_attack_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/024_MO_GT_synth_bass_antichthon_attack_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_antichthon_blast_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/025_MO_GT_synth_bass_antichthon_blast_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_antichthon_death_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/026_MO_GT_synth_bass_antichthon_death_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_antichthon_filth_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/027_MO_GT_synth_bass_antichthon_filth_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_antichthon_laser_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/029_MO_GT_synth_bass_antichthon_laser_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_antichthon_high_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/028_MO_GT_synth_bass_antichthon_high_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_antichthon_phrase_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/030_MO_GT_synth_bass_antichthon_phrase_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_blasting_booster_harmonic_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/032_MO_GT_synth_bass_blasting_booster_harmonic_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_antichthon_scream_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/031_MO_GT_synth_bass_antichthon_scream_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_blasting_booster_heavy_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/033_MO_GT_synth_bass_blasting_booster_heavy_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_blasting_booster_noisy_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/034_MO_GT_synth_bass_blasting_booster_noisy_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_blasting_booster_rumble_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/035_MO_GT_synth_bass_blasting_booster_rumble_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_blasting_booster_soft_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/036_MO_GT_synth_bass_blasting_booster_soft_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_doom_buss_harmonic_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/037_MO_GT_synth_bass_doom_buss_harmonic_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_doom_buss_impact_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/038_MO_GT_synth_bass_doom_buss_impact_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_doom_buss_insect_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/039_MO_GT_synth_bass_doom_buss_insect_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_dream_reaper_harmonic_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/bass/040_MO_GT_synth_bass_dream_reaper_harmonic_C.wav"
+    }
+  ],
+  "synth": [
+    {
+      "name": "tp_dbt_synth_nice_chord_stab_Gmin",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/002_tp_dbt_synth_nice_chord_stab_Gmin.wav"
+    },
+    {
+      "name": "SOULSURPLUS_autumnbliss_one_shot_synth_alternative_hip_hop_d",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/001_SOULSURPLUS_autumnbliss_one_shot_synth_alternative_hip_hop_d.wav"
+    },
+    {
+      "name": "AUESH_Synth_Shot04_Pad_A",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/003_AUESH_Synth_Shot04_Pad_A.wav"
+    },
+    {
+      "name": "FBSP3_Kit_02_Space_Synth_C5",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/005_FBSP3_Kit_02_Space_Synth_C5.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_dream_reaper_midheavy_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/006_MO_GT_synth_bass_dream_reaper_midheavy_C.wav"
+    },
+    {
+      "name": "FG_GEOTHEORY_synth_one_shot_lush_10_Cm",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/004_FG_GEOTHEORY_synth_one_shot_lush_10_Cm.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_dream_reaper_noisy_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/007_MO_GT_synth_bass_dream_reaper_noisy_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_dream_reaper_scream_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/008_MO_GT_synth_bass_dream_reaper_scream_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_dream_reaper_screech_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/009_MO_GT_synth_bass_dream_reaper_screech_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_dream_reaper_squeal_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/010_MO_GT_synth_bass_dream_reaper_squeal_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_electron_ahhh_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/011_MO_GT_synth_bass_electron_ahhh_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_electron_attack_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/012_MO_GT_synth_bass_electron_attack_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_electron_dissapointed_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/013_MO_GT_synth_bass_electron_dissapointed_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_electron_messy_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/014_MO_GT_synth_bass_electron_messy_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_electron_question_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/015_MO_GT_synth_bass_electron_question_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_electron_reso_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/016_MO_GT_synth_bass_electron_reso_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_electron_reso_high_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/017_MO_GT_synth_bass_electron_reso_high_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_electron_rising_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/018_MO_GT_synth_bass_electron_rising_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_electron_scratch_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/019_MO_GT_synth_bass_electron_scratch_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_gangbang_basic_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/021_MO_GT_synth_bass_gangbang_basic_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_gangbang_crash_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/022_MO_GT_synth_bass_gangbang_crash_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_gangbang_crunch_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/023_MO_GT_synth_bass_gangbang_crunch_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_gangbang_rising_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/025_MO_GT_synth_bass_gangbang_rising_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_electron_squeal_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/020_MO_GT_synth_bass_electron_squeal_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_harmonic_antagonizer_attack_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/026_MO_GT_synth_bass_harmonic_antagonizer_attack_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_gangbang_harmonic_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/024_MO_GT_synth_bass_gangbang_harmonic_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_harmonic_antagonizer_falling_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/028_MO_GT_synth_bass_harmonic_antagonizer_falling_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_harmonic_antagonizer_growl_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/029_MO_GT_synth_bass_harmonic_antagonizer_growl_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_harmonic_antagonizer_harmonic_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/030_MO_GT_synth_bass_harmonic_antagonizer_harmonic_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_harmonic_antagonizer_chirp_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/027_MO_GT_synth_bass_harmonic_antagonizer_chirp_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_harmonic_antagonizer_heavy_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/031_MO_GT_synth_bass_harmonic_antagonizer_heavy_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_harmonic_antagonizer_reso_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/032_MO_GT_synth_bass_harmonic_antagonizer_reso_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_harmonic_antagonizer_squeak_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/033_MO_GT_synth_bass_harmonic_antagonizer_squeak_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_harmonic_antagonizer_squeal_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/034_MO_GT_synth_bass_harmonic_antagonizer_squeal_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_starved_antichthon_less_noisy_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/036_MO_GT_synth_bass_starved_antichthon_less_noisy_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_harmonic_antagonizer_tinny_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/035_MO_GT_synth_bass_harmonic_antagonizer_tinny_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_starved_antichthon_noisiest_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/037_MO_GT_synth_bass_starved_antichthon_noisiest_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_starved_antichthon_noisy_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/038_MO_GT_synth_bass_starved_antichthon_noisy_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_starved_dream_reaper_crush_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/039_MO_GT_synth_bass_starved_dream_reaper_crush_C.wav"
+    },
+    {
+      "name": "MO_GT_synth_bass_starved_dream_reaper_low_C",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/synth/040_MO_GT_synth_bass_starved_dream_reaper_low_C.wav"
+    }
+  ],
+  "crash": [
+    {
+      "name": "SS_CLDS_130_ride_one_shot_yellow",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/001_SS_CLDS_130_ride_one_shot_yellow.wav"
+    },
+    {
+      "name": "FNF_AD_perc_cymbal_water_aquaarth_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/003_FNF_AD_perc_cymbal_water_aquaarth_dry.wav"
+    },
+    {
+      "name": "FNF_AD_perc_cymbal_tambourine_reverse_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/002_FNF_AD_perc_cymbal_tambourine_reverse_dry.wav"
+    },
+    {
+      "name": "FNF_AD_perc_cymbal_water_cancer_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/004_FNF_AD_perc_cymbal_water_cancer_dry.wav"
+    },
+    {
+      "name": "FNF_AD_perc_cymbal_water_dolphine_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/005_FNF_AD_perc_cymbal_water_dolphine_dry.wav"
+    },
+    {
+      "name": "FNF_AD_perc_cymbal_water_fish_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/006_FNF_AD_perc_cymbal_water_fish_dry.wav"
+    },
+    {
+      "name": "FNF_AD_perc_cymbal_water_hydros_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/007_FNF_AD_perc_cymbal_water_hydros_dry.wav"
+    },
+    {
+      "name": "FNF_AD_perc_cymbal_water_moby_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/008_FNF_AD_perc_cymbal_water_moby_dry.wav"
+    },
+    {
+      "name": "FNF_AD_perc_cymbal_water_nemo_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/009_FNF_AD_perc_cymbal_water_nemo_dry.wav"
+    },
+    {
+      "name": "FNF_AD_perc_cymbal_water_poseidon_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/011_FNF_AD_perc_cymbal_water_poseidon_dry.wav"
+    },
+    {
+      "name": "FNF_AD_perc_cymbal_water_pearl_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/010_FNF_AD_perc_cymbal_water_pearl_dry.wav"
+    },
+    {
+      "name": "FNF_AD_perc_cymbal_water_sponge_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/012_FNF_AD_perc_cymbal_water_sponge_dry.wav"
+    },
+    {
+      "name": "FNF_AD_drums_snare_cymbal_dark_blade_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/013_FNF_AD_drums_snare_cymbal_dark_blade_dry.wav"
+    },
+    {
+      "name": "FNF_AD_drums_snare_cymbal_dark_dirty_alt_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/014_FNF_AD_drums_snare_cymbal_dark_dirty_alt_dry.wav"
+    },
+    {
+      "name": "FNF_AD_drums_snare_cymbal_green_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/016_FNF_AD_drums_snare_cymbal_green_dry.wav"
+    },
+    {
+      "name": "FNF_AD_drums_snare_cymbal_dark_nail_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/015_FNF_AD_drums_snare_cymbal_dark_nail_dry.wav"
+    },
+    {
+      "name": "FNF_AD_drums_snare_cymbal_open__dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/017_FNF_AD_drums_snare_cymbal_open__dry.wav"
+    },
+    {
+      "name": "FNF_AD_drums_snare_cymbal_smooth_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/018_FNF_AD_drums_snare_cymbal_smooth_dry.wav"
+    },
+    {
+      "name": "FNF_AD_drums_snare_cymbal_spinning_dirty_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/019_FNF_AD_drums_snare_cymbal_spinning_dirty_dry.wav"
+    },
+    {
+      "name": "FNF_AD_drums_snare_cymbal_trash_dry",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/020_FNF_AD_drums_snare_cymbal_trash_dry.wav"
+    },
+    {
+      "name": "FNF_AD_fx_cymbal_birds_alt_reverb",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/021_FNF_AD_fx_cymbal_birds_alt_reverb.wav"
+    },
+    {
+      "name": "FNF_AD_fx_cymbal_birds_reverb",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/022_FNF_AD_fx_cymbal_birds_reverb.wav"
+    },
+    {
+      "name": "NW_RN_crash_player_long",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/023_NW_RN_crash_player_long.wav"
+    },
+    {
+      "name": "NW_RN_crash_reverse",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/024_NW_RN_crash_reverse.wav"
+    },
+    {
+      "name": "NW_RN_crash_splash_oh",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/027_NW_RN_crash_splash_oh.wav"
+    },
+    {
+      "name": "NW_RN_crash_slash",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/025_NW_RN_crash_slash.wav"
+    },
+    {
+      "name": "NW_RN_crash_splash",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/026_NW_RN_crash_splash.wav"
+    },
+    {
+      "name": "NW_RN_crash_synthetic",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/029_NW_RN_crash_synthetic.wav"
+    },
+    {
+      "name": "NW_RN_ride_belly",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/030_NW_RN_ride_belly.wav"
+    },
+    {
+      "name": "NW_RN_crash_synthetic_",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/028_NW_RN_crash_synthetic_.wav"
+    },
+    {
+      "name": "NW_RN_ride_player",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/031_NW_RN_ride_player.wav"
+    },
+    {
+      "name": "NW_RN_fx_riser_reverse_crash",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/033_NW_RN_fx_riser_reverse_crash.wav"
+    },
+    {
+      "name": "fx-cymbal",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/034_fx-cymbal.wav"
+    },
+    {
+      "name": "Down_Cymbal_Wash_2s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/035_Down_Cymbal_Wash_2s.wav"
+    },
+    {
+      "name": "Down_Cymbal_Wash_4s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/036_Down_Cymbal_Wash_4s.wav"
+    },
+    {
+      "name": "NW_RN_fx_reverse_crash_chills",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/032_NW_RN_fx_reverse_crash_chills.wav"
+    },
+    {
+      "name": "Down_Cymbal_Wash_8s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/037_Down_Cymbal_Wash_8s.wav"
+    },
+    {
+      "name": "Riser_Cymbal_Swell_2s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/039_Riser_Cymbal_Swell_2s.wav"
+    },
+    {
+      "name": "Riser_Cymbal_Swell_4s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/040_Riser_Cymbal_Swell_4s.wav"
+    },
+    {
+      "name": "FB_ReverseCymbal",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/crash/038_FB_ReverseCymbal.wav"
+    }
+  ],
+  "tom": [
+    {
+      "name": "perc-high-tom",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/tom/001_perc-high-tom.wav"
+    },
+    {
+      "name": "perc-low-tom",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/tom/002_perc-low-tom.wav"
+    },
+    {
+      "name": "perc-low-tom",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/tom/005_perc-low-tom.wav"
+    },
+    {
+      "name": "perc-low-tom",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/tom/003_perc-low-tom.wav"
+    },
+    {
+      "name": "perc-high-tom",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/tom/004_perc-high-tom.wav"
+    }
+  ],
+  "fx": [
+    {
+      "name": "MO_GT_kick_impact_tech",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/002_MO_GT_kick_impact_tech.wav"
+    },
+    {
+      "name": "SCP_MUSH_field_rec_honeys_honey_impact",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/003_SCP_MUSH_field_rec_honeys_honey_impact.wav"
+    },
+    {
+      "name": "FL_NJP_Fx_One_Shot_Riser_Classic_135",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/004_FL_NJP_Fx_One_Shot_Riser_Classic_135.wav"
+    },
+    {
+      "name": "MO_GT_kick_impact_growl",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/001_MO_GT_kick_impact_growl.wav"
+    },
+    {
+      "name": "FL_NJP_Hat_One_Shot_Impact",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/005_FL_NJP_Hat_One_Shot_Impact.wav"
+    },
+    {
+      "name": "NW_RN_100_fx_riser_bender",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/007_NW_RN_100_fx_riser_bender.wav"
+    },
+    {
+      "name": "TRKTRN_PP3SPBDR_FX_Riser_One_Shot_Whisper",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/006_TRKTRN_PP3SPBDR_FX_Riser_One_Shot_Whisper.wav"
+    },
+    {
+      "name": "NW_RN_110_fx_riser_metallic",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/009_NW_RN_110_fx_riser_metallic.wav"
+    },
+    {
+      "name": "NW_RN_110_fx_riser_gears",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/008_NW_RN_110_fx_riser_gears.wav"
+    },
+    {
+      "name": "NW_RN_fx_riser_sweep_broom",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/011_NW_RN_fx_riser_sweep_broom.wav"
+    },
+    {
+      "name": "Down_Filtered_Sweep_2s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/012_Down_Filtered_Sweep_2s.wav"
+    },
+    {
+      "name": "NW_RN_110_fx_riser_zigzag",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/010_NW_RN_110_fx_riser_zigzag.wav"
+    },
+    {
+      "name": "Down_Impact_Tail_2s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/015_Down_Impact_Tail_2s.wav"
+    },
+    {
+      "name": "Down_Filtered_Sweep_8s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/014_Down_Filtered_Sweep_8s.wav"
+    },
+    {
+      "name": "Down_Impact_Tail_4s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/016_Down_Impact_Tail_4s.wav"
+    },
+    {
+      "name": "Down_Whoosh_Down_2s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/018_Down_Whoosh_Down_2s.wav"
+    },
+    {
+      "name": "Down_Filtered_Sweep_4s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/013_Down_Filtered_Sweep_4s.wav"
+    },
+    {
+      "name": "Down_Impact_Tail_8s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/017_Down_Impact_Tail_8s.wav"
+    },
+    {
+      "name": "Down_Whoosh_Down_4s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/019_Down_Whoosh_Down_4s.wav"
+    },
+    {
+      "name": "Down_Whoosh_Down_8s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/020_Down_Whoosh_Down_8s.wav"
+    },
+    {
+      "name": "FB_Impact",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/021_FB_Impact.wav"
+    },
+    {
+      "name": "Riser_Bitcrush_2s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/022_Riser_Bitcrush_2s.wav"
+    },
+    {
+      "name": "Riser_Bitcrush_4s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/023_Riser_Bitcrush_4s.wav"
+    },
+    {
+      "name": "Riser_Bitcrush_8s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/024_Riser_Bitcrush_8s.wav"
+    },
+    {
+      "name": "Riser_Cymbal_Swell_8s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/025_Riser_Cymbal_Swell_8s.wav"
+    },
+    {
+      "name": "Riser_Filtered_Sweep_2s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/026_Riser_Filtered_Sweep_2s.wav"
+    },
+    {
+      "name": "Riser_Filtered_Sweep_4s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/027_Riser_Filtered_Sweep_4s.wav"
+    },
+    {
+      "name": "Riser_Granular_2s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/029_Riser_Granular_2s.wav"
+    },
+    {
+      "name": "Riser_Filtered_Sweep_8s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/028_Riser_Filtered_Sweep_8s.wav"
+    },
+    {
+      "name": "Riser_Granular_4s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/030_Riser_Granular_4s.wav"
+    },
+    {
+      "name": "Riser_Laser_Zap_2s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/032_Riser_Laser_Zap_2s.wav"
+    },
+    {
+      "name": "Riser_Granular_8s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/031_Riser_Granular_8s.wav"
+    },
+    {
+      "name": "Riser_Laser_Zap_4s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/033_Riser_Laser_Zap_4s.wav"
+    },
+    {
+      "name": "Riser_Orchestra_Swell_2s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/035_Riser_Orchestra_Swell_2s.wav"
+    },
+    {
+      "name": "Riser_Orchestra_Swell_4s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/036_Riser_Orchestra_Swell_4s.wav"
+    },
+    {
+      "name": "Riser_Laser_Zap_8s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/034_Riser_Laser_Zap_8s.wav"
+    },
+    {
+      "name": "Riser_Pink_Noise_2s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/038_Riser_Pink_Noise_2s.wav"
+    },
+    {
+      "name": "Riser_Orchestra_Swell_8s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/037_Riser_Orchestra_Swell_8s.wav"
+    },
+    {
+      "name": "Riser_Pink_Noise_4s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/039_Riser_Pink_Noise_4s.wav"
+    },
+    {
+      "name": "Riser_Pink_Noise_8s",
+      "url": "https://yaxucqsvtmyvyyprrodv.supabase.co/storage/v1/object/public/sample-library/fx/040_Riser_Pink_Noise_8s.wav"
+    }
+  ]
+}
