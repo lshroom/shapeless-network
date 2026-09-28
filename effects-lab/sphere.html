@@ -199,7 +199,7 @@ function sampleAudio() {
   // as "always the same glitch." A long randomized cooldown on top of the
   // normal onset refractory spreads real bursts out across the whole song.
   let harmonyHit = onset(hiFast, hiSlow, 1.3, 0.05, hiRefractory, 0.25, now) && now > harmonyCooldownUntil;
-  if (harmonyHit) { hiRefractory = now; harmonyCooldownUntil = now + 3.5 + Math.random() * 5.5; }
+  if (harmonyHit) { hiRefractory = now; harmonyCooldownUntil = now + 7 + Math.random() * 10; }
   hiPulse = Math.max(hiPulse * 0.85, harmonyHit ? 1 : 0);
   audio.harmonyHit = harmonyHit; audio.harmonyPulse = hiPulse;
 }
@@ -866,14 +866,8 @@ function createBackgroundLayer({ canvas }){
         // the same effect looping all song.
         vec2 guv = uv;
         bool glitching = uGlitch > 0.002;
-        // Type 0: scanline-slice horizontal tearing (rows shear sideways).
+        // Type 0: vertical tearing (columns shear up/down, tracking-error style).
         if (glitching && uGlitchType == 0) {
-          float slice = floor(vUv.y*40.0);
-          float sliceRnd = fract(sin(slice*91.71 + floor(uTime*13.0))*43758.5453);
-          guv.x += (sliceRnd - 0.5) * uGlitch * 0.55;
-        }
-        // Type 1: vertical tearing (columns shear up/down, VHS-tracking style).
-        if (glitching && uGlitchType == 1) {
           float slice = floor(vUv.x*24.0);
           float sliceRnd = fract(sin(slice*57.31 + floor(uTime*9.0))*24634.6345);
           guv.y += (sliceRnd - 0.5) * uGlitch * 0.5;
@@ -885,14 +879,18 @@ function createBackgroundLayer({ canvas }){
           vec3 colB = styleColor(uStyle2, guv, q);
           col = mix(colA, colB, uMorph);
         }
-        // Type 2: chromatic-aberration ripple — RGB channels split radially.
-        if (glitching && uGlitchType == 2) {
-          vec2 dir = normalize(uv + 0.0001) * uGlitch * 0.05;
-          col.r = mix(col.r, styleColor(uStyle, guv, q+dir).r, uGlitch);
-          col.b = mix(col.b, styleColor(uStyle, guv, q-dir).b, uGlitch);
+        // Type 1: chromatic aberration — a fuller 3-tap radial color split
+        // with a faint soft-glow halo, not just a 2-channel nudge.
+        if (glitching && uGlitchType == 1) {
+          vec2 dir = normalize(uv + 0.0001) * uGlitch * 0.07;
+          vec3 cR = styleColor(uStyle, guv, q+dir);
+          vec3 cG = colA;
+          vec3 cB = styleColor(uStyle, guv, q-dir);
+          col = vec3(cR.r, cG.g, cB.b);
+          col += (cR+cB)*0.5 * uGlitch * 0.18; // soft glow halo from the split channels
         }
-        // Type 3: block-hold datamosh — random blocks freeze on a stale color.
-        if (glitching && uGlitchType == 3) {
+        // Type 2: block-hold datamosh — random blocks freeze on a stale color.
+        if (glitching && uGlitchType == 2) {
           vec2 bg = floor(vUv*vec2(9.0,14.0));
           float bRnd = fract(sin(dot(bg, vec2(41.3,71.9)) + floor(uTime*3.0))*9821.233);
           if (bRnd > 1.0 - uGlitch*0.5) {
@@ -900,16 +898,27 @@ function createBackgroundLayer({ canvas }){
             col = mix(col, stale, uGlitch);
           }
         }
-        // Type 4: invert-flash flicker — brief pixel-inverted strobe blocks.
-        if (glitching && uGlitchType == 4) {
+        // Type 3: invert-flash flicker — brief pixel-inverted strobe blocks.
+        if (glitching && uGlitchType == 3) {
           float fRnd = fract(sin(floor(uTime*24.0)*12.73 + vUv.y*3.0)*5871.13);
           if (fRnd > 1.0 - uGlitch*0.4) col = mix(col, vec3(1.0)-col, uGlitch);
         }
-        // Every type also gets a light common block-noise flicker so a glitch
-        // never reads as "just one clean effect" regardless of which type.
-        if (glitching) {
-          float blockRnd = fract(sin(dot(floor(vUv*vec2(11.0,17.0) + floor(uTime*19.0)), vec2(12.9898,78.233)))*43758.5453);
-          if (blockRnd > 1.0 - uGlitch*0.22) col = mix(col, vec3(1.0), 0.4*uGlitch);
+        // Type 4: VHS — noisy horizontal scanline bands with per-line jitter,
+        // faint rolling hum-bar, static grain and a slight color-bleed ghost.
+        if (glitching && uGlitchType == 4) {
+          float line = floor(vUv.y*160.0);
+          float lineRnd = fract(sin(line*13.71 + floor(uTime*30.0))*7521.29);
+          vec2 vguv = guv;
+          if (lineRnd > 0.92) vguv.x += (lineRnd-0.92)*uGlitch*1.8; // a few lines jitter sideways hard
+          vec2 vq = vguv*1.2 + uDrift;
+          vec3 vcol = styleColor(uStyle, vguv, vq);
+          vec3 ghost = styleColor(uStyle, vguv, vq + vec2(uGlitch*0.02, 0.0));
+          vcol = mix(vcol, ghost, 0.4*uGlitch);
+          float grain = fract(sin(dot(vUv*uRes, vec2(12.9898,78.233)) + uTime*60.0)*43758.5453);
+          vcol += (grain-0.5) * uGlitch * 0.12;
+          float hum = 0.5+0.5*sin(vUv.y*6.0 - uTime*0.6);
+          vcol *= 1.0 - uGlitch*0.15*hum;
+          col = vcol;
         }
         fragColor = vec4(col, 1.0);
       }`,
@@ -944,6 +953,11 @@ function createBackgroundLayer({ canvas }){
     } while (idx === style);
     return idx;
   }
+  function triggerGlitch(){
+    glitchAmt = 0.7 + Math.random() * 0.5;
+    glitchDecay = 0.05 + Math.random() * 0.35; // lower = snappier, higher = lingers
+    uniforms.uGlitchType.value = Math.floor(Math.random() * 5);
+  }
   const drift = new THREE.Vector2(0, 0);
   function step(dt, t){
     if (!enabled) return;
@@ -960,12 +974,10 @@ function createBackgroundLayer({ canvas }){
     }
     // A glitch is a rare, distinct accent (not ambient texture) — each burst
     // picks a random type and its own intensity/decay so no two bursts in a
-    // 4-minute song look or feel the same.
-    if (audio.harmonyHit) {
-      glitchAmt = 0.7 + Math.random() * 0.5;
-      glitchDecay = 0.05 + Math.random() * 0.35; // lower = snappier, higher = lingers
-      uniforms.uGlitchType.value = Math.floor(Math.random() * 5);
-    }
+    // 4-minute song look or feel the same. The ambient harmony onset (above)
+    // is one trigger; bigSwitch() (real waveform-detected song events) is
+    // the other, via triggerGlitch() below.
+    if (audio.harmonyHit) triggerGlitch();
     glitchAmt *= Math.pow(glitchDecay, dt);
     uniforms.uGlitch.value = glitchAmt;
     uniforms.uHarmony.value = audio.harmony;
@@ -992,7 +1004,7 @@ function createBackgroundLayer({ canvas }){
     canvas, label: 'Background', blend: 'normal', scale: 1.0,
     isBackground: true, styleNames: BG_STYLE_NAMES,
     get styleIdx(){ return style; },
-    setStyle,
+    setStyle, triggerGlitch,
     step, precompile,
     setEnabled(v){ enabled = v; canvas.style.display = v ? 'block' : 'none'; },
     setAutoBeat(){}, setInterval(){}, // no-ops — kept so shared loop/UI code can treat every layer the same way
@@ -1157,6 +1169,7 @@ if (driven) {
     const tNow = clock.getElapsedTime();
     shapeLayers.forEach(l => l.bigSwitch(tNow));
     bgLayer.setStyle(bgLayer.styleIdx + 1 + Math.floor(Math.random() * (bgLayer.styleNames.length - 1)));
+    bgLayer.triggerGlitch(); // ties a glitch burst to a real waveform-detected song event
     cameraBeatFlourish();
   }
   function checkSwitchPoints() {
@@ -1304,7 +1317,7 @@ let doneLayers = 0;
 let prepSettled = false;
 const prepStartT = performance.now();
 function renderPrepPct(){
-  const elapsedFrac = Math.min(1, ((performance.now()-prepStartT)/1000) / (driven ? 3.5 : 9));
+  const elapsedFrac = Math.min(1, ((performance.now()-prepStartT)/1000) / (driven ? 3.5 : 24));
   const layerFrac = doneLayers / totalLayers;
   return Math.min(97, Math.round(Math.max(layerFrac, elapsedFrac*0.9) * 100));
 }
@@ -1321,7 +1334,13 @@ const settlePrep = () => {
 };
 const precompiles = layers.map(l => l.precompile().finally(() => { doneLayers++; }));
 Promise.all(precompiles).finally(settlePrep);
-setTimeout(settlePrep, driven ? 4000 : 9000);
+// This is a genuine last-resort backstop (something actually stuck), not a
+// normal path — it used to fire at 9s in blended mode while real compiles
+// were still running well past that on a slower machine, which hid the
+// progress overlay and claimed "100%" while the page then sat frozen with
+// zero feedback for the rest of the real compile. The real Promise.all
+// above is what should settle it in virtually every case now.
+setTimeout(settlePrep, driven ? 12000 : 45000);
 tickPrep();
 loop();
 
