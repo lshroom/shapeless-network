@@ -2203,31 +2203,32 @@
     finally { actx.close(); }
     const data = audioBuf.getChannelData(0);
     const sr = audioBuf.sampleRate;
-    const blockSec = 1.0;
-    const blockSize = Math.max(1, Math.floor(sr * blockSec));
-    const energies = [];
-    for(let i=0;i<data.length;i+=blockSize){
-      let sum = 0; const end = Math.min(i+blockSize, data.length);
-      for(let j=i;j<end;j++) sum += data[j]*data[j];
-      energies.push(Math.sqrt(sum/(end-i)));
+    // Per-beat onset detector — the same fast-envelope-vs-slow-baseline idea
+    // the live kick detector in sphere.html/field.html uses, run offline here
+    // over short ~30ms blocks so it catches every beat/hit, not just big
+    // once-a-song section changes.
+    const blockSize = Math.max(1, Math.round(sr * 0.03));
+    const blocks = Math.floor(data.length / blockSize);
+    const energy = new Float32Array(blocks);
+    for(let b=0;b<blocks;b++){
+      let sum=0; const start=b*blockSize, end=Math.min(start+blockSize, data.length);
+      for(let i=start;i<end;i++) sum += data[i]*data[i];
+      energy[b] = Math.sqrt(sum/(end-start));
     }
-    const baselineWin = 6; // ~6s rolling baseline before each block
-    const raw = [];
-    for(let i=1;i<energies.length;i++){
-      let base=0, cnt=0;
-      for(let k=Math.max(0,i-baselineWin); k<i; k++){ base += energies[k]; cnt++; }
-      base = cnt ? base/cnt : 0;
-      if(energies[i] - base > 0.055 && energies[i] > 0.04) raw.push({ t: i*blockSec, jump: energies[i]-base });
+    let fast=0, slow=0, lastHitBlock=-999;
+    const minGapSec = 1.6; // how close two suggested switches can land — close to "every couple seconds" on a beat-heavy section
+    const minGapBlocks = Math.round(minGapSec / 0.03);
+    const hits = [];
+    for(let b=0;b<blocks;b++){
+      const e = energy[b];
+      fast += (e - fast) * 0.5;
+      slow += (e - slow) * 0.03;
+      if(fast > slow * 1.3 + 0.015 && (b - lastHitBlock) >= minGapBlocks){
+        hits.push({ t: b * blockSize / sr, energy: e });
+        lastHitBlock = b;
+      }
     }
-    // collapse clusters of nearby candidates into their strongest point, and
-    // keep suggestions at least 8s apart so they're actually useful markers
-    const spaced = [];
-    for(const cand of raw){
-      const last = spaced[spaced.length-1];
-      if(last && cand.t - last.t < 8){ if(cand.jump > last.jump) spaced[spaced.length-1] = cand; }
-      else spaced.push(cand);
-    }
-    return spaced.slice(0, 8).map(c=>c.t);
+    return hits;
   }
   function scheduleApplyTick(){
     if(!scheduleDraft) return;
@@ -7834,23 +7835,27 @@
       const btn = document.getElementById('feed-schedule-suggest-btn');
       btn.disabled = true; btn.textContent = 'Listening…';
       try {
-        const times = await analyzeWaveformForSwitchPoints(scheduleUploadedMedia.url);
+        const hits = await analyzeWaveformForSwitchPoints(scheduleUploadedMedia.url);
         let added = 0;
-        // Alternate sphere/field and cycle through each page's shapes, so the
-        // suggested markers actually show off variety instead of repeating one shape.
-        let sphereI = 0, fieldI = 0, toggle = 0;
-        times.forEach(t=>{
-          if(scheduleDraft.markers.some(m => Math.abs(m.t - t) < 4)) return; // don't crowd an existing marker
+        const maxEnergy = hits.reduce((m,h)=>Math.max(m,h.energy), 0.0001);
+        // Ranked calm → intense within each page, so a quiet moment gets a
+        // gentler shape and a hard hit gets the most chaotic one available.
+        const SPHERE_INTENSITY = [0,1,2,4,3]; // Fluff, Gyroid, Superformula, SDF Morph, Mandelbulb
+        const FIELD_INTENSITY = [0,1,2];      // Waves, Chladni, Spiderweb
+        let toggle = 0;
+        hits.forEach(({t, energy})=>{
+          if(scheduleDraft.markers.some(m => Math.abs(m.t - t) < 1)) return; // don't crowd an existing/just-added marker
           const page = toggle % 2 === 0 ? 'sphere' : 'field';
           toggle++;
-          const shape = page === 'sphere' ? (sphereI++ % SPHERE_SHAPE_NAMES.length) : (fieldI++ % FIELD_SHAPE_NAMES.length);
-          scheduleDraft.markers.push({ t, page, shape });
+          const order = page === 'sphere' ? SPHERE_INTENSITY : FIELD_INTENSITY;
+          const tier = Math.min(order.length - 1, Math.floor((energy / maxEnergy) * order.length));
+          scheduleDraft.markers.push({ t, page, shape: order[tier] });
           added++;
         });
         scheduleDraft.markers.sort((a,b)=>a.t-b.t);
         renderScheduleShapePalette();
         renderScheduleTrack();
-        toast(added ? `Added ${added} suggested switch${added===1?'':'es'} — drag or nudge to taste.` : 'Nothing obvious jumped out — try adding switches by hand.');
+        toast(added ? `Added ${added} suggested switch${added===1?'':'es'} — drag, nudge, or remove to taste.` : 'Nothing obvious jumped out — try adding switches by hand.');
       } catch(e){
         console.error('suggestSwitchPoints failed:', e);
         toast('Could not analyze the audio — try adding switches by hand.');
