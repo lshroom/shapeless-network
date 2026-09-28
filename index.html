@@ -1166,6 +1166,7 @@
       </div>
       <div class="feed-composer-row" id="feed-post-effect-row" hidden>
         <button class="btn btn-ghost btn-sm" id="feed-post-schedule-btn" onclick="app.openScheduleEditor()">Design the visuals</button>
+        <button class="btn btn-ghost btn-sm" onclick="app.previewBlendedSphere()">🌈 Preview blended</button>
         <span class="pad-hint" id="feed-post-schedule-status">defaults to Sphere</span>
       </div>
       <div class="feed-post-progress" id="feed-post-progress" hidden>
@@ -2205,6 +2206,25 @@
   let scheduleDragMarker = null;
   let scheduleFiredIdx = -1;
   function scheduleFrame(){ return document.getElementById('feed-schedule-frame-sphere'); }
+  // Shared by openScheduleEditor and previewBlendedSphere — uploads the
+  // chosen song once (for preview) and reuses that same upload for both, and
+  // for the real post if one follows, instead of uploading twice.
+  async function ensureScheduleSongUploaded(){
+    const file = document.getElementById('feed-post-song').files[0];
+    if(!file){ toast('Choose a song first.'); return null; }
+    if(scheduleUploadedForFile === file && scheduleUploadedMedia) return scheduleUploadedMedia;
+    try {
+      const uploadFile = await prepareForUpload(file);
+      setProgress(0, 'Uploading song for preview… 0%');
+      scheduleUploadedMedia = await SB.uploadMedia(uploadFile, (frac) => {
+        const pct = Math.round(Math.max(0, Math.min(1, frac)) * 100);
+        setProgress(pct, `Uploading song for preview… ${pct}%`);
+      });
+      scheduleUploadedForFile = file;
+      hideProgress();
+      return scheduleUploadedMedia;
+    } catch(e){ hideProgress(); toast('Could not upload for preview — try again.'); return null; }
+  }
   // Every shape — the old sphere solids and the old field cymatics patterns
   // — now lives inside sphere.html as ONE raymarched SDF field (see
   // effects-lab/sphere.html), so there's only ever one frame here. It loads
@@ -7769,22 +7789,21 @@
         setProgress(0, 'Could not post: ' + (e?.message || e?.error_description || 'unknown error'), true);
       }
     },
+    async previewBlendedSphere(){
+      if(!requireAuth()) return;
+      const media = await ensureScheduleSongUploaded();
+      if(!media) return;
+      // The blended 4-layer view (all 3 banks + background, composited with
+      // CSS mix-blend-mode) only exists as the standalone page's default —
+      // it isn't wired into the timeline/schedule editor, which assumes one
+      // active bank at a time. Opens the real page in a new tab so it can be
+      // tested with the actual uploaded song, from the actual post flow.
+      window.open(FEED_EFFECT_PAGES.sphere.split('?')[0] + '?song=' + encodeURIComponent(media.url), '_blank');
+    },
     async openScheduleEditor(){
       if(!requireAuth()) return;
-      const file = document.getElementById('feed-post-song').files[0];
-      if(!file){ toast('Choose a song first.'); return; }
-      if(scheduleUploadedForFile !== file){
-        try {
-          const uploadFile = await prepareForUpload(file);
-          setProgress(0, 'Uploading song for preview… 0%');
-          scheduleUploadedMedia = await SB.uploadMedia(uploadFile, (frac) => {
-            const pct = Math.round(Math.max(0, Math.min(1, frac)) * 100);
-            setProgress(pct, `Uploading song for preview… ${pct}%`);
-          });
-          scheduleUploadedForFile = file;
-          hideProgress();
-        } catch(e){ hideProgress(); toast('Could not upload for preview — try again.'); return; }
-      }
+      const media = await ensureScheduleSongUploaded();
+      if(!media) return;
       if(!scheduleDraft) scheduleDraft = { markers: [{ t: 0, page: 'sphere', shape: 0 }], bank: 0 };
       if(scheduleDraft.bank == null) scheduleDraft.bank = 0; // editing an older draft/post saved before banks existed
       scheduleSelectedMarkerIdx = 0;

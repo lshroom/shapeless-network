@@ -49,12 +49,16 @@
   .layerRow .lr-size{display:flex;align-items:center;gap:6px;}
   .layerRow .lr-size span{font-size:9.5px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.03em;min-width:26px;}
   .layerRow input[type=range]{width:100%;accent-color:#8b9bff;}
+  #loadSongWrap{position:fixed;bottom:56px;left:0;right:0;z-index:6;display:flex;justify-content:center;}
+  #loadSongBtn{background:rgba(139,155,255,.22);color:#cdd4ff;border:1px solid #8b9bff;border-radius:99px;
+       padding:8px 16px;font-size:12px;cursor:pointer;}
 </style>
 </head>
 <body>
 <div id="layers"></div>
-<div id="prep"><div class="spin"></div><div>Preparing visuals…</div></div>
+<div id="prep"><div class="spin"></div><div id="prepText">Preparing visuals… 0%</div></div>
 <div id="noSrc">waiting for audio…</div>
+<div id="loadSongWrap"><button id="loadSongBtn">🎵 Load a song</button><input id="loadSongFile" type="file" accept="audio/*" style="display:none"></div>
 <div id="controlPanel"></div>
 <div id="blendPanel"></div>
 <div id="modeName">Fluff</div>
@@ -705,7 +709,7 @@ function createBackgroundLayer({ canvas }){
         float n2 = snoise(vec3(q*1.4+11.0, uTime*0.06+5.0));
         float field = n1*0.65 + n2*0.35;
         float hue = fract(field*0.5 + uTime*0.01 + uMid*0.08);
-        vec3 col = spectral(hue) * (0.14 + 0.10*(0.5+0.5*field) + uBeat*0.10 + uBass*0.05);
+        vec3 col = spectral(hue) * (0.32 + 0.24*(0.5+0.5*field) + uBeat*0.22 + uBass*0.14);
         fragColor = vec4(col, 1.0);
       }`,
     depthWrite:false, depthTest:false,
@@ -906,13 +910,38 @@ function loop(){
   layers.forEach(l => l.step(dt, t));
   requestAnimationFrame(loop);
 }
-// Compile every active layer's shader with the "Preparing visuals…" overlay
-// up before this starts, same non-blocking compileAsync + hard-timeout
-// pattern as before, just fanned out across however many layers exist.
+// Compile every active layer's shader with the "Preparing visuals… N%"
+// overlay up before this starts — a silent spinner with no number is exactly
+// what makes people give up on a slow load thinking it's dead. The % is a
+// real signal (each layer resolving its own precompile is one genuine
+// milestone out of however many layers exist) with a slow time-based floor
+// underneath so it keeps visibly creeping between those milestones instead
+// of sitting dead on one number for several seconds.
+const prepText = document.getElementById('prepText');
+const totalLayers = layers.length;
+let doneLayers = 0;
 let prepSettled = false;
-const settlePrep = () => { if (prepSettled) return; prepSettled = true; document.getElementById('prep').classList.add('hidden'); };
-Promise.all(layers.map(l => l.precompile())).finally(settlePrep);
-setTimeout(settlePrep, driven ? 4000 : 7000);
+const prepStartT = performance.now();
+function renderPrepPct(){
+  const elapsedFrac = Math.min(1, ((performance.now()-prepStartT)/1000) / (driven ? 3.5 : 9));
+  const layerFrac = doneLayers / totalLayers;
+  return Math.min(97, Math.round(Math.max(layerFrac, elapsedFrac*0.9) * 100));
+}
+function tickPrep(){
+  if (prepSettled) return;
+  prepText.textContent = `Preparing visuals… ${renderPrepPct()}%`;
+  requestAnimationFrame(tickPrep);
+}
+const settlePrep = () => {
+  if (prepSettled) return;
+  prepSettled = true;
+  prepText.textContent = 'Preparing visuals… 100%';
+  document.getElementById('prep').classList.add('hidden');
+};
+const precompiles = layers.map(l => l.precompile().finally(() => { doneLayers++; }));
+Promise.all(precompiles).finally(settlePrep);
+setTimeout(settlePrep, driven ? 4000 : 9000);
+tickPrep();
 loop();
 
 // ---- feed embed: ?song=<url>[&muted=1] + postMessage({type:'song'|'setActive'|'mute'}) ----
@@ -925,6 +954,23 @@ if (songParam) loadSongUrl(decodeURIComponent(songParam), mutedParam, startTimeP
 // below the preview — this page's own bottom bar would be a second one.
 if (new URLSearchParams(location.search).get('embed') === 'inline') {
   const bar = document.getElementById('bar'); if (bar) bar.style.display = 'none';
+}
+// Standalone open (no ?song=, not the feed embed, not driven) never had any
+// way to actually pick a song — the whole page only ever expected one to
+// arrive via the URL or postMessage from an embedding parent. This gives
+// the raw link its own file picker so it's testable on its own, using a
+// local object URL (no upload needed just to try it).
+const loadSongWrap = document.getElementById('loadSongWrap');
+if (!songParam && !driven) {
+  document.getElementById('loadSongBtn').addEventListener('click', () => document.getElementById('loadSongFile').click());
+  document.getElementById('loadSongFile').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    loadSongUrl(URL.createObjectURL(file), false, 0, true);
+    loadSongWrap.style.display = 'none';
+  });
+} else if (loadSongWrap) {
+  loadSongWrap.style.display = 'none';
 }
 // Fallback: a real tap/drag directly on this canvas (orbiting, switching modes)
 // is a genuine gesture in THIS frame. AudioContext.resume() alone isn't
