@@ -133,7 +133,35 @@ function sampleStem(role){
   if(s.bassFast > s.bassSlow*1.35 + 0.06 && (now - s.kickRefractory) > 0.14){ hit = true; s.kickRefractory = now; }
   s.kick = Math.max(s.kick*0.7, hit ? 1 : 0);
 }
-function sampleAll(){ ROLES.forEach(sampleStem); }
+// ---- kick/snare/hihat: derived from the drums stem's own FFT, no extra
+// decode — same Hz-band onset technique as the drum-room classifier (kick
+// 40-120Hz, snare 180-500Hz, hihat 6-12kHz; peak-bin energy vs moving
+// baseline, refractory per drum). Each becomes a selectable "stem" like any
+// other, so a layer slot can be aimed at just the kick or just the hats.
+const DRUM_PARTS = ['kick','snare','hihat'];
+const DRUM_BANDS = { kick:[40,120,0.08], snare:[180,500,0.09], hihat:[6000,12000,0.04] }; // [loHz,hiHz,refractorySec]
+DRUM_PARTS.forEach(part=>{ stems[part] = { bass:0, mid:0, high:0, rms:0, kick:0, _baseline:0, _refractory:0 }; });
+function sampleDrumParts(){
+  const d = stems.drums;
+  if(!d.analyser || !actx) return;
+  const n = d.freqData.length;
+  const binHz = (actx.sampleRate/2)/n;
+  const now = performance.now()/1000;
+  DRUM_PARTS.forEach(part=>{
+    const s = stems[part];
+    const [loHz, hiHz, refractoryS] = DRUM_BANDS[part];
+    const lo = Math.max(0, Math.floor(loHz/binHz)), hi = Math.min(n-1, Math.ceil(hiHz/binHz));
+    let peak = 0;
+    for(let i=lo;i<=hi;i++){ const v = d.freqData[i]/255; if(v>peak) peak = v; }
+    s._baseline = s._baseline*0.78 + peak*0.22;
+    let hit = false;
+    if((peak - s._baseline) > 0.18 && peak > 0.25 && (now - s._refractory) > refractoryS){ hit = true; s._refractory = now; }
+    const target = hit ? 1 : 0;
+    s.kick = Math.max(s.kick*0.82, target); // decaying hit envelope, reused as every slot field below
+    s.bass = s.mid = s.high = s.rms = s.kick;
+  });
+}
+function sampleAll(){ ROLES.forEach(sampleStem); sampleDrumParts(); }
 
 // ---- the shared scene: one raymarched shader, 4 visual SLOTS ----
 // (center / plate / orbit / glow) — each slot is driven by whichever STEM
