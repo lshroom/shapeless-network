@@ -1,5 +1,6 @@
 """
-Stem separation server for freespirit.html.
+Stem separation server for freespirit.html AND shapelessworld.org's Full (4
+stems) upload mode.
 - POST /separate (multipart 'audio')         -> { job_id }
 - GET  /status/<job_id>                      -> { status, progress, stems[] }
 - GET  /stems/<path>                         -> serves stem audio files
@@ -13,23 +14,52 @@ Run:
   python tools/stem_server.py
   # listens on http://127.0.0.1:5599
 
-Frontend (freespirit.html) hits this; the page is served from Vite at :5173.
+Frontend (freespirit.html) hits this directly on localhost; the page is
+served from Vite at :5173. shapelessworld.org's browser JS (running on
+someone's phone, away from this PC) can ALSO reach this server if you run a
+Cloudflare Tunnel pointed at it — see tools/STEM_SERVER_README.md — but a
+tunnel makes this server reachable from the whole internet, so every request
+that doesn't come from 127.0.0.1 must carry the access token this script
+generates on first run (tools/stem_server_token.txt). Requests from
+127.0.0.1 (this same machine) are never asked for the token — that's the
+existing freespirit.html flow and it stays exactly as it was.
 """
-import os, sys, uuid, subprocess, threading, traceback, time
+import os, sys, uuid, subprocess, threading, traceback, time, secrets
 # Force a writable model cache (user env had TORCH_HOME=Z:\\ which doesn't exist on this box)
 _TORCH_CACHE = os.path.join(os.path.expanduser("~"), ".cache", "torch")
 os.makedirs(_TORCH_CACHE, exist_ok=True)
 os.environ["TORCH_HOME"] = _TORCH_CACHE
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, abort
 from flask_cors import CORS
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(ROOT, "stem_output")
 os.makedirs(OUT_DIR, exist_ok=True)
 
+TOKEN_FILE = os.path.join(ROOT, "stem_server_token.txt")
+if not os.path.exists(TOKEN_FILE):
+    with open(TOKEN_FILE, "w") as f:
+        f.write(secrets.token_urlsafe(24))
+with open(TOKEN_FILE) as f:
+    ACCESS_TOKEN = f.read().strip()
+
 app = Flask(__name__)
 CORS(app)
 jobs = {}  # job_id -> { status, progress, stems, error }
+
+@app.before_request
+def require_token_for_remote_requests():
+    # Same machine (freespirit.html at :5173, or this box's own browser) never
+    # needs a token — this matches how the server always behaved before a
+    # tunnel made it reachable from anywhere. Anyone coming in through a
+    # tunnel (a different remote_addr) must present the token.
+    if request.remote_addr in ("127.0.0.1", "::1"):
+        return
+    if request.path == "/health":
+        return  # harmless liveness check, no job can be started from it
+    supplied = request.headers.get("X-Stem-Token", "")
+    if not secrets.compare_digest(supplied, ACCESS_TOKEN):
+        abort(401, description="missing or wrong X-Stem-Token")
 
 DEMUCS_MODEL = "htdemucs_6s"   # 6 stems
 STEM_NAMES_6 = ["vocals", "drums", "bass", "guitar", "piano", "other"]
@@ -117,4 +147,9 @@ def health():
 
 if __name__ == "__main__":
     print(f"[stem-server] listening on http://127.0.0.1:5599  model={DEMUCS_MODEL}")
-    app.run(host="127.0.0.1", port=5599, debug=False, threaded=True)
+    print(f"[stem-server] access token (only needed for tunneled/remote requests, e.g. from your phone): {ACCESS_TOKEN}")
+    print(f"[stem-server] to reach this from your phone away from home, see tools/STEM_SERVER_README.md (Cloudflare Tunnel)")
+    # 0.0.0.0 so a Cloudflare Tunnel (which connects to this box locally, then
+    # relays from the internet) can reach it — the token gate above is what
+    # keeps that safe, not the bind address.
+    app.run(host="0.0.0.0", port=5599, debug=False, threaded=True)

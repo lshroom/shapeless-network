@@ -1180,7 +1180,8 @@
       </div>
       <div class="feed-stems-pickers" id="feed-post-stems-pickers" hidden>
         <div class="feed-stems-auto" id="feed-stems-auto" hidden>
-          <button class="btn btn-ghost btn-sm" id="feed-stems-auto-btn" onclick="app.autoSplitStems()">Split automatically (local)</button>
+          <button class="btn btn-ghost btn-sm" id="feed-stems-auto-btn" onclick="app.autoSplitStems()">Split automatically</button>
+          <button class="btn btn-ghost btn-sm" onclick="app.configureStemRemote()" title="Set up reaching your PC's splitter from away from home">⚙ configure remote splitter</button>
           <span class="pad-hint" id="feed-stems-auto-status"></span>
         </div>
         <label class="feed-stem-picker">Vocals<input type="file" accept="audio/*" id="feed-stem-vocals" onchange="app.previewStemFile(this)"></label>
@@ -2241,6 +2242,7 @@
   let scheduleUploadedMedia = null; // the media object once the song has been uploaded to get a real URL for the preview iframe
   let scheduleUploadedForFile = null; // which File object scheduleUploadedMedia belongs to, so re-opening doesn't re-upload
   let stemsMode = false;
+  let _stemServerResolved = null; // last resolveStemServer() result, reused by autoSplitStems so it doesn't re-probe mid-upload
   const stemFiles = { vocals:null, drums:null, bass:null, other:null };
   function stemsPickedCount(){ return Object.values(stemFiles).filter(Boolean).length; }
   function renderStemsStatus(){
@@ -2262,26 +2264,25 @@
     const shapeEl = document.getElementById('fsl-shape-center'); if(shapeEl) shapeEl.value = 'auto';
   }
   // The local stem-splitter (tools/stem_server.py) — runs Demucs on the
-  // uploader's own machine at http://127.0.0.1:5599, per shapeless-1974's
-  // "🔪 Stems" button. If it's running, offer to use it here too instead of
-  // making people split the song by hand and upload 4 files themselves.
-  const STEM_SERVER = 'http://127.0.0.1:5599';
-  async function checkLocalStemServer(){
-    try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(()=>ctrl.abort(), 1200);
-      const res = await fetch(STEM_SERVER + '/health', { signal: ctrl.signal });
-      clearTimeout(timer);
-      return res.ok;
-    } catch(_){ return false; }
+  // uploader's own machine, per shapeless-1974's "🔪 Stems" button and the
+  // Voyage Studio's "Stems" import (see loadMyStemServerUrl/checkStemServer/
+  // stemServerBase/stemServerHeaders further down — this reuses that exact
+  // same account-level config instead of keeping its own, so the tunnel URL
+  // and token you save once work from the Feed, Studio, and any device you're
+  // signed into, not just the browser you saved them in).
+  async function resolveStemServer(){
+    await loadMyStemServerUrl();
+    const ok = await checkStemServer();
+    if(!ok) return null;
+    return { base: stemServerBase(), headers: stemServerHeaders() };
   }
   // Demucs' htdemucs_6s model splits into 6 stems (vocals/drums/bass/guitar/
   // piano/other) — guitar+piano+other are mixed down client-side into one
   // "harmony" track via an OfflineAudioContext, since that's the 4th part the
   // scene actually wants and there's no reason to make the user do that mix
   // by hand.
-  async function decodeAudioUrl(actx, url){
-    const resp = await fetch(url);
+  async function decodeAudioUrl(actx, url, headers){
+    const resp = await fetch(url, headers ? { headers } : undefined);
     const buf = await resp.arrayBuffer();
     return actx.decodeAudioData(buf);
   }
@@ -3574,6 +3575,7 @@
   const LOCAL_STEM_SERVER = 'http://127.0.0.1:5599';
   const IS_MOBILE_DEVICE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   let myStemServerUrl = null; // this user's own public tunnel to their PC's stem server, once they've set one
+  let myStemServerToken = null; // access token that same tunnel requires for anything but a same-PC (127.0.0.1) request
   let myStemServerUrlLoaded = false;
   async function loadMyStemServerUrl(){
     if(myStemServerUrlLoaded) return myStemServerUrl;
@@ -3583,11 +3585,18 @@
     try {
       const profile = await SB.getProfile(u.id);
       myStemServerUrl = (profile && profile.stem_server_url) || null;
-    } catch(e){ myStemServerUrl = null; }
+      myStemServerToken = (profile && profile.stem_server_token) || null;
+    } catch(e){ myStemServerUrl = null; myStemServerToken = null; }
     return myStemServerUrl;
   }
   function stemServerBase(){
     return (myStemServerUrl && myStemServerUrl.replace(/\/+$/, '')) || LOCAL_STEM_SERVER;
+  }
+  // Only a tunneled (non-127.0.0.1) request needs the token — stem_server.py
+  // never asks for one from this same PC, matching how it always worked
+  // before a tunnel made it reachable from anywhere else too.
+  function stemServerHeaders(){
+    return (myStemServerUrl && myStemServerToken) ? { 'X-Stem-Token': myStemServerToken } : {};
   }
   async function checkStemServer(){
     try {
@@ -3600,15 +3609,16 @@
     if(!v || !v.studio) return;
     migrateStudio(v);
     const base = stemServerBase();
+    const headers = stemServerHeaders();
     toast('Uploading to your stem-splitter…');
     const form = new FormData(); form.append('audio', file);
-    const startRes = await fetch(base + '/separate', { method:'POST', body: form });
-    if(!startRes.ok) throw new Error('could not start separation');
+    const startRes = await fetch(base + '/separate', { method:'POST', body: form, headers });
+    if(!startRes.ok) throw new Error(startRes.status === 401 ? 'access token was wrong — reconfigure it below' : 'could not start separation');
     const { job_id } = await startRes.json();
     let result;
     for(;;){
       await new Promise(r=>setTimeout(r, 1500));
-      const st = await fetch(base + '/status/' + job_id).then(r=>r.json());
+      const st = await fetch(base + '/status/' + job_id, { headers }).then(r=>r.json());
       if(st.status==='error') throw new Error(st.error || 'separation failed');
       if(st.status==='done'){ result = st; break; }
       toast(`Separating on your machine… ${Math.round((st.progress||0)*100)}%`);
@@ -3616,7 +3626,7 @@
     toast('Separated — uploading stems into the song…');
     let added = 0;
     for(const stem of result.stems){
-      const blob = await fetch(base + stem.url).then(r=>r.blob());
+      const blob = await fetch(base + stem.url, { headers }).then(r=>r.blob());
       const stemFile = new File([blob], `${stem.name}-${Date.now()}.wav`, { type: blob.type || 'audio/wav' });
       const media = window.SB ? await SB.uploadMedia(stemFile) : null;
       if(!media) continue;
@@ -4758,10 +4768,15 @@
       ${stemHelpOpen[v.id] ? `<div class="empty-arrangement-banner stem-help-banner">
         ${IS_MOBILE_DEVICE ? `
         Stems runs Demucs on a real computer — a phone can't run it directly. Two options:
-        <br>1) On your computer: download and run <a href="/downloads/shapeless-stem-splitter.zip" download>the stem-splitter</a>, then expose it with a free tunnel — easiest is <code>cloudflared tunnel --url http://localhost:5599</code> (or ngrok). It prints a public address — paste that below so your phone can reach it:
-        <div style="display:flex; gap:6px; margin:8px 0;">
-          <input type="text" id="stem-server-url-input-${v.id}" placeholder="https://your-name.trycloudflare.com" value="${myStemServerUrl || ''}" style="flex:1; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:7px 9px; color:var(--text); font-size:12.5px;">
-          <button class="btn btn-ghost btn-sm" onclick="app.saveStemServerUrl('${v.id}')">Save</button>
+        <br>1) On your computer: download and run <a href="/downloads/shapeless-stem-splitter.zip" download>the stem-splitter</a>, then expose it with a free tunnel — easiest is <code>cloudflared tunnel --url http://localhost:5599</code> (or ngrok). It prints a public address AND an access token on startup — paste both below so your phone can reach it:
+        <div style="display:flex; flex-direction:column; gap:6px; margin:8px 0;">
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="stem-server-url-input-${v.id}" placeholder="https://your-name.trycloudflare.com" value="${myStemServerUrl || ''}" style="flex:1; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:7px 9px; color:var(--text); font-size:12.5px;">
+          </div>
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="stem-server-token-input-${v.id}" placeholder="access token from the stem-splitter's startup message" value="${myStemServerToken || ''}" style="flex:1; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:7px 9px; color:var(--text); font-size:12.5px;">
+            <button class="btn btn-ghost btn-sm" onclick="app.saveStemServerUrl('${v.id}')">Save</button>
+          </div>
         </div>
         <br>2) Or just split it with a free site like <a href="https://moises.ai" target="_blank" rel="noopener">Moises.ai</a> or <a href="https://lalal.ai" target="_blank" rel="noopener">LALAL.AI</a>, then tap <b>Import</b> to bring the stem files in here.
         ` : `
@@ -6131,15 +6146,19 @@
     dismissStemHelp(vid){ delete stemHelpOpen[vid]; renderVoyageDetail(); },
     async saveStemServerUrl(vid){
       const input = document.getElementById('stem-server-url-input-'+vid);
+      const tokenInput = document.getElementById('stem-server-token-input-'+vid);
       let url = (input && input.value || '').trim();
+      const token = (tokenInput && tokenInput.value || '').trim();
       if(url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
       if(!requireAuth()) return;
       try {
-        await SB.updateProfile({ stem_server_url: url || null });
+        await SB.updateProfile({ stem_server_url: url || null, stem_server_token: token || null });
         myStemServerUrl = url || null;
+        myStemServerToken = token || null;
         myStemServerUrlLoaded = true;
         toast(url ? 'Saved — try Stems again.' : 'Cleared.');
         renderVoyageDetail();
+        if(document.getElementById('feed-stems-auto')) app.refreshStemServerStatus();
       } catch(e){ toast('Could not save — try again.'); }
     },
     async pickManualStems(inputEl, vid){
@@ -7819,16 +7838,40 @@
       document.getElementById('feed-post-schedule-btn').hidden = on;
       renderStemsStatus();
       if(!on) return;
+      await app.refreshStemServerStatus();
+    },
+    async refreshStemServerStatus(){
       const autoRow = document.getElementById('feed-stems-auto');
+      const autoBtn = document.getElementById('feed-stems-auto-btn');
       const autoStatus = document.getElementById('feed-stems-auto-status');
       autoStatus.textContent = 'checking for your local splitter…';
       autoRow.hidden = false;
-      const found = await checkLocalStemServer();
-      if(found){
-        autoStatus.textContent = 'local splitter found — one click instead of 4 files';
+      const resolved = await resolveStemServer();
+      _stemServerResolved = resolved;
+      if(resolved){
+        autoBtn.hidden = false;
+        autoStatus.textContent = (resolved.base === LOCAL_STEM_SERVER ? 'local splitter found' : 'reached your PC through its tunnel') + ' — one click instead of 4 files';
       } else {
-        autoRow.hidden = true;
+        autoBtn.hidden = true;
+        autoStatus.textContent = myStemServerUrl ? "couldn't reach your PC — is stem_server.py and the tunnel still running?" : '';
       }
+    },
+    async configureStemRemote(){
+      if(!requireAuth()) return;
+      await loadMyStemServerUrl();
+      let url = prompt('Paste the https:// address your PC\'s cloudflared tunnel printed (leave blank to use this-same-PC only):', myStemServerUrl || '');
+      if(url === null) return;
+      url = url.trim();
+      if(url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+      const token = url ? prompt('Paste the access token stem_server.py printed on startup:', myStemServerToken || '') : '';
+      if(url && token === null) return;
+      try {
+        await SB.updateProfile({ stem_server_url: url || null, stem_server_token: (token||'').trim() || null });
+        myStemServerUrl = url || null;
+        myStemServerToken = (token||'').trim() || null;
+        toast(url ? 'Saved — this works from any device you sign into.' : 'Cleared — back to this-same-PC only.');
+      } catch(e){ toast('Could not save — try again.'); }
+      app.refreshStemServerStatus();
     },
     previewStemFile(input){
       const role = input.id.replace('feed-stem-', '');
@@ -7840,31 +7883,33 @@
       if(!songFile){ toast('Pick the song file first.'); return; }
       const btn = document.getElementById('feed-stems-auto-btn');
       const status = document.getElementById('feed-stems-auto-status');
+      const server = _stemServerResolved || await resolveStemServer();
+      if(!server){ toast("Couldn't reach your local splitter — check it's running (and the tunnel, if you're away from home)."); return; }
       btn.disabled = true;
       try {
-        status.textContent = 'sending to your local splitter…';
+        status.textContent = 'sending to your splitter…';
         const form = new FormData();
         form.append('audio', songFile);
-        const sepRes = await fetch(STEM_SERVER + '/separate', { method:'POST', body: form });
-        if(!sepRes.ok) throw new Error('local splitter refused the file');
+        const sepRes = await fetch(server.base + '/separate', { method:'POST', body: form, headers: server.headers });
+        if(!sepRes.ok) throw new Error(sepRes.status === 401 ? 'access token was wrong — reconfigure it' : 'splitter refused the file');
         const { job_id } = await sepRes.json();
         let job;
         for(;;){
           await new Promise(r=>setTimeout(r, 1500));
-          const statusRes = await fetch(STEM_SERVER + '/status/' + job_id);
+          const statusRes = await fetch(server.base + '/status/' + job_id, { headers: server.headers });
           job = await statusRes.json();
           if(job.status === 'done') break;
           if(job.status === 'error') throw new Error(job.error || 'splitting failed');
           status.textContent = `splitting… ${Math.round((job.progress||0)*100)}%`;
         }
         status.textContent = 'mixing harmony track…';
-        const byName = {}; job.stems.forEach(s=>{ byName[s.name] = STEM_SERVER + s.url; });
+        const byName = {}; job.stems.forEach(s=>{ byName[s.name] = server.base + s.url; });
         const need = ['vocals','drums','bass','guitar','piano','other'];
-        if(need.some(n=>!byName[n])) throw new Error('the local splitter did not return all 6 stems');
+        if(need.some(n=>!byName[n])) throw new Error('the splitter did not return all 6 stems');
         const actx = new (window.AudioContext || window.webkitAudioContext)();
         try {
           const [vocalsBuf, drumsBuf, bassBuf, guitarBuf, pianoBuf, otherBuf] = await Promise.all(
-            need.map(n=>decodeAudioUrl(actx, byName[n]))
+            need.map(n=>decodeAudioUrl(actx, byName[n], server.headers))
           );
           const base = songFile.name.replace(/\.[^.]+$/, '');
           stemFiles.vocals = new File([audioBufferToWav(vocalsBuf)], base+'_vocals.wav', { type:'audio/wav' });
