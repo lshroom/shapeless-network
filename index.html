@@ -2279,7 +2279,32 @@
     if(!file){ toast('Choose a song first.'); return null; }
     if(scheduleUploadedForFile === file && scheduleUploadedMedia) return scheduleUploadedMedia;
     if(scheduleLocalPreviewUrl) URL.revokeObjectURL(scheduleLocalPreviewUrl);
-    scheduleLocalPreviewUrl = URL.createObjectURL(file);
+    // A big raw WAV/FLAC (the kind a PC upload is far more likely to be than
+    // a phone one, which usually hands over an already-compressed m4a/mp3)
+    // hits a real Chrome quirk: a blob: <audio> element won't report a
+    // duration for a large uncompressed file until it scans the whole thing,
+    // which is what showed up as "took forever and froze" on PC uploads
+    // specifically (Barak 2026-09-29) — nothing to do with the PC being
+    // slower, the file itself is just a different shape. Re-encode it down
+    // to a small 16kHz mono WAV (same helper the transcription path already
+    // uses) so the editor's timeline gets a file with an instant, correct
+    // duration — full quality isn't needed here, this copy is only ever
+    // used for scrubbing/switch-point timing, never posted.
+    const BIG_FILE_BYTES = 15 * 1024 * 1024;
+    if(file.size > BIG_FILE_BYTES){
+      try {
+        const rawUrl = URL.createObjectURL(file);
+        const pcm = await app.pcmFromSongUrl(rawUrl);
+        URL.revokeObjectURL(rawUrl);
+        const previewBlob = app.pcm16ToWavBlob(pcm, 16000);
+        scheduleLocalPreviewUrl = URL.createObjectURL(previewBlob);
+      } catch(e){
+        console.warn('[schedule] could not downsample large file for preview, using raw file:', e?.message || e);
+        scheduleLocalPreviewUrl = URL.createObjectURL(file);
+      }
+    } else {
+      scheduleLocalPreviewUrl = URL.createObjectURL(file);
+    }
     scheduleUploadedMedia = { url: scheduleLocalPreviewUrl, kind: 'audio', name: file.name, _local: true };
     scheduleUploadedForFile = file;
     return scheduleUploadedMedia;
@@ -4995,7 +5020,16 @@
     lanes(vid){
       const v = VOYAGES.find(x=>x.id===vid);
       if(!v || !v.studio) return [];
-      return (v.studio.lanes||[]).map(l=>({ name: l.label||l.role||'Track', kind: proto3DKind(l), instrument: proto3DInstrument(l, l.label||'', null).id }));
+      return (v.studio.lanes||[]).map(l=>({ name: l.label||l.role||'Track', kind: proto3DKind(l), instrument: proto3DInstrument(l, l.label||'', null).id, pos: l.pos3d || null }));
+    },
+    // where a track's blob sits in the 3D room (dragged with right-click) — saved with the project
+    setPos(vid, name, pos){
+      const v = VOYAGES.find(x=>x.id===vid);
+      const lane = v && v.studio && proto3DLane(v, name);
+      if(!lane || !Array.isArray(pos) || pos.length!==3 || !pos.every(Number.isFinite)) return false;
+      lane.pos3d = pos.map(n=>Math.round(n*100)/100);
+      persistStudio(v, true);
+      return true;
     },
     addTrack(vid, name, kind){
       const v = VOYAGES.find(x=>x.id===vid);
@@ -5365,6 +5399,11 @@
   let studioDrag = null;
   let selectedClips = {}; // clipId -> true — tap a clip to select it, then set a bars length for all selected at once
   let clipMenuOpen = null; // clipId — long-press a clip to open its Repeat/Delete menu instead of a fragile × button
+  // Right-click in the arrangement is ours (clip menu), never Chrome's menu.
+  document.addEventListener('contextmenu', e=>{
+    const t = e.target;
+    if(t && t.closest && t.closest('.lane-clip, .lane-clip-track, .clip-menu, .clip-menu-backdrop')) e.preventDefault();
+  }, true);
   let clipLongPressTimer = null;
   function onStudioPointerMove(e){
     if(!studioDrag) return;
@@ -7088,6 +7127,9 @@
       if(!clip) return;
       if(!(lane.owner===myName() || isVoyageCaptain(v))) return;
       e.preventDefault();
+      // right-click = the clip menu (Repeat / Delete), never a drag. Don't re-render here: the
+      // clip element must survive until its contextmenu handler blocks Chrome's menu and opens ours.
+      if(e.button === 2) return;
       if(clipMenuOpen) { clipMenuOpen = null; renderVoyageDetail(); return; }
       beginStudioDrag({ mode:'move', vid, laneId, clipId, elId:'clip-'+clipId, startClientX:e.clientX, origStart:clip.startBar, lengthBars:clip.lengthBars, totalBars: (v.studio.bars||16) + 256, barPx: barPxFor(vid, v.studio.bars) });
       clearTimeout(clipLongPressTimer);
