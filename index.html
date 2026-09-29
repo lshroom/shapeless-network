@@ -1218,7 +1218,7 @@
 
         <div class="feed-schedule-preview" id="feed-schedule-preview-wrap" style="position:relative;">
           <iframe id="feed-schedule-frame-sphere" class="feed-schedule-frame" data-active="true" allow="autoplay"></iframe>
-          <video id="feed-silhouette-cam" autoplay muted playsinline style="display:none;"></video>
+          <video id="feed-silhouette-cam" autoplay muted playsinline style="position:absolute;width:2px;height:2px;opacity:0;pointer-events:none;"></video>
           <canvas id="feed-silhouette-canvas" style="position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;mix-blend-mode:screen;"></canvas>
         </div>
 
@@ -4564,6 +4564,7 @@
   // arrangement plays. It's never baked into the audio take (only the mic is), so there's
   // one copy of every note, editable afterwards like any other step.
   function recordLiveHit(vid, kind, key){
+    ripple3D(vid, studioActiveLane[vid]); // every live note-on ripples the armed track's blob, recording or not
     if(!studioRecorders[vid]) return;
     const seq = seqFor(vid);
     if(!seq.playing || seq.pos==null || kind!==seq.kind) return;
@@ -5055,21 +5056,27 @@
     scene.add(disk);
     disposables.push(diskGeo, diskMat);
 
+    // same lights as the prototype (ambient mint + white key + pink rim), scaled to this scene
+    scene.add(new THREE.AmbientLight(0x88ffcc, .35));
+    const L1 = new THREE.PointLight(0xffffff, 1.2, 900); L1.position.set(110, 130, 110); scene.add(L1);
+    const L2 = new THREE.PointLight(0xff5d8f, .8, 900); L2.position.set(-130, -45, -90); scene.add(L2);
+
     const lanes = v.studio.lanes||[];
     const n = Math.max(1, lanes.length);
-    const BLOB_SCALE = 13; // sculptor geometry is radius 1.5 (drum-room units) → ~20 here
+    const BLOB_R = 20;
     const blobs = new Map();
     lanes.forEach((lane,i)=>{
       const angle = (i/n) * Math.PI*2;
       const radius = 115 + (n>6 ? (i%2)*30 : 0);
-      const pos = new THREE.Vector3(Math.cos(angle)*radius, Math.sin(i*1.3)*16, Math.sin(angle)*radius);
+      const pos = new THREE.Vector3(Math.cos(angle)*radius, Math.sin(i*1.7)*16, Math.sin(angle)*radius);
       const color = studio3DLaneColor(v, lane.id, i);
-      const blob = buildSculptorBlob(color);
+      const blob = buildLiquidBlob(color);
+      blob.home = pos.clone();
       blob.mesh.position.copy(pos);
-      blob.mesh.scale.setScalar(BLOB_SCALE);
+      blob.mesh.scale.setScalar(BLOB_R);
       blob.mesh.userData = { laneId:lane.id };
       scene.add(blob.mesh);
-      const glowMat = new THREE.SpriteMaterial({ map:glow, color, transparent:true, opacity:0.35, blending:THREE.AdditiveBlending, depthWrite:false });
+      const glowMat = new THREE.SpriteMaterial({ map:glow, color, transparent:true, opacity:0.3, blending:THREE.AdditiveBlending, depthWrite:false });
       blob.glowSprite = new THREE.Sprite(glowMat);
       blob.glowSprite.position.copy(pos);
       blob.glowSprite.scale.set(70,70,1);
@@ -5119,41 +5126,68 @@
     const state = { renderer, scene, camera, canvas, blobs, ro, onDown, onMove, onUp, onLeave, disposables, t0:performance.now() };
     STUDIO3D[vid] = state;
 
-    const smooth = (prev, next) => next > prev ? prev + (next-prev)*0.6 : prev + (next-prev)*0.12;
     const animate = ()=>{
       if(STUDIO3D[vid]!==state) return;
-      const t = (performance.now()-state.t0)/1000;
+      if(document.hidden){ state.raf = requestAnimationFrame(animate); return; }
+      const T = (performance.now()-state.t0)/1000;
       const armedSet = studioArmedLanes[vid] || new Set();
       const activeId = studioActiveLane[vid];
       const live = studioLiveAnalyser[vid];
+      const pb = studioPlayback[vid];
+      const songBar = pb && pb.songBar;
       blobs.forEach((b, laneId)=>{
-        // the track's own clip playback, plus — for the armed track — whatever's being
-        // played live into it right now; whichever is louder this frame shapes the blob
-        let bands = null;
+        // level + waveform: the track's own clip playback, plus — for the armed track —
+        // whatever's being played live into it; whichever is louder this frame wins
+        let lv = -1;
         const la = laneAnalyserFor(vid, laneId);
-        if(la) bands = sculptorBandsFrom(la, b);
+        if(la) lv = blobLevelFrom(la, b);
         if(laneId === activeId && live){
           const saved = b.waveData.slice();
-          const lb = sculptorBandsFrom(live.analyser, b);
-          if(!bands || lb.rms >= bands.rms) bands = lb; else b.waveData.set(saved);
+          const lvLive = blobLevelFrom(live.analyser, b);
+          if(lvLive >= lv) lv = lvLive; else b.waveData.set(saved);
         }
-        if(!bands){ b.waveData.fill(128); bands = { rms:0, bass:0, mid:0, high:0 }; }
-        b.waveTex.needsUpdate = true;
-        b.bands.rms = smooth(b.bands.rms, bands.rms);
-        b.bands.bass = smooth(b.bands.bass, bands.bass);
-        b.bands.mid = smooth(b.bands.mid, bands.mid);
-        b.bands.high = smooth(b.bands.high, bands.high);
-        const u = b.mat.uniforms;
-        u.uTime.value = t; u.uRms.value = b.bands.rms; u.uBass.value = b.bands.bass; u.uMid.value = b.bands.mid; u.uHigh.value = b.bands.high;
+        if(lv < 0){ lv = 0; b.waveData.fill(128); }
+        b.amp += (Math.min(lv*3, 1) - b.amp) * .3;
+        // note-on ripples for MIDI clips playing back: fire when the song crosses a step
+        // that has a note in this track's pattern (live hits ripple via ripple3D)
+        if(songBar != null){
+          const lane = lanes.find(l=>l.id===laneId);
+          const clip = lane && (lane.clips||[]).find(c=>songBar>=c.startBar && songBar<c.startBar+c.lengthBars);
+          const loop = clip && (lane.loops||[]).find(lo=>lo.id===clip.loopId);
+          const seq = studioSeq[vid];
+          const heldForSeq = seq && loop && loop.id === seq.editingLoopId && seqSyncStatus[vid] !== 'synced';
+          if(loop && loop.pattern && loop.pattern.grid && !heldForSeq && !lane.muted){
+            const lb = loop.pattern.bars || loop.bars || 1;
+            const step = Math.floor((((songBar - clip.startBar) % lb) + lb) % lb * SEQ_STEPS_PER_BAR);
+            if(step !== b.lastStep){
+              b.lastStep = step;
+              if(Object.values(loop.pattern.grid).some(row=>row && row[step])) rippleBlob(b);
+            }
+          }
+        }
+        b.k *= .93;
         const armed = armedSet.has(laneId);
-        b.mesh.scale.setScalar(BLOB_SCALE * (armed ? 1.15 : 1));
-        b.mesh.updateMatrixWorld();
-        u.normalMatrix_u.value.copy(b.mesh.matrixWorld);
-        b.glowSprite.material.opacity = (armed ? 0.55 : 0.3) + b.bands.rms*0.4;
-        b.glowSprite.scale.setScalar(70 * (armed ? 1.2 : 1) * (1 + b.bands.bass*0.5));
+        const sel = armed ? 1.08 : 1;
+        const p = b.geo.attributes.position, base = b.base, wd = b.waveData;
+        for(let i=0;i<p.count;i++){
+          const x = base[i*3], y = base[i*3+1], z = base[i*3+2];
+          const w = Math.sin(x*3+T*2)*Math.cos(y*3.3+T*1.7)*Math.sin(z*2.7+T*2.3);
+          const rip = Math.sin((x*b.dir.x + y*b.dir.y + z*b.dir.z)*7 - T*14) * b.k;
+          const wave = (wd[Math.min(255, ((x*.5+.5)*255)|0)] - 128) / 128;
+          const d = (1 + .05*w + b.amp*.55*w + .35*rip*b.k + b.k*.15 + wave*b.amp*.23) * sel;
+          p.array[i*3] = x*d; p.array[i*3+1] = y*d; p.array[i*3+2] = z*d;
+        }
+        p.needsUpdate = true;
+        b.geo.computeVertexNormals();
+        b.mat.emissiveIntensity = .2 + b.amp*1.2 + b.k*.5;
+        b.mesh.rotation.y = T*.1;
+        b.mesh.position.y += (b.home.y + Math.sin(T + b.home.x)*6 - b.mesh.position.y) * .02;
+        b.glowSprite.position.copy(b.mesh.position);
+        b.glowSprite.material.opacity = (armed ? 0.5 : 0.25) + b.amp*0.4;
+        b.glowSprite.scale.setScalar(70 * sel * (1 + b.amp*0.5 + b.k*0.2));
       });
-      disk.rotation.y = t*0.12;
-      nebulae.forEach((sp,i)=>{ sp.material.rotation = t*0.015*(i+1); });
+      disk.rotation.y = T*0.12;
+      nebulae.forEach((sp,i)=>{ sp.material.rotation = T*0.015*(i+1); });
       const R = 300;
       camera.position.set(Math.sin(dragYaw)*R*Math.cos(dragPitch), Math.sin(dragPitch)*R, Math.cos(dragYaw)*R*Math.cos(dragPitch));
       camera.lookAt(0,0,0);
@@ -5175,7 +5209,7 @@
       st.canvas.removeEventListener('pointerleave', st.onLeave);
     }catch(e){}
     st.blobs.forEach(b=>{
-      b.mesh.geometry.dispose(); b.mat.dispose(); b.waveTex.dispose();
+      b.geo.dispose(); b.mat.dispose();
       b.glowSprite.material.dispose();
       if(b.label.material.map) b.label.material.map.dispose();
       b.label.material.dispose();
@@ -6699,9 +6733,11 @@
       const finishOne = async (entry) => {
         if(entry.micStream) entry.micStream.getTracks().forEach(t=>t.stop());
         pending--;
-        // audio takes are mic/interface only — pads/Chorder/keys/MIDI went in as MIDI notes,
-        // so a track with no mic would otherwise get an empty take added on top of them
-        if(entry.chunks.length && entry.micStream){
+        // audio takes are mic/interface only — pads/Chorder/keys/MIDI went in as MIDI notes.
+        // Like Ableton, a track you played notes into this take is a MIDI track: it doesn't
+        // also get a mic take on top of its MIDI clip (arm a second track to sing/play over it).
+        const playedMidiHere = entry.laneId === primaryLaneId && seqFor(vid).liveDirty;
+        if(entry.chunks.length && entry.micStream && !playedMidiHere){
           const blob = new Blob(entry.chunks, { type: entry.rec.mimeType || 'audio/webm' });
           const ext = (blob.type.split('/')[1]||'webm').split(';')[0];
           const file = new File([blob], `take-${Date.now()}-${entry.laneId}.${ext}`, { type: blob.type });
@@ -7595,7 +7631,8 @@
           const laneAudible = !seqLane || (!seqLane.muted && (!anySoloS || seqLane.solo));
           const seqAuthoritative = !seq.editingLoopId || seqSyncStatus[vid] !== 'synced';
           const skip = seq.skip || {};
-          const on = (row) => { if(skip[row+'@'+stepIdx]){ delete skip[row+'@'+stepIdx]; return false; } return true; };
+          let anyHit = false;
+          const on = (row) => { if(skip[row+'@'+stepIdx]){ delete skip[row+'@'+stepIdx]; return false; } anyHit = true; return true; };
           if(seqAuthoritative && laneAudible){
             const dests = [seqCtx.destination, liveAnalyserFor(vid, seqCtx).input];
             if(seq.kind==='melodic'){
@@ -7605,6 +7642,7 @@
             } else {
               SEQ_ROWS.forEach(pad=>{ if(seq.drumGrid[pad][stepIdx] && on(pad)) hitDrumSampleUrl(drumSampleUrl(v, pad), seqCtx, dests); });
             }
+            if(anyHit) ripple3D(vid, studioActiveLane[vid]);
           }
           updateSeqPlayheadDom(vid, stepIdx);
         }
@@ -7649,6 +7687,7 @@
         if(!p) return;
         const frac = Math.min(1, (performance.now() - barStartedAt) / barMs);
         const curBar = bar + frac;
+        p.songBar = curBar;
         const line = document.getElementById('studio-playline-'+vid);
         if(line) line.style.left = (LANE_SIDEBAR_PX + curBar*barPx)+'px';
         const clock = document.getElementById('studio-clock-'+vid);
@@ -9192,6 +9231,11 @@
         if(r) r.rsvps += rsvpCounts[dateIso];
       });
 
+      // a bandmate saved notes into the track you have armed → your pads/step grid show
+      // their version (only when you have nothing unsaved of your own in it)
+      Object.keys(studioActiveLane).forEach(vid=>{
+        if(studioActiveLane[vid] && seqSyncStatus[vid]==='synced' && !studioRecorders[vid] && !seqAutoSyncTimer[vid]) loadLaneIntoSeq(vid, studioActiveLane[vid]);
+      });
       renderSeedLocationFilter(); renderRecentSeeds(); renderStats();
       renderVoyages();
       renderFeed();
