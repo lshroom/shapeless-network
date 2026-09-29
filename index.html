@@ -308,10 +308,11 @@
   .resources-menu button:hover, .resources-menu button:active{ background:var(--surface-2); }
 
   /* ---- Ghost chat bubble (right of Resources tab) ---- */
-  .ghost-bubble{ position:fixed; right:14px; bottom:calc(78px + env(safe-area-inset-bottom, 0px)); z-index:60; width:48px; height:48px; border-radius:50%; background:radial-gradient(circle at 34% 28%, #2e2a4d 0%, #14121f 72%); border:1px solid rgba(139,155,255,.28); box-shadow:0 8px 20px rgba(0,0,0,.55), inset 0 0 14px rgba(139,155,255,.12); display:flex; align-items:center; justify-content:center; cursor:pointer; }
-  .ghost-bubble:active{ transform:scale(.94); }
-  .ghost-bubble-icon{ width:24px; height:24px; filter:drop-shadow(0 0 5px rgba(139,155,255,.45)); }
-  .ghost-chat-drawer{ position:fixed; right:14px; left:14px; bottom:calc(132px + env(safe-area-inset-bottom, 0px)); z-index:61; max-width:360px; margin-left:auto; background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:0 16px 40px rgba(0,0,0,.5); display:none; flex-direction:column; overflow:hidden; height:min(60vh, 460px); }
+  /* Ghost lives in the nav bar as its last (right-most) button */
+  .ghost-bubble-icon{ filter:drop-shadow(0 0 5px rgba(139,155,255,.45)); }
+  .tab-btn.ghost-tab.open{ color:var(--accent); }
+  @media (min-width:900px){ .tab-btn.ghost-tab{ margin-left:auto; } }
+  .ghost-chat-drawer{ position:fixed; right:14px; left:14px; bottom:calc(84px + env(safe-area-inset-bottom, 0px)); z-index:61; max-width:360px; margin-left:auto; background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:0 16px 40px rgba(0,0,0,.5); display:none; flex-direction:column; overflow:hidden; height:min(60vh, 460px); }
   .ghost-chat-drawer.open{ display:flex; }
   .ghost-chat-head{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--line); font-family:var(--font-mono); font-size:12.5px; font-weight:600; }
   .ghost-chat-close{ background:none; border:none; color:var(--muted); font-size:18px; line-height:1; cursor:pointer; padding:2px 6px; }
@@ -1606,6 +1607,18 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 6h16M4 12h10M4 18h13"/><circle cx="19" cy="12" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg>
         <span data-ck="navBuild">Resources</span>
       </button>
+      <button class="tab-btn ghost-tab" id="ghost-tab" onclick="app.toggleGhostChat()" title="Talk to Ghost" aria-label="Talk to Ghost">
+        <svg class="ghost-bubble-icon" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2.5c-4.4 0-8 3.6-8 8v9.7c0 .6.7 1 1.2.6l1.9-1.5 2 1.5c.4.3.9.3 1.3 0l1.6-1.3 1.6 1.3c.4.3.9.3 1.3 0l2-1.5 1.9 1.5c.5.4 1.2 0 1.2-.6v-9.7c0-4.4-3.6-8-8-8z" fill="url(#ghostFade)" stroke="rgba(205,212,255,.55)" stroke-width="1"/>
+          <ellipse cx="9" cy="11.3" rx="1.05" ry="1.4" fill="#cdd4ff" opacity=".85"/>
+          <ellipse cx="15" cy="11.3" rx="1.05" ry="1.4" fill="#cdd4ff" opacity=".85"/>
+          <defs><linearGradient id="ghostFade" x1="12" y1="2.5" x2="12" y2="21" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#5d5a9c" stop-opacity=".9"/>
+            <stop offset="1" stop-color="#211f38" stop-opacity=".55"/>
+          </linearGradient></defs>
+        </svg>
+        <span>Ghost</span>
+      </button>
     </div>
   </div>
 
@@ -1639,17 +1652,6 @@
     </div>
   </div>
 
-  <button class="ghost-bubble" id="ghost-bubble" onclick="app.toggleGhostChat()" title="Talk to Ghost" aria-label="Talk to Ghost">
-    <svg class="ghost-bubble-icon" viewBox="0 0 24 24" fill="none">
-      <path d="M12 2.5c-4.4 0-8 3.6-8 8v9.7c0 .6.7 1 1.2.6l1.9-1.5 2 1.5c.4.3.9.3 1.3 0l1.6-1.3 1.6 1.3c.4.3.9.3 1.3 0l2-1.5 1.9 1.5c.5.4 1.2 0 1.2-.6v-9.7c0-4.4-3.6-8-8-8z" fill="url(#ghostFade)" stroke="rgba(205,212,255,.55)" stroke-width="1"/>
-      <ellipse cx="9" cy="11.3" rx="1.05" ry="1.4" fill="#cdd4ff" opacity=".85"/>
-      <ellipse cx="15" cy="11.3" rx="1.05" ry="1.4" fill="#cdd4ff" opacity=".85"/>
-      <defs><linearGradient id="ghostFade" x1="12" y1="2.5" x2="12" y2="21" gradientUnits="userSpaceOnUse">
-        <stop offset="0" stop-color="#5d5a9c" stop-opacity=".9"/>
-        <stop offset="1" stop-color="#211f38" stop-opacity=".55"/>
-      </linearGradient></defs>
-    </svg>
-  </button>
   <div class="ghost-chat-drawer" id="ghost-chat-drawer" hidden>
     <div class="ghost-chat-head">
       <span>👻 Ghost</span>
@@ -2019,7 +2021,7 @@
     if(sched) src += '&driven=1&shape=' + sched[0].shape;
     if(isBlended && p.media.effectLyrics?.segments?.length) src += '&lyrics=' + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(p.media.effectLyrics.segments)))));
     return `<div class="feed-inline-player">
-      <iframe class="feed-inline-frame" id="feed-inline-frame-${p.id}" src="${src}" allow="autoplay" loading="lazy"></iframe>
+      <iframe class="feed-inline-frame" id="feed-inline-frame-${p.id}" data-src="${src}" allow="autoplay" loading="lazy"></iframe>
       <div class="feed-inline-bar">
         <button class="feed-inline-playpause" id="feed-inline-playpause-${p.id}" onclick="app.toggleInlinePlay('${p.id}')" title="Pause">${ICON_PAUSE}</button>
         <span class="feed-inline-time" id="feed-inline-time-${p.id}">0:00</span>
@@ -2612,6 +2614,30 @@
       <p class="feed-item-text"><b>${v.name}</b> — ${v.pitch||''}</p>
     </div>`;
   }
+  // Each sphere-blended post's inline preview is a full WebGL/raymarched
+  // page (several composited layers) — setting every post's iframe src
+  // eagerly on render meant scrolling through a feed of them piled up one
+  // live GPU context per post and never freed any, which is exactly what
+  // froze the home feed (Barak 2026-09-29: "loading the home page feed it
+  // freezes... should maximize lightness"). Only the cards actually near
+  // the viewport get a real src now; anything that scrolls well off screen
+  // gets blanked back out, freeing its WebGL context until it scrolls back.
+  let feedInlineObserver = null;
+  function observeFeedInlineFrames(){
+    if(!feedInlineObserver){
+      feedInlineObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          const el = entry.target;
+          if(entry.isIntersecting){
+            if(el.dataset.src && el.src !== el.dataset.src) el.src = el.dataset.src;
+          } else if(el.src && el.src !== 'about:blank'){
+            el.src = 'about:blank';
+          }
+        });
+      }, { rootMargin: '600px 0px 600px 0px', threshold: 0.01 });
+    }
+    document.querySelectorAll('.feed-inline-frame[data-src]').forEach(el => feedInlineObserver.observe(el));
+  }
   function renderFeed(){
     const list = document.getElementById('feed-list');
     if(!list) return;
@@ -2622,6 +2648,7 @@
     if(signinPrompt) signinPrompt.hidden = signedIn;
     const items = feedItems();
     list.innerHTML = items.map(feedItemHtml).join('') || `<p class="pad-hint">Nothing yet — plant a seed, launch a voyage, or post something.</p>`;
+    observeFeedInlineFrames();
   }
 
   // ---- Resources → Apps: community-built tools/projects, shared, liked, reviewed ----
@@ -3157,7 +3184,7 @@
     const vv = window.visualViewport;
     if(!vv){ return; }
     const keyboardInset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    const bubbleGap = keyboardInset > 40 ? 12 : 132; // tuck under bubble when no keyboard, hug input when keyboard's up
+    const bubbleGap = keyboardInset > 40 ? 12 : (window.innerWidth >= 900 ? 20 : 84); // sit just above the bottom nav (desktop: nav is on top), hug input when keyboard's up
     drawer.style.bottom = (keyboardInset + bubbleGap) + 'px';
     if(keyboardInset > 40){
       drawer.style.height = Math.min(vv.height - bubbleGap - 20, 460) + 'px';
@@ -4955,12 +4982,76 @@
     ensureLaneAnalyser(graph);
     return { graph, lane };
   }
-  function proto3DNote(ti, pad){ return (ti%2 ? 57 : 45) + PROTO_SCALE[pad%5] + 12*Math.floor(pad/5); }
+  // melodic pads = C minor pentatonic from C3 (what the pad labels say); bass voices an octave down
+  function proto3DNote(voice, pad){ return 48 + PROTO_SCALE[pad%5] + 12*Math.floor(pad/5) - (/bass/i.test(voice||'') ? 12 : 0); }
+  function proto3DKind(lane){ return proto3DInstrument(lane, (lane && lane.label)||'', null).kind==='drum' ? 'drum' : 'synth'; }
+  function proto3DCanEdit(v, lane){ return lane.owner===myName() || isVoyageCaptain(v) || (lane.assignedTo||[]).includes(myName()); }
+  function proto3DSetLaneAudibility(v, graph, lane){
+    const anySolo = (v.studio.lanes||[]).some(l=>l.solo);
+    graph.liveIn.gain.value = lane ? ((lane.muted || (anySolo && !lane.solo)) ? 0 : (lane.volume==null ? .8 : lane.volume)) : .8;
+  }
   window.__shapeless3DHost = {
+    // 3D tracks ARE the project's tracks: same list, add/remove mirrors straight into 2D
     lanes(vid){
       const v = VOYAGES.find(x=>x.id===vid);
       if(!v || !v.studio) return [];
-      return (v.studio.lanes||[]).map(l=>({ name: l.label||l.role||'Track', kind: proto3DInstrument(l, l.label||'', null).kind==='drum' || /drum|beat|perc/i.test(l.label||'') ? 'drum' : 'synth' }));
+      return (v.studio.lanes||[]).map(l=>({ name: l.label||l.role||'Track', kind: proto3DKind(l), instrument: proto3DInstrument(l, l.label||'', null).id }));
+    },
+    addTrack(vid, name, kind){
+      const v = VOYAGES.find(x=>x.id===vid);
+      if(!v || !v.studio || !window.SB || !SB.getUser()) return null;
+      migrateStudio(v);
+      v.studio.lanes = v.studio.lanes || [];
+      let label = name, k = 2;
+      while(v.studio.lanes.some(l=>l.label===label)) label = name + ' ' + (k++);
+      const lane = { id: uid('lane'), owner: myName(), label, role:'', color: TRACK_COLORS[v.studio.lanes.length % TRACK_COLORS.length], muted:false, solo:false, volume:0.8, loops:[], clips:[], instrument: kind==='drum' ? 'drum' : 'pad' };
+      v.studio.lanes.push(lane);
+      persistStudio(v);
+      renderVoyageDetail();
+      return label;
+    },
+    removeTrack(vid, name){
+      const v = VOYAGES.find(x=>x.id===vid);
+      if(!v || !v.studio) return false;
+      const lane = proto3DLane(v, name);
+      if(!lane) return true; // only ever existed in 3D
+      if(!proto3DCanEdit(v, lane)){ toast('Only the track owner or the Captain can remove this track.'); return false; }
+      v.studio.lanes = v.studio.lanes.filter(l=>l!==lane);
+      if(studioActiveLane[vid]===lane.id) delete studioActiveLane[vid];
+      if(studioArmedLanes[vid]) studioArmedLanes[vid].delete(lane.id);
+      const key = laneFxKey(vid, lane.id);
+      if(laneAudioGraphs[key]){ try{ laneAudioGraphs[key].gain.disconnect(); }catch(e){} delete laneAudioGraphs[key]; }
+      persistStudio(v);
+      renderVoyageDetail();
+      return true;
+    },
+    // every instrument the 2D studio has, switchable per track from 3D
+    instruments(){ return SEQ_INSTRUMENTS.map(x=>({ id:x.id, label:x.label, icon:x.icon, kind:x.kind })); },
+    setInstrument(vid, name, instId){
+      const v = VOYAGES.find(x=>x.id===vid);
+      const inst = SEQ_INSTRUMENTS.find(x=>x.id===instId);
+      if(!v || !v.studio || !inst) return null;
+      const lane = proto3DLane(v, name);
+      if(lane){ lane.instrument = inst.id; persistStudio(v, true); }
+      return inst.kind==='drum' ? 'drum' : 'synth';
+    },
+    padLabel(vid, name, pad){
+      const v = VOYAGES.find(x=>x.id===vid);
+      const inst = proto3DInstrument(v && proto3DLane(v, name), name, 'synth');
+      return noteName(proto3DNote(inst.voice, pad));
+    },
+    noteName(n){ return noteName(n); },
+    // one note (Chorder / strum) on a track, through its instrument and 2D effects chain
+    playNote(vid, name, midi){
+      const v = VOYAGES.find(x=>x.id===vid);
+      if(!v || !v.studio) return false;
+      const ctx = getStudioCtx();
+      if(ctx.state !== 'running') ctx.resume();
+      const { graph, lane } = proto3DGraph(vid, v, name);
+      proto3DSetLaneAudibility(v, graph, lane);
+      const inst = proto3DInstrument(lane, name, 'synth');
+      hitVoice(inst.kind==='drum' ? 'pad' : (inst.voice || 'pad'), midi, ctx, [graph.liveIn]);
+      return true;
     },
     bpm(vid){ const v = VOYAGES.find(x=>x.id===vid); return (v && v.studio && v.studio.bpm) || 100; },
     analyser(vid, name){
@@ -4974,12 +5065,11 @@
       const ctx = getStudioCtx();
       if(ctx.state !== 'running') ctx.resume();
       const { graph, lane } = proto3DGraph(vid, v, name);
-      const anySolo = (v.studio.lanes||[]).some(l=>l.solo);
-      graph.liveIn.gain.value = lane ? ((lane.muted || (anySolo && !lane.solo)) ? 0 : (lane.volume==null ? .8 : lane.volume)) : .8;
+      proto3DSetLaneAudibility(v, graph, lane);
       const inst = proto3DInstrument(lane, name, kind);
       const dests = [graph.liveIn];
-      if(kind==='drum' || inst.kind==='drum') hitDrumSampleUrl(drumSampleUrl(v, PROTO_DRUM_ROWS[pad] || 'kick'), ctx, dests);
-      else hitVoice(inst.voice || 'pad', proto3DNote(ti, pad), ctx, dests);
+      if(inst.kind==='drum') hitDrumSampleUrl(drumSampleUrl(v, PROTO_DRUM_ROWS[pad] || 'kick'), ctx, dests);
+      else hitVoice(inst.voice || 'pad', proto3DNote(inst.voice, pad), ctx, dests);
       return true;
     },
     masterBars(vid){ return seqFor(vid).bars || 4; },
@@ -5042,20 +5132,21 @@
         lane = { id: uid('lane'), owner: myName(), label: t.name, role:'', color: TRACK_COLORS[v.studio.lanes.length % TRACK_COLORS.length], muted:false, solo:false, volume:0.8, loops:[], clips:[] };
         v.studio.lanes.push(lane);
       }
-      const isDrum = t.kind === 'drum';
+      const inst3d = proto3DInstrument(lane, t.name, t.kind);
+      const isDrum = inst3d.kind === 'drum';
       let grid, voice;
       if(isDrum){
         grid = Object.fromEntries(SEQ_ROWS.map(r=>[r, Array(steps).fill(false)]));
-        t.pat.forEach((pads, s)=>(pads||[]).forEach(i=>{ const r = PROTO_DRUM_ROWS[i]; if(r) for(let o=s; o<steps; o+=t.pat.length) grid[r][o] = true; }));
+        t.pat.forEach((pads, s)=>(pads||[]).forEach(i=>{ const r = typeof i==='number' && PROTO_DRUM_ROWS[i]; if(r) for(let o=s; o<steps; o+=t.pat.length) grid[r][o] = true; }));
       } else {
-        // prototype synth: base 110 Hz (A2) on even track slots, 220 Hz (A3) on odd, pentatonic minor
+        // pad index -> pentatonic note; Chorder / strum hits are stored as real MIDI notes {n}
+        voice = inst3d.voice || 'pad';
         grid = {};
         t.pat.forEach((pads, s)=>(pads||[]).forEach(i=>{
-          const note = proto3DNote(ti, i);
+          const note = (i && typeof i==='object') ? i.n : proto3DNote(voice, i);
           if(!grid[note]) grid[note] = Array(steps).fill(false);
           for(let o=s; o<steps; o+=t.pat.length) grid[note][o] = true;
         }));
-        voice = proto3DInstrument(lane, t.name, t.kind).voice || 'pad';
       }
       try {
         const buf = isDrum
@@ -8181,6 +8272,8 @@
       ghostChatOpen = !ghostChatOpen;
       drawer.classList.toggle('open', ghostChatOpen);
       drawer.hidden = !ghostChatOpen;
+      const tab = document.getElementById('ghost-tab');
+      if(tab) tab.classList.toggle('open', ghostChatOpen);
       if(ghostChatOpen){
         renderGhostChat();
         startGhostChatViewportTracking();
@@ -8506,10 +8599,45 @@
       try { await SB.saveLyricsCloudKey(v); }
       catch(e){ console.warn('[lyrics] could not save key:', e?.message || e); }
     },
-    // Transcribes the already-uploaded song into timed line segments. Local
-    // mode goes through Ghost's own whisper relay (free, needs Ghost/hermes
-    // reachable); cloud mode calls Groq's hosted Whisper directly from the
-    // browser with the poster's own key — never touches Barak's billing.
+    // Transcribes the already-uploaded song into timed line segments. Both
+    // modes send 16kHz mono PCM, not the raw song file — Groq's cloud
+    // Whisper rejects anything over 25MB (a raw MP3/WAV of a full song
+    // routinely blows past that — 413 "Cloud transcription failed" — see
+    // [[reference_transcribe_stem_25mb_whisper_cap]]) and the local Ghost
+    // whisper server expects raw PCM anyway. 16kHz mono keeps even a long
+    // song to a few MB either way.
+    async pcmFromSongUrl(songUrl){
+      const audioBlob = await fetch(songUrl).then(r => r.blob());
+      const arrBuf = await audioBlob.arrayBuffer();
+      const decodeCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const audioBuf = await decodeCtx.decodeAudioData(arrBuf);
+      decodeCtx.close?.();
+      const offline = new OfflineAudioContext(1, Math.ceil(audioBuf.duration * 16000), 16000);
+      const src = offline.createBufferSource();
+      src.buffer = audioBuf;
+      src.connect(offline.destination);
+      src.start();
+      const rendered = await offline.startRendering();
+      const data = rendered.getChannelData(0);
+      const pcm = new Int16Array(data.length);
+      for(let i = 0; i < data.length; i++){
+        const s = Math.max(-1, Math.min(1, data[i]));
+        pcm[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+      return pcm;
+    },
+    pcm16ToWavBlob(pcm, sampleRate){
+      const blockAlign = 2, byteRate = sampleRate * blockAlign;
+      const buf = new ArrayBuffer(44 + pcm.length * 2);
+      const view = new DataView(buf);
+      const writeStr = (o, s) => { for(let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+      writeStr(0, 'RIFF'); view.setUint32(4, 36 + pcm.length * 2, true); writeStr(8, 'WAVE');
+      writeStr(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true); view.setUint32(28, byteRate, true); view.setUint16(32, blockAlign, true); view.setUint16(34, 16, true);
+      writeStr(36, 'data'); view.setUint32(40, pcm.length * 2, true);
+      new Int16Array(buf, 44).set(pcm);
+      return new Blob([buf], { type: 'audio/wav' });
+    },
     async runLyricsTranscription(){
       const statusEl = document.getElementById('feed-lyrics-transcribe-status');
       if(scheduleLyricsTranscribing) return;
@@ -8524,11 +8652,11 @@
       statusEl.textContent = 'Transcribing… this can take a minute.';
       document.getElementById('feed-lyrics-transcribe-btn').disabled = true;
       try {
-        const audioBlob = await fetch(songUrl).then(r => r.blob());
+        const pcm = await app.pcmFromSongUrl(songUrl);
         let segments;
         if(scheduleLyricsMode === 'cloud'){
           const fd = new FormData();
-          fd.append('file', audioBlob, 'song.mp3');
+          fd.append('file', app.pcm16ToWavBlob(pcm, 16000), 'song.wav');
           fd.append('model', 'whisper-large-v3');
           fd.append('response_format', 'verbose_json');
           const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
@@ -8540,28 +8668,21 @@
           const json = await res.json();
           segments = (json.segments || []).map(s => ({ start: s.start, end: s.end, text: (s.text||'').trim() }));
         } else {
-          const reader = new FileReader();
-          const b64 = await new Promise((resolve, reject) => {
-            reader.onload = () => resolve(reader.result.split(',')[1]);
-            reader.onerror = reject;
-            reader.readAsDataURL(audioBlob);
-          });
-          // Ghost only ever runs on your own machine (see CLAUDE.md — its
-          // whisper route lives on the local server at :5555), never on the
-          // public site's own domain — so this only works when you're
-          // testing from the same device Ghost is running on.
+          // Ghost's local whisper server (scripts/ghost_whisper_server.py,
+          // :5598) is now tunneled through Cloudflare at
+          // whisper.shapeless.love — same HTTPS URL works whether you're
+          // on the same PC or on your phone, as long as that script is
+          // running on the host machine (see ghost_whisper_5598.log there).
+          const fd = new FormData();
+          fd.append('file', new Blob([pcm.buffer], { type: 'application/octet-stream' }), 'song.pcm');
           let res;
           try {
-            res = await fetch('http://localhost:5555/ghost/whisper/transcribe', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ audio_b64: b64, ext: 'mp3' }),
-            });
+            res = await fetch('https://whisper.shapeless.love/transcribe', { method: 'POST', body: fd });
           } catch(networkErr){
-            throw new Error("Couldn't reach Ghost at localhost:5555 — is it running on this device? Otherwise switch to your own cloud key above.");
+            throw new Error("Couldn't reach Ghost's local transcription server — is it running on the host PC? Otherwise switch to your own cloud key above.");
           }
           const json = await res.json().catch(() => null);
-          if(!json || json.ok === false) throw new Error('Ghost responded but the transcription failed — check its logs.');
+          if(!json || json.error) throw new Error(json?.error || 'Ghost responded but the transcription failed — check its logs.');
           segments = (json.segments || []).map(s => ({ start: s.start, end: s.end, text: (s.text||'').trim() }));
         }
         segments = segments.filter(s => s.text);
