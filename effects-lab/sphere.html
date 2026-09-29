@@ -1345,8 +1345,13 @@ if (driven) {
   // it will be perfectly 2D, but when we're moving in the same 3D space...
   // make it point cloud").
   function createSilhouetteLayer(url){
-    const video = document.createElement('video');
-    video.src = url; video.crossOrigin = 'anonymous'; video.loop = true; video.muted = true; video.playsInline = true;
+    // url is null for the LIVE case — step 2's own camera segmentation feeds
+    // frames straight in via setLiveFrame (postMessage from index.html), so
+    // there's no recorded clip to play yet, just whatever this instant's
+    // camera frame is.
+    const video = url ? document.createElement('video') : null;
+    if (video) { video.src = url; video.crossOrigin = 'anonymous'; video.loop = true; video.muted = true; video.playsInline = true; }
+    let liveFrame = null;
 
     // Low-res readback grid — reading the video's pixels back every single
     // frame (getImageData) is CPU-heavy for no visible gain on a human
@@ -1383,10 +1388,14 @@ if (driven) {
     addEventListener('resize', resize); resize();
 
     function rebuildPoints(){
-      if (!video.videoWidth) return;
-      sctx.drawImage(video, 0, 0, SAMPLE_W, SAMPLE_H);
+      const source = liveFrame || video;
+      if (!source) return;
+      const sw = liveFrame ? liveFrame.width : video.videoWidth;
+      const sh = liveFrame ? liveFrame.height : video.videoHeight;
+      if (!sw) return;
+      sctx.drawImage(source, 0, 0, SAMPLE_W, SAMPLE_H);
       const data = sctx.getImageData(0, 0, SAMPLE_W, SAMPLE_H).data;
-      const vAspect = video.videoWidth / video.videoHeight;
+      const vAspect = sw / sh;
       const spanW = 2.6, spanH = spanW / vAspect;
       let n = 0;
       for (let y = 0; y < SAMPLE_H; y++) {
@@ -1407,14 +1416,17 @@ if (driven) {
     }
 
     function step(){
-      if (!enabled || video.readyState < 2) return;
-      // Keeps the silhouette in sync with the song rather than its own
-      // independent clock — if the song seeks/loops, this follows.
-      if (audioEl && Math.abs(video.currentTime - audioEl.currentTime) > 0.5) video.currentTime = audioEl.currentTime;
-      if (audioEl && !audioEl.paused && video.paused) video.play().catch(()=>{});
-      if (audioEl && audioEl.paused && !video.paused) video.pause();
+      if (!enabled) return;
+      if (video) {
+        if (video.readyState < 2) return;
+        // Keeps the silhouette in sync with the song rather than its own
+        // independent clock — if the song seeks/loops, this follows.
+        if (audioEl && Math.abs(video.currentTime - audioEl.currentTime) > 0.5) video.currentTime = audioEl.currentTime;
+        if (audioEl && !audioEl.paused && video.paused) video.play().catch(()=>{});
+        if (audioEl && audioEl.paused && !video.paused) video.pause();
+      }
       glow = Math.max(glow * 0.9, audio.hit ? 1 : 0);
-      if (++sampleTick % 3 === 0) rebuildPoints();
+      if (liveFrame || (video && ++sampleTick % 3 === 0)) rebuildPoints();
       group.position.set((offsetX / 100) * 4, -(offsetY / 100) * 4, 0);
       group.scale.setScalar(scale);
       material.opacity = 0.7 + glow * 0.3;
@@ -1427,12 +1439,26 @@ if (driven) {
       get offsetX(){ return offsetX; }, set offsetX(v){ offsetX = v; },
       get offsetY(){ return offsetY; }, set offsetY(v){ offsetY = v; },
       setEnabled(v){ enabled = v; canvas.style.display = v ? 'block' : 'none'; },
+      setLiveFrame(bitmap){ liveFrame?.close?.(); liveFrame = bitmap; },
       setAutoBeat(){}, setInterval(){},
-      step, precompile(){ return video.play().catch(()=>{}); },
+      step, precompile(){ return video ? video.play().catch(()=>{}) : Promise.resolve(); },
     };
   }
   const silhouetteUrl = urlParams.get('silhouette');
-  const silhouetteLayer = silhouetteUrl ? createSilhouetteLayer(decodeURIComponent(silhouetteUrl)) : null;
+  let silhouetteLayer = silhouetteUrl ? createSilhouetteLayer(decodeURIComponent(silhouetteUrl)) : null;
+  // Step 2 of the wizard streams live camera-cutout frames in (postMessage)
+  // while you're still recording, so the SAME real 3D point cloud that shows
+  // on the finished post also shows while dancing — not only afterward
+  // (Barak 2026-09-29: "why just on finished post? I need it in preview of
+  // step 2").
+  function setLiveSilhouette(bitmap){
+    if (!silhouetteLayer) {
+      silhouetteLayer = createSilhouetteLayer(null);
+      layers.push(silhouetteLayer);
+      renderBlendPanel?.();
+    }
+    silhouetteLayer.setLiveFrame(bitmap);
+  }
 
   // Optional 5th visible layer: synced lyric captions, one line at a time,
   // timed off Whisper's own start/end seconds for that line (see index.html's
@@ -1440,13 +1466,14 @@ if (driven) {
   // plain 2D canvas like the silhouette layer, with a stacked-shadow trick to
   // fake depth ("3D-ish") since this pipeline is raymarched GLSL, not a mesh
   // scene that could hold real 3D text geometry.
-  function createLyricsLayer(segments){
+  function createLyricsLayer(initialSegments){
     const canvas = document.createElement('canvas');
     canvas.className = 'layerCanvas';
     canvas.style.zIndex = '5';
     canvas.style.mixBlendMode = 'screen';
     layersEl.appendChild(canvas);
     const ctx = canvas.getContext('2d');
+    let segments = initialSegments;
     let enabled = true, scale = 1, offsetX = 0, offsetY = 32, curIdx = -1, popT = 0;
     function resize(){ canvas.width = innerWidth; canvas.height = innerHeight; }
     addEventListener('resize', resize); resize();
@@ -1497,6 +1524,7 @@ if (driven) {
       get scale(){ return scale; }, set scale(v){ scale = v; },
       get offsetX(){ return offsetX; }, set offsetX(v){ offsetX = v; },
       get offsetY(){ return offsetY; }, set offsetY(v){ offsetY = v; },
+      setSegments(v){ segments = v; curIdx = -1; },
       setEnabled(v){ enabled = v; canvas.style.display = v ? 'block' : 'none'; },
       setAutoBeat(){}, setInterval(){},
       step, precompile(){ return Promise.resolve(); },
@@ -1508,9 +1536,21 @@ if (driven) {
     try { lyricsSegments = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(lyricsParam))))); }
     catch (e) { console.warn('lyrics param parse failed', e); }
   }
-  const lyricsLayer = (lyricsSegments && lyricsSegments.length) ? createLyricsLayer(lyricsSegments) : null;
+  let lyricsLayer = (lyricsSegments && lyricsSegments.length) ? createLyricsLayer(lyricsSegments) : null;
 
   layers = [bgLayer, ...shapeLayers, silhouetteLayer, lyricsLayer].filter(Boolean);
+  // The Design-the-visuals wizard (step 3) transcribes AFTER this page has
+  // already loaded, so the lyrics layer can't only come from a URL param at
+  // boot — it also has to be creatable/updatable live, mid-session, as soon
+  // as a transcript exists, so you see the 3D captions while still editing
+  // their timing rather than only after the post is published.
+  function setLiveLyrics(segments){
+    if (!Array.isArray(segments) || !segments.length) return;
+    if (lyricsLayer) { lyricsLayer.setSegments(segments); return; }
+    lyricsLayer = createLyricsLayer(segments);
+    layers.push(lyricsLayer);
+    renderBlendPanel?.();
+  }
 
   // ---- VISUAL DNA: pick each shape layer's arrangement (see deArranged in
   // buildMorphFrag — same 8 shape SDFs, 8 different ways to place them in
@@ -1574,6 +1614,12 @@ if (driven) {
     if (e.data?.type === 'switchPoints' && Array.isArray(e.data.times)) {
       switchPoints = e.data.times.slice().sort((a, b) => a - b);
       switchPointFired = -1;
+    }
+    if (e.data?.type === 'lyrics' && Array.isArray(e.data.segments)) {
+      setLiveLyrics(e.data.segments);
+    }
+    if (e.data?.type === 'silhouetteFrame' && e.data.bitmap) {
+      setLiveSilhouette(e.data.bitmap);
     }
     if (e.data?.type === 'setActive') {
       if (e.data.active) {

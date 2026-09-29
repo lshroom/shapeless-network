@@ -8512,10 +8512,12 @@
       document.getElementById('feed-schedule-step1').hidden = n !== 1;
       document.getElementById('feed-schedule-step2').hidden = n !== 2;
       document.getElementById('feed-schedule-step3').hidden = n !== 3;
-      // The visuals preview (iframe + silhouette overlay) is shared by steps
-      // 1 and 2 — step 2 dances on top of the same live design, not a blank
-      // stage — and only goes away for step 3 (lyrics, no preview needed there).
-      document.getElementById('feed-schedule-preview-wrap').hidden = n === 3;
+      // The visuals preview (iframe + silhouette overlay, and now the live
+      // 3D lyrics too) is shared by all 3 steps — step 3 needs it visible so
+      // transcribed captions actually show up in the space as you fix their
+      // timing, not just after the post goes out.
+      document.getElementById('feed-schedule-preview-wrap').hidden = false;
+      if(n === 3) app.pushLiveLyricsPreview();
       const labels = ['Design the visuals', 'Dance silhouette', 'Lyrics'];
       document.getElementById('feed-schedule-head-label').textContent = `Step ${n} of 3 — ${labels[n-1]}`;
       document.getElementById('feed-schedule-back-btn').textContent = n === 1 ? 'Cancel' : '← Back';
@@ -8568,9 +8570,23 @@
         await video.play();
         const canvas = document.getElementById('feed-silhouette-canvas');
         canvas.width = video.videoWidth || 640; canvas.height = video.videoHeight || 360;
-        canvas.style.display = 'block';
+        // No longer shown as a flat CSS overlay — it's now just a scratch
+        // buffer whose frames get pushed into the SAME preview iframe as a
+        // live-updating real 3D point cloud (the same one the finished post
+        // uses), instead of a separate flat 2D copy sitting on top of it.
+        canvas.style.display = 'none';
         const ctx = canvas.getContext('2d');
-        let gotFirstResult = false;
+        let gotFirstResult = false, liveFrameTick = 0;
+        // Throttled so a real-time cutout doesn't spam createImageBitmap/
+        // postMessage at 60fps — a few pushes a second reads as smooth for a
+        // dancing silhouette.
+        async function pushLiveFrame(){
+          if(++liveFrameTick % 3 !== 0) return;
+          try {
+            const bmp = await createImageBitmap(canvas);
+            scheduleFrame()?.contentWindow?.postMessage({ type: 'silhouetteFrame', bitmap: bmp }, '*', [bmp]);
+          } catch(e){ /* iframe not ready yet, or bitmap failed — just skip this frame */ }
+        }
         const seg = new window.SelfieSegmentation({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${f}` });
         seg.setOptions({ modelSelection: 1 });
         seg.onResults((res) => {
@@ -8588,6 +8604,7 @@
           ctx.fillStyle = '#7ff2ff';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.restore();
+          pushLiveFrame();
         });
         scheduleSilhouetteSegmenter = seg;
         const loop = async () => {
@@ -8611,6 +8628,7 @@
             if (!scheduleSilhouetteStream) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            pushLiveFrame();
             scheduleSilhouetteRAF = requestAnimationFrame(rawLoop);
           };
           rawLoop();
@@ -8760,6 +8778,7 @@
         scheduleLyricsSegments = segments;
         statusEl.textContent = segments.length + ' lines found. Fix any timing below, then Post.';
         app.renderLyricsSegments();
+        app.pushLiveLyricsPreview();
       } catch(e){
         console.error('runLyricsTranscription failed:', e);
         statusEl.textContent = e?.message || 'Transcription failed.';
@@ -8789,11 +8808,22 @@
       const v = parseFloat(value);
       if(Number.isNaN(v)) return;
       scheduleLyricsSegments[i][field] = v;
+      app.pushLiveLyricsPreview();
     },
     deleteLyricsSegment(i){
       if(!scheduleLyricsSegments) return;
       scheduleLyricsSegments.splice(i, 1);
       app.renderLyricsSegments();
+      app.pushLiveLyricsPreview();
+    },
+    // Sends the current (possibly hand-corrected) timing straight into the
+    // SAME preview iframe used by steps 1 & 2, so the 3D captions show up
+    // live while you're still editing them — not only after the post goes
+    // out (Barak 2026-09-29: "show the lyrics as 3d text in the space in
+    // step 3?").
+    pushLiveLyricsPreview(){
+      if(!scheduleLyricsSegments || !scheduleLyricsSegments.length) return;
+      scheduleBroadcast({ type: 'lyrics', segments: scheduleLyricsSegments });
     },
     scheduleTrackClick(ev){
       // Tapping the timeline moves the playhead (and plays there so you can
