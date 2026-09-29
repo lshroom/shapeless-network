@@ -559,7 +559,15 @@ float deMulti(int id, vec3 p, float seed, bool melt){
 float deArranged(int id, vec3 q){
   if (uArrange==4) return deMulti(id, q, uArrangeSeed, true);
   if (uArrange==5) return deMulti(id, q, uArrangeSeed, false);
-  if (uArrange==1) { vec3 aq = vec3(q.x*1.15, q.y*3.0, q.z*1.15); return deShape(id, aq) / 3.0; }
+  // Arrangement 1 ("flat field") used to squash EVERY shape's own domain
+  // (q.y*3.0) to force it flat — but most shapes have their own internal
+  // bound (a fixed radius, a lattice repeat, etc.), and squashing them
+  // revealed THAT bound as a hard rectangular edge instead of anything
+  // actually flat. Only the 3 shapes actually built as a heightfield
+  // (deWaveField/deChladniField/deWebField, ids 5/6/7 — they check uArrange
+  // themselves) are genuinely flat; every other shape just ignores this
+  // arrangement and renders itself normally rather than getting force-warped
+  // into a shape it was never built to be.
   if (uArrange==2) return deShape(id, arrangeFold(q, uArrangeSeed));
   if (uArrange==3) return deShape(id, arrangeTile(q, uArrangeSeed));
   if (uArrange==6) return deShape(id, arrangeTwist(q, uArrangeSeed));
