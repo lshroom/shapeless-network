@@ -103,6 +103,24 @@ const clock = new THREE.Clock();
 const audio = { bass:0, mid:0, high:0, vocals:0, harmony:0, drums:0, rms:0, beatEnv:0, kick:0, hit:false, bassHit:false, vocalHit:false, harmonyHit:false };
 let actx, analyser, freqData, timeData, srcNode;
 let audioEl = null;
+// ---- VISUAL DNA: a deterministic seed derived from the song's own URL, so
+// the same song always looks the same (reopening a post doesn't reshuffle
+// it) but different songs essentially never collide. Set by
+// applyVisualSeed() below, called once blended mode's layers exist.
+function hashStr(s){
+  let h = 2166136261;
+  for (let i=0; i<s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function mulberry32(a){
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+let onSongSeed = null; // set inside blended-mode setup; no-op in driven mode
 function ensureCtx() {
   if (actx) return;
   actx = new (window.AudioContext || window.webkitAudioContext)();
@@ -114,6 +132,7 @@ function ensureCtx() {
 }
 function loadSongUrl(url, muted, startTime, active) {
   if (!url) return;
+  onSongSeed?.(url);
   ensureCtx();
   if (audioEl) { try { audioEl.pause(); } catch(_){} }
   audioEl = new Audio(url);
@@ -263,10 +282,11 @@ SHAPE_FN[4] = { fn:'deSdfMorph', src:`float deSdfMorph(vec3 p){
   return d;
 }` };
 // The originals were a finite EXTENT=7 plane; a raw heightfield SDF (p.y-h)
-// is an infinite tilted sheet, so each is intersected with a spherical bound
-// (max(...)) — the same trick deGyroid already uses to cap its lattice —
-// producing a bounded patch that fits the same ~2-unit envelope every other
-// shape lives in, so the morph reads as one continuous object throughout.
+// is an infinite tilted sheet, so each needs SOME bound. These used to be
+// intersected with a spherical bound (length(p)-2.1), which is what turned
+// them into round domes/balls instead of the flat carpets they actually
+// are — a wide, thin BOX bound keeps the same "fits in ~2 units" envelope
+// for the morph crossfade, but reads as an actual flat field again.
 SHAPE_FN[5] = { fn:'deWaveField', src:`float deWaveField(vec3 p){
   float v=0.0;
   for(int s=0;s<3;s++){
@@ -276,21 +296,24 @@ SHAPE_FN[5] = { fn:'deWaveField', src:`float deWaveField(vec3 p){
     v += sin(d*6.5*(1.0+uMid*0.5)-uTime*4.0)/(1.0+d*0.5);
   }
   float h = v*1.0*(0.5+uBass)*0.4;
-  return max(p.y - h, length(p)-2.1);
+  float box = max(abs(p.x)-2.3, max(abs(p.z)-2.3, abs(p.y)-0.9));
+  return max(p.y - h, box);
 }` };
 SHAPE_FN[6] = { fn:'deChladniField', src:`float deChladniField(vec3 p){
   float ext=2.6;
   float m=4.0+uMid*3.0, n=3.0+uHigh*2.0;
   float u=p.x/ext+0.5, v=p.z/ext+0.5;
   float h=(sin(m*3.14159265*u)*sin(n*3.14159265*v)-sin(n*3.14159265*u)*sin(m*3.14159265*v))*0.7*(0.5+uBass);
-  return max(p.y - h, length(p)-2.1);
+  float box = max(abs(p.x)-2.3, max(abs(p.z)-2.3, abs(p.y)-0.9));
+  return max(p.y - h, box);
 }` };
 SHAPE_FN[7] = { fn:'deWebField', src:`float deWebField(vec3 p){
   float rad=length(p.xz), ang=atan(p.z,p.x);
   float spoke=pow(abs(cos(ang*7.0)),10.0);
   float ring=pow(abs(cos(rad*3.6-uTime*0.6)),10.0);
   float h=(max(spoke,ring)*0.6-0.12)*(0.4+uRms*2.0);
-  return max(p.y - h, length(p)-2.1);
+  float box = max(abs(p.x)-2.3, max(abs(p.z)-2.3, abs(p.y)-0.9));
+  return max(p.y - h, box);
 }` };
 // ---- second batch: 13 more shapes, contributed for more variety so the
 // morph never feels repetitive over a long song. Same house rules as above —
@@ -458,6 +481,9 @@ uniform float uHueKick;
 uniform float uPulse;
 uniform float uKickDeform;
 uniform int uMaxSteps, uNormalSamples;
+uniform int uArrange;
+uniform float uArrangeSeed;
+uniform float uHueOffset;
 ${HELPERS_SRC}
 ${shapesSrc}
 float deShape(int id, vec3 p){
@@ -469,6 +495,64 @@ float deShape(int id, vec3 p){
 ${cases}
     default: return ${lastFn}(p);
   }
+}
+// ---- ARRANGEMENT: a second axis of variety, independent of which shape is
+// picked. Same engine, same shape SDFs — just a different domain trick
+// applied before evaluating them, so any shape can become a flat field, a
+// mandala, a repeating lattice, a melted cluster, a scattered handful, a
+// twisted spiral, or a crystal-cut version of itself. Picked per layer, per
+// song, by applyVisualSeed() below — this is the actual "no two songs look
+// the same" engine.
+vec3 arrangeFold(vec3 p, float seed){
+  float n = 4.0 + floor(seed*6.0); // 4..9-fold mandala symmetry
+  float ang = atan(p.z, p.x);
+  float seg = 6.2831853 / n;
+  ang = abs(mod(ang, seg) - seg*0.5);
+  float r = length(p.xz);
+  vec3 q = p;
+  q.x = cos(ang)*r; q.z = sin(ang)*r;
+  return q;
+}
+vec3 arrangeTile(vec3 p, float seed){
+  float cell = 1.7 + seed*0.9;
+  vec3 q = p;
+  q.xz = mod(q.xz + 0.5*cell, cell) - 0.5*cell;
+  return q;
+}
+vec3 arrangeTwist(vec3 p, float seed){
+  float k = 0.55 + seed*0.85;
+  float ang = p.y*k + uTime*0.15;
+  float c=cos(ang), s=sin(ang);
+  vec3 q = p; q.x = c*p.x - s*p.z; q.z = s*p.x + c*p.z;
+  return q;
+}
+// Multi-instance arrangements (cluster=melted together, scatter=separate
+// pieces) can't be a simple domain warp — they need several offset copies
+// of the SAME shape evaluated and combined, capped at 3 to keep the
+// raymarch affordable.
+float deMulti(int id, vec3 p, float seed, bool melt){
+  float best = 1e5;
+  for (int k=0; k<3; k++){
+    float fk = float(k);
+    float ang = fk*2.0943951 + seed*6.2831853;
+    float rad = 0.85 + seed*0.35;
+    vec3 c = vec3(cos(ang)*rad, sin(ang*1.3)*rad*0.5, sin(ang)*rad);
+    float d = deShape(id, (p-c)*1.6) / 1.6;
+    best = melt ? sdfSmin(best, d, 0.55) : min(best, d);
+  }
+  return best;
+}
+// uArrange: 0 single (default), 1 flat field, 2 kaleidoscope, 3 fractal
+// tile, 4 cluster (melted), 5 scatter (disconnected), 6 twist, 7 crystal cage.
+float deArranged(int id, vec3 q){
+  if (uArrange==4) return deMulti(id, q, uArrangeSeed, true);
+  if (uArrange==5) return deMulti(id, q, uArrangeSeed, false);
+  if (uArrange==1) { vec3 aq = vec3(q.x*1.15, q.y*3.0, q.z*1.15); return deShape(id, aq) / 3.0; }
+  if (uArrange==2) return deShape(id, arrangeFold(q, uArrangeSeed));
+  if (uArrange==3) return deShape(id, arrangeTile(q, uArrangeSeed));
+  if (uArrange==6) return deShape(id, arrangeTwist(q, uArrangeSeed));
+  if (uArrange==7) { float d=deShape(id,q); float cage=(abs(q.x)+abs(q.y)+abs(q.z))-1.55; return max(d, cage); }
+  return deShape(id, q);
 }
 float de(vec3 p){
   // uJitterRot adds a small bounded spring-back rotation on top of the
@@ -488,9 +572,9 @@ float de(vec3 p){
     float r = length(q);
     q += normalize(q + 1e-4) * uKickDeform * sin(r*10.0 - uTime*26.0) * 0.28;
   }
-  float dA=deShape(uCur,q) * pulseS;
+  float dA=deArranged(uCur,q) * pulseS;
   if(uMorph<=0.001) return dA;
-  float dB=deShape(uNext,q) * pulseS;
+  float dB=deArranged(uNext,q) * pulseS;
   float t=smoothstep(0.0,1.0,uMorph);
   // A plain mix() of two distance FIELDS doesn't read as a dissolve — the two
   // shapes have very different distance magnitudes, so the surface tends to
@@ -505,7 +589,7 @@ vec3 shapeColor(int id){
   float hue;
   if(id==0) hue=0.08; else if(id==1) hue=0.55; else if(id==2) hue=0.75; else if(id==3) hue=0.33;
   else if(id==4) hue=0.9; else if(id==5) hue=0.58; else if(id==6) hue=0.82; else hue=0.62;
-  return spectral(hue + uTime*0.02 + uHueKick*0.2);
+  return spectral(hue + uHueOffset + uTime*0.02 + uHueKick*0.2);
 }
 // Returns (color, hit) — hit=0 for a ray that never found a surface. Used so
 // non-base layers can render with alpha=0 background instead of an opaque
@@ -549,6 +633,7 @@ function makeUniforms(){
     uCur:{value:0}, uNext:{value:0}, uMorph:{value:0},
     uJitter:{value:new THREE.Vector3()}, uJitterRot:{value:new THREE.Matrix3()},
     uHueKick:{value:0}, uPulse:{value:0}, uKickDeform:{value:0},
+    uArrange:{value:0}, uArrangeSeed:{value:0}, uHueOffset:{value:0},
     uMaxSteps:{value:64}, uNormalSamples:{value:4},
   });
 }
@@ -595,7 +680,7 @@ function buildMaterial(bankIdx){
 // top of the pointer-event stack. Each layer keeps its own independent
 // jitter/rotation-wobble/pulse/hue flourishes (those are shader uniforms, not
 // camera state) so they still don't all look identical.
-function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera, reaction={} }){
+function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera, reaction={}, arrange={} }){
   // Each layer gets its own reaction "personality" and its own audio band —
   // before real stem separation exists, this is the stand-in for "the 3
   // layers shouldn't all just flinch at the same kick": one grows on the
@@ -645,6 +730,9 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera, 
   let bank = bankIdx;
   let mat, uniforms;
   { const built = buildMaterial(bank); mat = built.material; uniforms = built.uniforms; }
+  uniforms.uArrange.value = arrange.mode || 0;
+  uniforms.uArrangeSeed.value = arrange.seed ?? Math.random();
+  uniforms.uHueOffset.value = arrange.hue ?? 0;
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
   mesh.frustumCulled = false;
   mesh.renderOrder = -1;
@@ -764,6 +852,15 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera, 
     setAutoBeat(v){ autoBeat = v; },
     setEnabled(v){ enabled = v; canvas.style.display = v ? 'block' : 'none'; },
     setInterval(base){ switchIntervalSec = base * intervalMult; },
+    // Re-rolls this layer's arrangement/hue for a newly-loaded song — the
+    // per-song "visual DNA" seed (see applyVisualSeed) calls this on every
+    // shape layer so a different song genuinely looks different, not just
+    // differently-timed.
+    setArrange(mode, seed, hue){
+      uniforms.uArrange.value = mode;
+      uniforms.uArrangeSeed.value = seed;
+      if (hue !== undefined) uniforms.uHueOffset.value = hue;
+    },
     // A synchronized, waveform-triggered switch (see SHARED CAMERA/switch
     // points below) — always lands on a genuinely different shape, same as
     // the layer's own auto-switching, just called from outside on demand.
@@ -1166,6 +1263,29 @@ if (driven) {
     return layer;
   });
   layers = [bgLayer, ...shapeLayers];
+
+  // ---- VISUAL DNA: pick each shape layer's arrangement (see deArranged in
+  // buildMorphFrag — same 8 shape SDFs, 8 different ways to place them in
+  // space: single/flat field/kaleidoscope/fractal tile/cluster/scatter/
+  // twist/crystal cage) and a hue offset, all from one seed derived from the
+  // song's own URL. Same song -> same look every time it's reopened;
+  // different songs -> a genuinely different combination, not just a
+  // different shape from the same fixed layout. Arrangement 0 (single) is
+  // deliberately in the pool too, so not every song is maximally weird.
+  const ARRANGE_COUNT = 8;
+  onSongSeed = (url) => {
+    const rand = mulberry32(hashStr(url));
+    shapeLayers.forEach(l => {
+      const mode = Math.floor(rand() * ARRANGE_COUNT);
+      const seed = rand();
+      const hue = rand() * 0.5 - 0.25; // +-0.25 turn of hue drift per layer
+      l.setArrange(mode, seed, hue);
+    });
+    // Background style is chosen live/auto-cycled already (see
+    // createBackgroundLayer) — just bias its very first pick per song
+    // instead of always starting on Starfield.
+    bgLayer.setStyle(Math.floor(rand() * bgLayer.styleNames.length));
+  };
 
   // Waveform-detected "big switch" moments, sent from the post composer's
   // timeline editor (or the feed player, for an already-published post) —

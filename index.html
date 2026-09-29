@@ -623,7 +623,10 @@
   .loop-len-row select{ background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:5px 9px; font-family:var(--font-mono); font-size:12px; }
   .loop-len-badge{ font-family:var(--font-mono); font-size:12px; color:var(--accent); }
   .song-len-input{ width:56px; background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:5px 4px; font-family:var(--font-mono); font-size:12px; text-align:center; }
-  .studio-timeline{ border:1px solid var(--line); border-radius:12px; background:var(--surface); overflow:hidden; margin-bottom:10px; }
+  /* Long-press is the same gesture used to grab a clip/loop handle, so without this
+     a phone's native text-selection ("Copy / Select all / Web search / Share") wins
+     the gesture race and steals it before any pointerdown handler ever sees it. */
+  .studio-timeline{ border:1px solid var(--line); border-radius:12px; background:var(--surface); overflow:hidden; margin-bottom:10px; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
   .timeline-scroll{ position:relative; overflow-x:auto; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; overscroll-behavior-x:contain; touch-action:pan-x; }
   .timeline-content{ position:relative; transform-origin:0 0; }
   .track-lane-row{ display:flex; border-bottom:1px solid var(--line-soft); }
@@ -632,9 +635,11 @@
   .armed-track-chip{ display:inline-flex; align-items:center; gap:6px; }
   .armed-track-banner b{ color:var(--text); }
   .track-lane-row:last-child{ border-bottom:none; }
-  .track-lane-row.ruler-row{ background:var(--surface-2); position:sticky; top:0; z-index:1; }
+  /* Same background as every other row (var(--surface), not --surface-2) — the ruler,
+     lanes and master all draw the identical grid now, and a lighter ruler backdrop was
+     making that same grid read as much fainter there than on the darker rows below it. */
+  .track-lane-row.ruler-row{ background:var(--surface); position:sticky; top:0; z-index:1; }
   .lane-sidebar{ flex:none; width:120px; padding:5px 6px; display:flex; flex-direction:column; justify-content:center; gap:3px; border-right:1px solid var(--line-soft); position:sticky; left:0; background:var(--surface); z-index:1; }
-  .ruler-row .lane-sidebar{ background:var(--surface-2); }
   .ruler-label{ font-size:9px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); font-family:var(--font-mono); display:flex; align-items:baseline; gap:5px; white-space:nowrap; }
   .ruler-clock{ font-size:10px; text-transform:none; letter-spacing:0; color:var(--accent); font-variant-numeric:tabular-nums; }
   .track-dot{ width:8px; height:8px; border-radius:50%; background:var(--track-color, var(--accent)); flex:none; }
@@ -676,6 +681,14 @@
   .loop-region-block.on{ background:color-mix(in srgb, var(--accent) 14%, transparent); border-left:1px solid var(--accent); border-right:1px solid var(--accent); opacity:1; }
   .loop-region-handle{ position:absolute; top:0; left:0; right:0; height:20px; cursor:grab; touch-action:none; pointer-events:auto; }
   .loop-region-handle:active{ cursor:grabbing; }
+  /* Touch devices: a 20px strip is under Apple/Android's own 44px minimum tap
+     target, so on a phone the loop's move/resize handles are nearly impossible
+     to actually grab — widen the hit area without changing how it looks on a
+     mouse, where 20px + a precise cursor is plenty. */
+  @media (pointer:coarse){
+    .loop-region-handle{ height:44px; }
+    .loop-region-handle .clip-resize{ width:34px; right:-17px; }
+  }
   .instrument-switch{ display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
   .instrument-select{ background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:8px 10px; font-size:12.5px; font-weight:600; }
   .instrument-select.kit-select{ font-weight:500; color:var(--muted); }
@@ -706,6 +719,10 @@
   .section-chip-row{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
   .section-chip{ font-size:10.5px; padding:4px 10px; border-radius:999px; border:1px solid var(--sec-color, var(--line)); background:color-mix(in srgb, var(--sec-color, var(--line)) 18%, var(--surface-2)); color:var(--text); cursor:pointer; }
   .section-chip.add{ border-style:dashed; color:var(--muted); background:transparent; }
+  /* One grid, one element, spanning ruler+lanes+master — see barGridOverlayHtml().
+     z-index:2 clears the ruler row's own opaque background (z-index:1) so the same
+     grid actually shows through it, not just the darker rows below. */
+  .bar-grid-overlay{ position:absolute; top:0; bottom:0; pointer-events:none; z-index:2; }
   .ruler-track{ min-height:0; white-space:nowrap; }
   .ruler-track::before{ display:none; }
   .studio-playline{ position:absolute; top:0; bottom:0; left:0; width:2px; background:var(--accent); box-shadow:0 0 6px var(--accent); pointer-events:none; z-index:3; }
@@ -4487,13 +4504,24 @@
     }
     return out;
   }
-  // One shared Ableton-style grid: a bright line at every bar, a faint line at
-  // every beat (1/4 bar). Every row — ruler, each track lane, master — gets this
-  // exact same background so they read as one continuous grid, never their own.
+  // One shared Ableton-style grid — same rule Ableton itself uses: thin the
+  // lines out as you zoom out so it never turns into a dense hatch, and only
+  // add the beat (1/4-bar) subdivision once there's actually room to show it.
+  // Ruler, every track lane, and master all call this with the same barPx, so
+  // it's one grid definition feeding every row instead of each drawing its own.
   function barsGridBgValue(barPx){
-    const beatPx = barPx / 4;
-    return `repeating-linear-gradient(to right, color-mix(in srgb, var(--muted) 45%, transparent) 0, color-mix(in srgb, var(--muted) 45%, transparent) 1px, transparent 1px, transparent ${barPx}px), `
-      + `repeating-linear-gradient(to right, color-mix(in srgb, var(--muted) 16%, transparent) 0, color-mix(in srgb, var(--muted) 16%, transparent) 1px, transparent 1px, transparent ${beatPx}px)`;
+    const line = (opacityPct, everyPx) =>
+      `repeating-linear-gradient(to right, color-mix(in srgb, var(--muted) ${opacityPct}%, transparent) 0, color-mix(in srgb, var(--muted) ${opacityPct}%, transparent) 1px, transparent 1px, transparent ${everyPx}px)`;
+    if(barPx < 20){
+      // too tight for a per-bar line to read as anything but noise — group bars
+      // the same way the ruler already groups its own number labels (every 4 or 8)
+      const everyN = barPx < 10 ? 8 : 4;
+      return line(45, barPx * everyN);
+    }
+    if(barPx < 60){
+      return line(45, barPx); // bar lines only — no room yet for beat subdivision
+    }
+    return `${line(45, barPx)}, ${line(16, barPx / 4)}`; // zoomed in enough to show beats too
   }
   function barsGridBg(barPx){ return `background-image:${barsGridBgValue(barPx)};`; }
   function rulerTicksHtml(bars, barPx, barSec){
@@ -4569,7 +4597,7 @@
           </div>` : ''}
           ${manageOpen ? `<span class="track-owner-note">${lane.owner}${lane.assignedTo&&lane.assignedTo.length ? ' · assigned: '+lane.assignedTo.join(', ') : ''}</span>` : ''}
         </div>
-        <div class="lane-clip-track" style="width:${bars*barPx}px; ${barsGridBg(barPx)}" data-lane="${lane.id}" ondragover="event.preventDefault(); this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="app.dropFileOnTrack(event,'${v.id}','${lane.id}')">
+        <div class="lane-clip-track" style="width:${bars*barPx}px;" data-lane="${lane.id}" ondragover="event.preventDefault(); this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="app.dropFileOnTrack(event,'${v.id}','${lane.id}')">
           ${clips || `<span class="lane-empty">no loops placed</span>`}
         </div>
       </div>
@@ -4631,6 +4659,15 @@
         <div class="lane-sidebar ruler-label">Sections</div>
         <div class="lane-clip-track section-track" style="width:${bars*barPx}px; ${barsGridBg(barPx)}">${blocks || ''}</div>
       </div>`;
+  }
+  // The one and only grid — a single element spanning the ruler, every lane and the
+  // master row, painted once. Three rows independently drawing "the same" background
+  // can still drift apart mid pinch-zoom (each gets its own reflow update, in its own
+  // DOM query, on its own frame); one shared element physically cannot disagree with
+  // itself. LANE_SIDEBAR_PX offset keeps it clear of the fixed name column on the left.
+  function barGridOverlayHtml(v, barPx){
+    const bars = v.studio.bars || 16;
+    return `<div class="bar-grid-overlay" id="bar-grid-${v.id}" style="left:${LANE_SIDEBAR_PX}px; width:${bars*barPx}px; background-image:${barsGridBgValue(barPx)};"></div>`;
   }
   function loopRegionOverlayHtml(v, barPx){
     const bars = v.studio.bars || 16;
@@ -4748,7 +4785,7 @@
           <div class="timeline-content" id="timeline-content-${v.id}">
             <div class="track-lane-row ruler-row">
               <div class="lane-sidebar ruler-label">Bars / Time <span id="studio-clock-label-${v.id}" class="ruler-clock">0:00</span></div>
-              <div class="lane-clip-track ruler-track" style="width:${bars*barPx}px; ${barsGridBg(barPx)}">${rulerTicksHtml(bars, barPx, (60/(s.bpm||100))*4)}</div>
+              <div class="lane-clip-track ruler-track" style="width:${bars*barPx}px;">${rulerTicksHtml(bars, barPx, (60/(s.bpm||100))*4)}</div>
             </div>
             <div class="track-lanes">${lanesHtml || '<p class="studio-empty-hint">No lanes yet — the button above or Record will start yours.</p>'}</div>
             <div class="track-lane-row master-channel" style="--track-color:#E8D27C">
@@ -4762,8 +4799,9 @@
                   <div class="track-knob" id="knob-master-${v.id}" style="--vol:${Math.round(((s.master&&s.master.volume!=null)?s.master.volume:0.85)*100)}" title="Master volume — drag up/down" onpointerdown="app.beginMasterKnob(event,'${v.id}')"></div>
                 </div>
               </div>
-              <div class="lane-clip-track master-meter" style="width:${bars*barPx}px; ${barsGridBg(barPx)}"></div>
+              <div class="lane-clip-track master-meter" style="width:${bars*barPx}px;"></div>
             </div>
+            ${barGridOverlayHtml(v, barPx)}
             ${loopRegionOverlayHtml(v, barPx)}
             <div class="studio-playline" id="studio-playline-${v.id}" style="left:${LANE_SIDEBAR_PX}px;"></div>
           </div>
@@ -4915,21 +4953,14 @@
     const bars = v.studio.bars || 16;
     const root = document.getElementById('timeline-content-'+vid);
     if(!root) return;
-    // Every row (ruler + each lane + master + sections) draws its own copy of the
-    // same bar/beat grid background — during a live zoom drag they all have to be
-    // resized AND re-painted with the new barPx together, or the ruler rescales
-    // while the rows underneath keep their old grid spacing frozen.
-    const gridValue = barsGridBgValue(barPx);
     const rulerTrack = root.querySelector('.ruler-track');
     if(rulerTrack){
       rulerTrack.style.width = (bars*barPx)+'px';
-      rulerTrack.style.backgroundImage = gridValue;
       rulerTrack.innerHTML = rulerTicksHtml(bars, barPx, (60/(v.studio.bpm||100))*4);
     }
     root.querySelectorAll('.lane-clip-track').forEach(trackEl=>{
       if(trackEl.classList.contains('ruler-track')) return;
       trackEl.style.width = (bars*barPx)+'px';
-      trackEl.style.backgroundImage = gridValue;
       const lane = (v.studio.lanes||[]).find(l=>l.id===trackEl.dataset.lane);
       if(!lane) return;
       (lane.clips||[]).forEach(c=>{
@@ -4937,6 +4968,14 @@
         if(clipEl){ clipEl.style.left = (c.startBar*barPx)+'px'; clipEl.style.width = (c.lengthBars*barPx)+'px'; }
       });
     });
+    // The grid is ONE element covering ruler+lanes+master (see barGridOverlayHtml) —
+    // one width + one background update here keeps every row connected through the
+    // whole gesture, instead of each row needing its own update to stay in sync.
+    const gridEl = document.getElementById('bar-grid-'+vid);
+    if(gridEl){
+      gridEl.style.width = (bars*barPx)+'px';
+      gridEl.style.backgroundImage = barsGridBgValue(barPx);
+    }
     const lr = loopRegionFor(vid, bars);
     const loopEl = document.getElementById('loop-region-'+vid);
     if(loopEl){ loopEl.style.left = (LANE_SIDEBAR_PX + lr.start*barPx)+'px'; loopEl.style.width = (lr.len*barPx)+'px'; }
