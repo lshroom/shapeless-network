@@ -721,10 +721,13 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera, 
     if (reactBand === 'harmony') return audio.harmonyHit;
     return audio.hit;
   }
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha, powerPreference:'high-performance' });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:FLAG_AA, alpha, powerPreference:'high-performance' });
+  renderer.setPixelRatio(FLAG_PR ?? Math.min(devicePixelRatio, 1.25));
   renderer.setClearColor(0x05060a, alpha ? 0 : 1);
   const scene = new THREE.Scene();
+  if (DBG) dbgReadGpuString(renderer);
+  const dbgEntry = DBG ? { renderer, w:0, h:0, compileMs:null, firstRenderMs:null } : null;
+  if (DBG) dbgStats.layers.push(dbgEntry);
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
@@ -744,12 +747,22 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera, 
     const w = innerWidth, h = innerHeight;
     renderer.setSize(w, h); composer.setSize(w, h);
     bloom?.resolution.set(w, h);
+    if (dbgEntry) { dbgEntry.w = renderer.domElement.width; dbgEntry.h = renderer.domElement.height; }
   }
   addEventListener('resize', resize); resize();
 
   let bank = bankIdx;
   let mat, uniforms;
-  { const built = buildMaterial(bank); mat = built.material; uniforms = built.uniforms; }
+  if (FLAG_NO_SHAPE) {
+    // Bypass the raymarch fragment shader entirely — a flat, near-zero-cost
+    // material on the exact same full-screen quad. If the hang disappears
+    // with this flag, the shader itself (not the composer/bloom/context
+    // setup) is the smoking gun.
+    mat = new THREE.MeshBasicMaterial({ color: 0x33465e });
+    uniforms = { uCur:{value:0}, uNext:{value:0}, uMorph:{value:0}, uArrange:{value:0}, uArrangeSeed:{value:0}, uHueOffset:{value:0} };
+  } else {
+    const built = buildMaterial(bank); mat = built.material; uniforms = built.uniforms;
+  }
   uniforms.uArrange.value = arrange.mode || 0;
   uniforms.uArrangeSeed.value = arrange.seed ?? Math.random();
   uniforms.uHueOffset.value = arrange.hue ?? 0;
@@ -857,12 +870,24 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera, 
     uniforms.uRes.value.set(innerWidth, innerHeight);
     uniforms.uCamPos.value.copy(camera.position);
     uniforms.uCamMat.value.copy(camera.matrixWorld);
-    composer.render();
+    if (dbgEntry && dbgEntry.firstRenderMs == null) {
+      const t0 = performance.now();
+      if (FLAG_NO_POST) renderer.render(scene, camera); else composer.render();
+      dbgEntry.firstRenderMs = performance.now() - t0;
+      console.log('[dbg] first render for a shape layer:', dbgEntry.firstRenderMs.toFixed(1) + 'ms', dbgEntry.w + 'x' + dbgEntry.h + 'px');
+    } else if (FLAG_NO_POST) {
+      renderer.render(scene, camera);
+    } else {
+      composer.render();
+    }
   }
 
   function precompile(){
-    return (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera)))
-      .catch(e => console.error('layer precompile failed:', e));
+    const t0 = performance.now();
+    const p = renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera));
+    return p
+      .then(() => { if (dbgEntry) { dbgEntry.compileMs = performance.now() - t0; console.log('[dbg] shape layer compile:', dbgEntry.compileMs.toFixed(1) + 'ms'); } })
+      .catch(e => { console.error('layer precompile failed:', e); if (dbgEntry) dbgEntry.compileMs = -1; });
   }
 
   return {
@@ -905,11 +930,14 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera, 
 // shared audio signal (hue drifts with the mids, a small beat-synced glow).
 function createBackgroundLayer({ canvas }){
   const renderer = new THREE.WebGLRenderer({ canvas, antialias:false, alpha:false, powerPreference:'high-performance' });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
+  renderer.setPixelRatio(FLAG_PR ?? Math.min(devicePixelRatio, 1.25));
   renderer.setClearColor(0x05060a, 1);
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  function resize(){ renderer.setSize(innerWidth, innerHeight); }
+  if (DBG) dbgReadGpuString(renderer);
+  const dbgEntry = DBG ? { renderer, w:0, h:0, compileMs:null, firstRenderMs:null } : null;
+  if (DBG) dbgStats.layers.push(dbgEntry);
+  function resize(){ renderer.setSize(innerWidth, innerHeight); if (dbgEntry) { dbgEntry.w = renderer.domElement.width; dbgEntry.h = renderer.domElement.height; } }
   addEventListener('resize', resize); resize();
 
   const uniforms = Object.assign(audioUniforms(), {
@@ -1155,11 +1183,21 @@ function createBackgroundLayer({ canvas }){
     uniforms.uDrift.value.copy(drift);
     uniforms.uRes.value.set(innerWidth, innerHeight);
     pushAudio(uniforms, audio, t);
-    renderer.render(scene, camera);
+    if (dbgEntry && dbgEntry.firstRenderMs == null) {
+      const t0 = performance.now();
+      renderer.render(scene, camera);
+      dbgEntry.firstRenderMs = performance.now() - t0;
+      console.log('[dbg] first render for background layer:', dbgEntry.firstRenderMs.toFixed(1) + 'ms', dbgEntry.w + 'x' + dbgEntry.h + 'px');
+    } else {
+      renderer.render(scene, camera);
+    }
   }
   function precompile(){
-    return (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera)))
-      .catch(e => console.error('background layer precompile failed:', e));
+    const t0 = performance.now();
+    const p = renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera));
+    return p
+      .then(() => { if (dbgEntry) { dbgEntry.compileMs = performance.now() - t0; console.log('[dbg] background layer compile:', dbgEntry.compileMs.toFixed(1) + 'ms'); } })
+      .catch(e => { console.error('background layer precompile failed:', e); if (dbgEntry) dbgEntry.compileMs = -1; });
   }
   return {
     canvas, label: 'Background', blend: 'normal', scale: 1.0,
@@ -1213,6 +1251,73 @@ let onFrameExtra = null; // blended mode hooks its switch-point check here (decl
 const layersEl = document.getElementById('layers');
 const urlParams = new URLSearchParams(location.search);
 const driven = urlParams.get('driven') === '1';
+
+// ================= DEBUG / BISECT FLAGS =================
+// Added while hunting a GPU-process hard crash (Windows TDR watchdog killing
+// the whole GPU process — "RESULT_CODE_HUNG") on desktop that never happens
+// on phone with the identical file. Each flag strips out one candidate cost
+// so a real frame-by-frame comparison replaces guessing:
+//   ?debug=1    — on-screen stats overlay (renderer.info, GPU string, canvas
+//                 px size, per-frame ms, first-compile/first-render ms)
+//   ?noShape=1  — every shape layer gets a flat THREE.MeshBasicMaterial
+//                 instead of the raymarch shader (isolates the fragment
+//                 shader itself — the switch(id)-of-8-SDFs + up to 3x
+//                 deMulti instancing + up to 4x normal-sample finite
+//                 differencing, all inside a <=64-step march loop)
+//   ?noPost=1   — renderer.render(scene,camera) directly, skipping
+//                 EffectComposer/UnrealBloomPass/OutputPass entirely
+//   ?aa=0       — force antialias:false (default matches the real page: on)
+//   ?pr=<num>   — override devicePixelRatio clamp with an exact value
+//                 (e.g. ?pr=0.5 renders at a quarter the pixel count)
+const DBG = urlParams.get('debug') === '1';
+const FLAG_NO_SHAPE = urlParams.get('noShape') === '1';
+const FLAG_NO_POST = urlParams.get('noPost') === '1';
+const FLAG_AA = urlParams.has('aa') ? urlParams.get('aa') !== '0' : true;
+const FLAG_PR = urlParams.has('pr') ? parseFloat(urlParams.get('pr')) : null;
+const dbgStats = { layers: [] }; // one entry per createLayer/createBackgroundLayer call, filled in as timings land
+let dbgGpuString = null;
+function dbgReadGpuString(renderer){
+  if (dbgGpuString !== null) return;
+  try {
+    const gl = renderer.getContext();
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    dbgGpuString = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : (gl.getParameter(gl.RENDERER) + ' (unmasked string unavailable)');
+    console.log('[dbg] GPU renderer string:', dbgGpuString);
+  } catch(e){ dbgGpuString = 'ERROR: ' + e.message; }
+}
+if (DBG) {
+  console.log('[dbg] flags: noShape=' + FLAG_NO_SHAPE, 'noPost=' + FLAG_NO_POST, 'aa=' + FLAG_AA, 'pr=' + FLAG_PR);
+  const el = document.createElement('pre');
+  el.id = 'dbgOverlay';
+  el.style.cssText = 'position:fixed;top:8px;left:8px;z-index:99;margin:0;padding:8px 10px;background:rgba(0,0,0,.72);color:#7fffb0;font:11px/1.4 ui-monospace,Consolas,monospace;white-space:pre;pointer-events:none;max-width:70vw;';
+  document.body.appendChild(el);
+  let dbgLastT = performance.now(), dbgFrameMs = 0;
+  function dbgTick(){
+    const now = performance.now();
+    dbgFrameMs = now - dbgLastT;
+    dbgLastT = now;
+    let calls = 0, tris = 0, geoms = 0, texs = 0;
+    dbgStats.layers.forEach(s => {
+      if (!s.renderer) return;
+      const info = s.renderer.info;
+      calls += info.render.calls; tris += info.render.triangles;
+      geoms += info.memory.geometries; texs += info.memory.textures;
+    });
+    const lines = [
+      `flags: noShape=${FLAG_NO_SHAPE} noPost=${FLAG_NO_POST} aa=${FLAG_AA} pr=${FLAG_PR ?? '(default)'}`,
+      `GPU: ${dbgGpuString || '(pending)'}`,
+      `frame: ${dbgFrameMs.toFixed(1)}ms  (${(1000/Math.max(1,dbgFrameMs)).toFixed(0)} fps)`,
+      `draw calls: ${calls}  triangles: ${tris}  geometries: ${geoms}  textures: ${texs}`,
+      `layers: ${dbgStats.layers.length}`,
+    ];
+    dbgStats.layers.forEach((s,i) => {
+      lines.push(`  [${i}] canvas ${s.w}x${s.h}px  compile:${s.compileMs==null?'…':s.compileMs.toFixed(0)+'ms'}  firstRender:${s.firstRenderMs==null?'…':s.firstRenderMs.toFixed(0)+'ms'}`);
+    });
+    el.textContent = lines.join('\n');
+    requestAnimationFrame(dbgTick);
+  }
+  requestAnimationFrame(dbgTick);
+}
 // A public viewer (the feed's inline preview, or the fullscreen post
 // player) never gets the layer-mixing panel or bottom bar — those are the
 // uploader's own editing tools, from "Design the visuals" only. Without
