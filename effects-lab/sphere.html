@@ -1330,7 +1330,55 @@ if (driven) {
     applyLayerTransform(layer);
     return layer;
   });
-  layers = [bgLayer, ...shapeLayers];
+  // Optional 4th visible layer: a recorded dance silhouette (see
+  // index.html's "Design the visuals" step 2), played back in sync with the
+  // song and composited the same way everything else here is — bright shape
+  // on solid black, 'screen' blend mode, so the black just disappears.
+  // Not a raymarched shape (a <video> element, drawn to a plain 2D canvas
+  // each frame), so it doesn't get an arrangement dropdown — only the same
+  // size/position controls every layer gets, plus a small beat-synced glow.
+  function createSilhouetteLayer(url){
+    const video = document.createElement('video');
+    video.src = url; video.crossOrigin = 'anonymous'; video.loop = true; video.muted = true; video.playsInline = true;
+    const canvas = document.createElement('canvas');
+    canvas.className = 'layerCanvas';
+    canvas.style.zIndex = '4';
+    canvas.style.mixBlendMode = 'screen';
+    layersEl.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    let enabled = true, scale = 0.9, offsetX = 0, offsetY = 0, glow = 0;
+    function resize(){ canvas.width = innerWidth; canvas.height = innerHeight; }
+    addEventListener('resize', resize); resize();
+    function step(){
+      if (!enabled || video.readyState < 2) return;
+      // Keeps the silhouette in sync with the song rather than its own
+      // independent clock — if the song seeks/loops, this follows.
+      if (audioEl && Math.abs(video.currentTime - audioEl.currentTime) > 0.5) video.currentTime = audioEl.currentTime;
+      if (audioEl && !audioEl.paused && video.paused) video.play().catch(()=>{});
+      if (audioEl && audioEl.paused && !video.paused) video.pause();
+      glow = Math.max(glow * 0.9, audio.hit ? 1 : 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const vw = video.videoWidth || 16, vh = video.videoHeight || 9;
+      const fit = Math.min(canvas.width / vw, canvas.height / vh) * scale;
+      const dw = vw * fit, dh = vh * fit;
+      const dx = (canvas.width - dw) / 2 + (offsetX / 100) * canvas.width;
+      const dy = (canvas.height - dh) / 2 + (offsetY / 100) * canvas.height;
+      ctx.globalAlpha = 0.85 + glow * 0.15;
+      ctx.drawImage(video, dx, dy, dw, dh);
+    }
+    return {
+      canvas, isSilhouette: true, label: 'Dance silhouette', blend: 'screen',
+      get scale(){ return scale; }, set scale(v){ scale = v; },
+      get offsetX(){ return offsetX; }, set offsetX(v){ offsetX = v; },
+      get offsetY(){ return offsetY; }, set offsetY(v){ offsetY = v; },
+      setEnabled(v){ enabled = v; canvas.style.display = v ? 'block' : 'none'; },
+      setAutoBeat(){}, setInterval(){},
+      step, precompile(){ return video.play().catch(()=>{}); },
+    };
+  }
+  const silhouetteUrl = urlParams.get('silhouette');
+  const silhouetteLayer = silhouetteUrl ? createSilhouetteLayer(decodeURIComponent(silhouetteUrl)) : null;
+  layers = silhouetteLayer ? [bgLayer, ...shapeLayers, silhouetteLayer] : [bgLayer, ...shapeLayers];
 
   // ---- VISUAL DNA: pick each shape layer's arrangement (see deArranged in
   // buildMorphFrag — same 8 shape SDFs, 8 different ways to place them in
@@ -1471,6 +1519,25 @@ if (driven) {
         row.querySelector('select').addEventListener('change', e=>{
           layer.setStyle(+e.target.value, true);
         });
+        body.appendChild(row);
+        return;
+      }
+      if (layer.isSilhouette) {
+        // No blend-mode or arrangement pick — it's a video, not a raymarched
+        // shape — just enable + the same size/X/Y every other layer gets.
+        row.innerHTML = `
+          <div class="lr-head">
+            <input type="checkbox" checked>
+            <span>${layer.label}</span>
+          </div>
+          <div class="lr-size"><span>size</span><input class="lr-scale" type="range" min="0.3" max="1.8" step="0.05" value="${layer.scale}"></div>
+          <div class="lr-size"><span>x</span><input class="lr-offx" type="range" min="-50" max="50" step="1" value="${layer.offsetX}"></div>
+          <div class="lr-size"><span>y</span><input class="lr-offy" type="range" min="-50" max="50" step="1" value="${layer.offsetY}"></div>
+        `;
+        row.querySelector('input[type=checkbox]').addEventListener('change', e=>{ layer.setEnabled(e.target.checked); });
+        row.querySelector('.lr-scale').addEventListener('input', e=>{ layer.scale = +e.target.value; });
+        row.querySelector('.lr-offx').addEventListener('input', e=>{ layer.offsetX = +e.target.value; });
+        row.querySelector('.lr-offy').addEventListener('input', e=>{ layer.offsetY = +e.target.value; });
         body.appendChild(row);
         return;
       }

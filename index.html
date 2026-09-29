@@ -1195,30 +1195,64 @@
     <div class="feed-schedule-modal" id="feed-schedule-modal" hidden>
       <div class="feed-schedule-panel">
         <div class="feed-schedule-head">
-          <span id="feed-schedule-head-label">Blended preview</span>
+          <span id="feed-schedule-head-label">Step 1 of 3 — Design the visuals</span>
           <button class="feed-schedule-close" onclick="app.closeScheduleEditor()">✕</button>
         </div>
-        <div class="feed-schedule-preview">
-          <iframe id="feed-schedule-frame-sphere" class="feed-schedule-frame" data-active="true" allow="autoplay"></iframe>
+
+        <div id="feed-schedule-step1">
+          <div class="feed-schedule-preview">
+            <iframe id="feed-schedule-frame-sphere" class="feed-schedule-frame" data-active="true" allow="autoplay"></iframe>
+          </div>
+          <div class="feed-schedule-transport">
+            <button id="feed-schedule-play" onclick="app.toggleSchedulePreview()">▶</button>
+            <span id="feed-schedule-time">0:00</span>
+            <span style="flex:1"></span>
+            <span id="feed-schedule-dur">0:00</span>
+          </div>
+          <div class="feed-schedule-track" id="feed-schedule-track" onclick="app.scheduleTrackClick(event)">
+            <div class="feed-schedule-playhead" id="feed-schedule-playhead" style="left:0"></div>
+          </div>
+          <div class="feed-schedule-add-btn" style="display:flex;gap:8px;margin:10px 14px 0;">
+            <button class="btn btn-primary btn-sm" style="flex:1" onclick="app.addMarkerAtPlayhead()">+ Add a switch here</button>
+            <button class="btn btn-ghost btn-sm" id="feed-schedule-suggest-btn" style="flex:1" onclick="app.suggestSwitchPoints()">Suggest switch points</button>
+          </div>
+          <div class="feed-schedule-marker-list" id="feed-schedule-marker-list"></div>
+          <div class="feed-schedule-hint">Tap the timeline to move to that moment (it plays there so you can hear it). <b>Suggest switch points</b> listens to the waveform and drops markers where the song noticeably changes — every layer switches together at each one. Tap <b>+ Add a switch here</b> to drop one by hand, or drag/nudge/remove existing ones below.</div>
         </div>
-        <div class="feed-schedule-transport">
-          <button id="feed-schedule-play" onclick="app.toggleSchedulePreview()">▶</button>
-          <span id="feed-schedule-time">0:00</span>
-          <span style="flex:1"></span>
-          <span id="feed-schedule-dur">0:00</span>
+
+        <div id="feed-schedule-step2" hidden style="padding:14px;">
+          <label class="feed-schedule-toggle-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <input type="checkbox" id="feed-silhouette-enable" onchange="app.toggleSilhouette(this.checked)">
+            <span>Add a dance silhouette — record yourself dancing to the song, we'll turn it into a silhouette layer on top of the visuals.</span>
+          </label>
+          <div id="feed-silhouette-body" hidden>
+            <div class="feed-silhouette-stage" style="position:relative;background:#000;border-radius:10px;overflow:hidden;aspect-ratio:16/9;">
+              <video id="feed-silhouette-cam" autoplay muted playsinline style="display:none;"></video>
+              <canvas id="feed-silhouette-canvas" style="width:100%;height:100%;display:block;"></canvas>
+            </div>
+            <div class="pad-hint" id="feed-silhouette-status" style="margin:8px 0;">Stand in front of a plain wall, in frame, for the best cutout.</div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-primary btn-sm" id="feed-silhouette-record-btn" style="flex:1" onclick="app.toggleSilhouetteRecording()">● Record while the song plays</button>
+            </div>
+          </div>
         </div>
-        <div class="feed-schedule-track" id="feed-schedule-track" onclick="app.scheduleTrackClick(event)">
-          <div class="feed-schedule-playhead" id="feed-schedule-playhead" style="left:0"></div>
+
+        <div id="feed-schedule-step3" hidden style="padding:14px;">
+          <label class="feed-schedule-toggle-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <input type="checkbox" id="feed-lyrics-enable" onchange="app.toggleLyricsChoice(this.checked)">
+            <span>Add synced lyrics — words appear in 3D as you sing them.</span>
+          </label>
+          <div id="feed-lyrics-body" hidden style="display:flex;flex-direction:column;gap:8px;">
+            <label style="display:flex;align-items:center;gap:8px;"><input type="radio" name="feed-lyrics-mode" value="local" checked onchange="app.setLyricsMode('local')"> Run locally (via Ghost) — free, needs Ghost running</label>
+            <label style="display:flex;align-items:center;gap:8px;"><input type="radio" name="feed-lyrics-mode" value="cloud" onchange="app.setLyricsMode('cloud')"> Use my own cloud key</label>
+            <input type="password" id="feed-lyrics-cloud-key" placeholder="Your transcription API key" hidden style="padding:8px;border-radius:8px;">
+            <div class="pad-hint">This decides HOW the words get timed to your voice — the actual captions get generated after you post.</div>
+          </div>
         </div>
-        <div class="feed-schedule-add-btn" style="display:flex;gap:8px;margin:10px 14px 0;">
-          <button class="btn btn-primary btn-sm" style="flex:1" onclick="app.addMarkerAtPlayhead()">+ Add a switch here</button>
-          <button class="btn btn-ghost btn-sm" id="feed-schedule-suggest-btn" style="flex:1" onclick="app.suggestSwitchPoints()">Suggest switch points</button>
-        </div>
-        <div class="feed-schedule-marker-list" id="feed-schedule-marker-list"></div>
-        <div class="feed-schedule-hint">Tap the timeline to move to that moment (it plays there so you can hear it). <b>Suggest switch points</b> listens to the waveform and drops markers where the song noticeably changes — every layer switches together at each one. Tap <b>+ Add a switch here</b> to drop one by hand, or drag/nudge/remove existing ones below.</div>
+
         <div class="feed-schedule-actions">
-          <button class="btn btn-ghost btn-sm" onclick="app.closeScheduleEditor()">Cancel</button>
-          <button class="btn btn-primary btn-sm" onclick="app.saveScheduleEditor()">Save timeline</button>
+          <button class="btn btn-ghost btn-sm" id="feed-schedule-back-btn" onclick="app.scheduleGoStep(app.scheduleStepNow()-1)">Cancel</button>
+          <button class="btn btn-primary btn-sm" id="feed-schedule-next-btn" onclick="app.scheduleGoStep(app.scheduleStepNow()+1)">Next →</button>
         </div>
       </div>
     </div>
@@ -1956,6 +1990,7 @@
     </div>`;
   }
   let feedPlayerSongUrl = null;
+  let feedPlayerSilhouetteUrl = null;
   // Modern black/white stroke icons, matching the rest of the site's icon style — no emoji.
   const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
   const ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
@@ -1979,6 +2014,7 @@
     // The small inline preview just opens on the uploader's first chosen shape
     // — the full scheduled switching plays out once the viewer goes fullscreen.
     if(sched) src += '&driven=1&shape=' + sched[0].shape;
+    if(isBlended && p.media.effectSilhouette) src += '&silhouette=' + encodeURIComponent(p.media.effectSilhouette);
     return `<div class="feed-inline-player">
       <iframe class="feed-inline-frame" id="feed-inline-frame-${p.id}" src="${src}" allow="autoplay" loading="lazy"></iframe>
       <div class="feed-inline-bar">
@@ -2211,6 +2247,19 @@
   let schedulePlaying = false;
   let scheduleDragMarker = null;
   let scheduleFiredIdx = -1;
+  // Step 2/3 state — the dance-silhouette recording and the lyrics choice,
+  // both carried on scheduleDraft so submitFeedPost can attach them to the
+  // post's media the same way it already does with switch-point markers.
+  let scheduleStep = 1;
+  let scheduleSilhouetteMedia = null; // uploaded silhouette video, once recorded
+  let scheduleSilhouetteStream = null; // raw webcam MediaStream
+  let scheduleSilhouetteSegmenter = null; // MediaPipe SelfieSegmentation instance
+  let scheduleSilhouetteRAF = null;
+  let scheduleSilhouetteRecorder = null;
+  let scheduleSilhouetteChunks = [];
+  let scheduleSilhouetteRecording = false;
+  let scheduleLyricsEnabled = false;
+  let scheduleLyricsMode = 'local';
   function scheduleFrame(){ return document.getElementById('feed-schedule-frame-sphere'); }
   // Uploads the chosen song once (for preview) and reuses that same upload
   // for the real post if one follows, instead of uploading twice.
@@ -2426,6 +2475,7 @@
         // (loadScheduleFrame) should ever show those.
         src += '&viewer=1';
       }
+      if(effect === 'sphere' && feedPlayerSilhouetteUrl) src += '&silhouette=' + encodeURIComponent(feedPlayerSilhouetteUrl);
       const frame = feedPlayerFrame(effect);
       frame.src = src;
       if(effect === 'sphere' && feedPlayerBlendedSwitchPoints && feedPlayerBlendedSwitchPoints.length){
@@ -7742,6 +7792,7 @@
       // was built against a different file's uploaded URL.
       if(input.id === 'feed-post-song'){
         scheduleDraft = null; scheduleUploadedMedia = null; scheduleUploadedForFile = null;
+        scheduleSilhouetteMedia = null; scheduleLyricsEnabled = false; scheduleLyricsMode = 'local';
         document.getElementById('feed-post-schedule-status').textContent = 'defaults to Sphere';
       }
     },
@@ -7770,6 +7821,8 @@
             const draft = (scheduleDraft && scheduleUploadedForFile === file) ? scheduleDraft : { markers: [] };
             media.effect = 'sphere-blended';
             if(draft.markers.length) media.effectSwitchPoints = draft.markers.map(m => m.t);
+            if(draft.silhouetteUrl) media.effectSilhouette = draft.silhouetteUrl;
+            if(draft.lyrics) media.effectLyrics = draft.lyrics;
           }
           if(media.kind === 'video'){ media.effect = 'cube'; }
         }
@@ -7784,6 +7837,7 @@
         document.getElementById('feed-post-effect-row').hidden = true;
         document.getElementById('feed-post-schedule-status').textContent = '';
         scheduleDraft = null; scheduleUploadedMedia = null; scheduleUploadedForFile = null;
+        scheduleSilhouetteMedia = null; scheduleLyricsEnabled = false; scheduleLyricsMode = 'local';
         hideProgress();
         renderFeed();
         toast('Posted.');
@@ -7808,17 +7862,156 @@
       loadScheduleFrame();
       scheduleFrame().onload = () => scheduleBroadcastSwitchPoints();
       renderScheduleTrack();
+      app.scheduleGoStep(1);
     },
     closeScheduleEditor(){
       document.getElementById('feed-schedule-modal').hidden = true;
       scheduleBroadcast({ type: 'pause' });
       scheduleFrame().src = 'about:blank';
       schedulePlaying = false;
+      app.stopSilhouetteCamera();
+    },
+    scheduleStepNow(){ return scheduleStep; },
+    // Steps: 1 = visuals (existing timeline editor), 2 = dance silhouette,
+    // 3 = lyrics choice. Step 0 from step 1's "Cancel" just closes; step 4
+    // from step 3's "Post" saves everything and closes.
+    scheduleGoStep(n){
+      if(n < 1){ app.closeScheduleEditor(); return; }
+      if(n > 3){ app.saveScheduleEditor(); return; }
+      if(scheduleStep === 2 && n !== 2) app.stopSilhouetteCamera();
+      scheduleStep = n;
+      document.getElementById('feed-schedule-step1').hidden = n !== 1;
+      document.getElementById('feed-schedule-step2').hidden = n !== 2;
+      document.getElementById('feed-schedule-step3').hidden = n !== 3;
+      const labels = ['Design the visuals', 'Dance silhouette', 'Lyrics'];
+      document.getElementById('feed-schedule-head-label').textContent = `Step ${n} of 3 — ${labels[n-1]}`;
+      document.getElementById('feed-schedule-back-btn').textContent = n === 1 ? 'Cancel' : '← Back';
+      document.getElementById('feed-schedule-back-btn').onclick = () => app.scheduleGoStep(n-1);
+      document.getElementById('feed-schedule-next-btn').textContent = n === 3 ? 'Post →' : 'Next →';
+      document.getElementById('feed-schedule-next-btn').onclick = () => app.scheduleGoStep(n+1);
+      if(n === 2 && document.getElementById('feed-silhouette-enable').checked) app.toggleSilhouette(true);
     },
     saveScheduleEditor(){
       const n = scheduleDraft.markers.length;
-      document.getElementById('feed-post-schedule-status').textContent = n > 1 ? (n + ' switch' + (n===2?'':'es') + ' scheduled') : '';
+      const bits = [];
+      if(n > 1) bits.push(n + ' switch' + (n===2?'':'es'));
+      if(scheduleSilhouetteMedia) bits.push('dance silhouette');
+      if(scheduleLyricsEnabled) bits.push('lyrics (' + scheduleLyricsMode + ')');
+      document.getElementById('feed-post-schedule-status').textContent = bits.join(', ');
+      scheduleDraft.silhouetteUrl = scheduleSilhouetteMedia?.url || null;
+      scheduleDraft.lyrics = scheduleLyricsEnabled ? { enabled: true, mode: scheduleLyricsMode } : null;
       app.closeScheduleEditor();
+    },
+    // ---- Step 2: dance silhouette ----
+    // Loaded lazily (only once the user actually opens this step) so every
+    // page load doesn't pay for a segmentation model nobody may ever use.
+    async ensureSilhouetteLib(){
+      if(window.SelfieSegmentation) return;
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js';
+        s.onload = resolve; s.onerror = () => reject(new Error('could not load the silhouette model'));
+        document.head.appendChild(s);
+      });
+    },
+    async toggleSilhouette(enabled){
+      document.getElementById('feed-silhouette-body').hidden = !enabled;
+      if(!enabled){ app.stopSilhouetteCamera(); return; }
+      const statusEl = document.getElementById('feed-silhouette-status');
+      try {
+        statusEl.textContent = 'Loading…';
+        await app.ensureSilhouetteLib();
+        scheduleSilhouetteStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        const video = document.getElementById('feed-silhouette-cam');
+        video.srcObject = scheduleSilhouetteStream;
+        await video.play();
+        const canvas = document.getElementById('feed-silhouette-canvas');
+        canvas.width = video.videoWidth || 640; canvas.height = video.videoHeight || 360;
+        const ctx = canvas.getContext('2d');
+        const seg = new window.SelfieSegmentation({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${f}` });
+        seg.setOptions({ modelSelection: 1 });
+        seg.onResults((res) => {
+          // Draws the mask as a bright cyan silhouette on solid black — this
+          // is what sphere.html composites in with 'screen' blend mode, same
+          // trick as every other layer there, so the black just vanishes and
+          // only the bright silhouette shows through.
+          ctx.save();
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.drawImage(res.segmentationMask, 0, 0, canvas.width, canvas.height);
+          ctx.globalCompositeOperation = 'source-in';
+          ctx.fillStyle = '#7ff2ff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.restore();
+        });
+        scheduleSilhouetteSegmenter = seg;
+        const loop = async () => {
+          if(!scheduleSilhouetteSegmenter) return;
+          await seg.send({ image: video });
+          scheduleSilhouetteRAF = requestAnimationFrame(loop);
+        };
+        loop();
+        statusEl.textContent = 'Stand in frame, then press record and dance — recording runs alongside the song.';
+      } catch(e){
+        console.error('toggleSilhouette failed:', e);
+        statusEl.textContent = 'Could not start the camera: ' + (e?.message || 'unknown error');
+        document.getElementById('feed-silhouette-enable').checked = false;
+        document.getElementById('feed-silhouette-body').hidden = true;
+      }
+    },
+    stopSilhouetteCamera(){
+      if(scheduleSilhouetteRecording) app.toggleSilhouetteRecording();
+      if(scheduleSilhouetteRAF) cancelAnimationFrame(scheduleSilhouetteRAF);
+      scheduleSilhouetteRAF = null;
+      scheduleSilhouetteSegmenter = null;
+      scheduleSilhouetteStream?.getTracks().forEach(t => t.stop());
+      scheduleSilhouetteStream = null;
+    },
+    async toggleSilhouetteRecording(){
+      const btn = document.getElementById('feed-silhouette-record-btn');
+      const statusEl = document.getElementById('feed-silhouette-status');
+      if(!scheduleSilhouetteRecording){
+        const canvas = document.getElementById('feed-silhouette-canvas');
+        const stream = canvas.captureStream(30);
+        scheduleSilhouetteChunks = [];
+        scheduleSilhouetteRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+        scheduleSilhouetteRecorder.ondataavailable = (e) => { if(e.data.size) scheduleSilhouetteChunks.push(e.data); };
+        scheduleSilhouetteRecorder.onstop = async () => {
+          statusEl.textContent = 'Uploading your recording…';
+          try {
+            const blob = new Blob(scheduleSilhouetteChunks, { type: 'video/webm' });
+            const file = new File([blob], 'silhouette-' + Date.now() + '.webm', { type: 'video/webm' });
+            scheduleSilhouetteMedia = await SB.uploadMedia(file);
+            statusEl.textContent = 'Saved — this silhouette will play with the visuals.';
+          } catch(e){
+            console.error('silhouette upload failed:', e);
+            statusEl.textContent = 'Could not save the recording: ' + (e?.message || 'unknown error');
+          }
+        };
+        scheduleSilhouetteRecorder.start();
+        scheduleSilhouetteRecording = true;
+        btn.textContent = '■ Stop recording';
+        statusEl.textContent = 'Recording — dance!';
+        // Plays the actual song alongside the recording so the dancing lines
+        // up with it — same transport the visuals step already has.
+        scheduleBroadcast({ type: 'seek', time: 0 });
+        if(!schedulePlaying) app.toggleSchedulePreview();
+      } else {
+        scheduleSilhouetteRecorder?.stop();
+        scheduleSilhouetteRecording = false;
+        btn.textContent = '● Record while the song plays';
+        if(schedulePlaying) app.toggleSchedulePreview();
+      }
+    },
+    // ---- Step 3: lyrics choice ----
+    toggleLyricsChoice(enabled){
+      scheduleLyricsEnabled = enabled;
+      document.getElementById('feed-lyrics-body').hidden = !enabled;
+    },
+    setLyricsMode(mode){
+      scheduleLyricsMode = mode;
+      document.getElementById('feed-lyrics-cloud-key').hidden = mode !== 'cloud';
     },
     scheduleTrackClick(ev){
       // Tapping the timeline moves the playhead (and plays there so you can
@@ -8042,6 +8235,7 @@
         if(playBtn){ playBtn.innerHTML = ICON_PLAY; playBtn.title = 'Play'; }
       }
       feedPlayerSongUrl = p.media.url;
+      feedPlayerSilhouetteUrl = p.media.effectSilhouette || null;
       const isBlended = p.media.effect === 'sphere-blended';
       const sched = !isBlended && Array.isArray(p.media.effectSchedule) && p.media.effectSchedule.length ? p.media.effectSchedule.slice().sort((a,b)=>a.t-b.t) : null;
       feedPlayerActiveSchedule = sched;
