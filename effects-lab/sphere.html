@@ -922,7 +922,7 @@ function createBackgroundLayer({ canvas }){
     uGlitchType: { value: 0 },
     uHarmony: { value: 0 },
   });
-  const BG_STYLE_NAMES = ['Plasma drift', 'Flowing waves', 'Pulse rings', 'Starfield', 'Mirror tunnel'];
+  const BG_STYLE_NAMES = ['Plasma drift', 'Flowing waves', 'Pulse rings', 'Starfield', 'Mirror tunnel', 'Tie dye'];
   const mat = new THREE.ShaderMaterial({
     glslVersion: THREE.GLSL3,
     uniforms,
@@ -979,7 +979,7 @@ function createBackgroundLayer({ canvas }){
           float hue = fract(uTime*0.02 + uHigh*0.2);
           vec3 base = vec3(0.02, 0.025, 0.05) * (0.6 + 0.4*sin(uTime*0.1));
           return base + spectral(hue) * star * (0.7 + uHigh*0.6 + uBeat*0.3);
-        } else {
+        } else if (style == 4) {
           // Mirror tunnel — the "VJ mirror" effect: the screen folded into
           // mirrored wedges (same angular-fold trick as the arrangement
           // system's kaleidoscope shape mode, applied here to the whole
@@ -995,6 +995,26 @@ function createBackgroundLayer({ canvas }){
           float hue = fract(fa*1.3 + uTime*0.05 + uMid*0.2);
           vec3 base = vec3(0.015, 0.02, 0.04);
           return base + spectral(hue) * (rings*0.55 + spoke*0.1) * (0.6 + uHigh*0.7 + uBeat*0.4);
+        } else {
+          // Tie dye — a spiral domain twist (radius-dependent rotation, so
+          // straight noise blobs come out swirled) feeding blobby noise,
+          // banded into a handful of saturated color patches with soft,
+          // organic edges instead of a smooth continuous gradient — reads as
+          // a classic tie-dye print, slowly rotating and pulsing on the beat.
+          float r = length(q);
+          float swirlAng = atan(q.y, q.x) + r*2.4 + uTime*0.12;
+          vec2 sq = vec2(cos(swirlAng), sin(swirlAng)) * r;
+          float n1 = snoise(vec3(sq*1.2, uTime*0.04));
+          float n2 = snoise(vec3(sq*2.5+9.0, uTime*0.07+4.0));
+          float blob = n1*0.7 + n2*0.3;
+          // Quantize into bands so color regions read as distinct patches
+          // (the actual "dye" look) rather than a smooth blend.
+          float bands = 5.0;
+          float banded = floor(blob*bands) / bands;
+          float edgeSoft = smoothstep(0.0, 0.05, abs(fract(blob*bands)-0.5)-0.02);
+          float hue = fract(banded*0.85 + uTime*0.015 + uMid*0.12);
+          vec3 col = spectral(hue) * (0.32 + 0.22*(0.5+0.5*blob) + uBeat*0.22 + uBass*0.13);
+          return col * mix(0.82, 1.0, edgeSoft);
         }
       }
       void main(){
@@ -1082,9 +1102,9 @@ function createBackgroundLayer({ canvas }){
   let styleTimer = 8 + Math.random() * 6;
   let glitchAmt = 0, glitchDecay = 0.12;
   // Starfield (idx 3) reads as the "dark, interesting" one — weighted heavily
-  // in its favor, with the 3 colorful styles as brief accents rather than
+  // in its favor, with the other 5 styles as brief accents rather than
   // equal-share rotation, and it sticks around longer once picked.
-  const STYLE_WEIGHTS = [0.16, 0.16, 0.16, 0.52];
+  const STYLE_WEIGHTS = [0.12, 0.12, 0.12, 0.42, 0.11, 0.11];
   function pickNextStyle(){
     let idx;
     do {
