@@ -96,6 +96,22 @@
     },
     listActivityOptOuts: () => rest('shapeless_profiles?hide_activity_from_feed=eq.true&select=id'),
 
+    // ---- private per-account settings (RLS: only the owner can read/write
+    // their own row — unlike shapeless_profiles, nothing here is public) ----
+    getLyricsCloudKey: async () => {
+      if (!currentUser) return '';
+      const rows = await rest(`shapeless_private_settings?id=eq.${currentUser.id}&select=lyrics_cloud_key`);
+      return (rows && rows[0] && rows[0].lyrics_cloud_key) || '';
+    },
+    saveLyricsCloudKey: (key) => {
+      if (!currentUser) return Promise.reject(new Error('not signed in'));
+      return rest('shapeless_private_settings?on_conflict=id', {
+        method: 'POST',
+        body: JSON.stringify([{ id: currentUser.id, lyrics_cloud_key: key, updated_at: new Date().toISOString() }]),
+        prefer: 'resolution=merge-duplicates,return=minimal',
+      });
+    },
+
     // ---- media uploads (comments: photos, audio) ----
     uploadMedia: async (file, onProgress) => {
       const { data: { session } } = await client.auth.getSession();

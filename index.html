@@ -1261,7 +1261,7 @@
           <div id="feed-lyrics-body" hidden style="display:flex;flex-direction:column;gap:8px;">
             <label style="display:flex;align-items:center;gap:8px;"><input type="radio" name="feed-lyrics-mode" value="local" checked onchange="app.setLyricsMode('local')"> Run locally (via Ghost) — free, needs Ghost running</label>
             <label style="display:flex;align-items:center;gap:8px;"><input type="radio" name="feed-lyrics-mode" value="cloud" onchange="app.setLyricsMode('cloud')"> Use my own cloud key</label>
-            <input type="password" id="feed-lyrics-cloud-key" placeholder="Your transcription API key (Groq)" hidden style="padding:8px;border-radius:8px;" oninput="app.setLyricsCloudKey(this.value)">
+            <input type="password" id="feed-lyrics-cloud-key" placeholder="Your transcription API key (Groq)" hidden style="padding:8px;border-radius:8px;" oninput="app.setLyricsCloudKey(this.value)" onblur="app.saveLyricsCloudKeyIfChanged()">
             <div style="display:flex;gap:8px;align-items:center;">
               <button class="btn btn-sm" id="feed-lyrics-transcribe-btn" onclick="app.runLyricsTranscription()">Transcribe now</button>
               <span class="pad-hint" id="feed-lyrics-transcribe-status"></span>
@@ -8674,11 +8674,29 @@
       scheduleLyricsEnabled = enabled;
       document.getElementById('feed-lyrics-body').hidden = !enabled;
     },
-    setLyricsMode(mode){
+    async setLyricsMode(mode){
       scheduleLyricsMode = mode;
-      document.getElementById('feed-lyrics-cloud-key').hidden = mode !== 'cloud';
+      const input = document.getElementById('feed-lyrics-cloud-key');
+      input.hidden = mode !== 'cloud';
+      // Pull the key from THIS account (private row, only you can read it —
+      // see shapeless_private_settings) instead of asking for it again —
+      // works the same whether you're on your phone or your PC, since it's
+      // tied to your login, not the browser.
+      if(mode === 'cloud' && !scheduleLyricsCloudKey){
+        try {
+          const saved = await SB.getLyricsCloudKey();
+          if(saved){ scheduleLyricsCloudKey = saved; input.value = saved; }
+        } catch(e){ console.warn('[lyrics] could not load saved key:', e?.message || e); }
+      }
     },
     setLyricsCloudKey(v){ scheduleLyricsCloudKey = v; },
+    // Saved on blur (not every keystroke) — once, to your own account only.
+    async saveLyricsCloudKeyIfChanged(){
+      const v = scheduleLyricsCloudKey.trim();
+      if(!v) return;
+      try { await SB.saveLyricsCloudKey(v); }
+      catch(e){ console.warn('[lyrics] could not save key:', e?.message || e); }
+    },
     // Transcribes the already-uploaded song into timed line segments. Local
     // mode goes through Ghost's own whisper relay (free, needs Ghost/hermes
     // reachable); cloud mode calls Groq's hosted Whisper directly from the
@@ -8692,6 +8710,7 @@
         statusEl.textContent = 'Paste your API key above first.';
         return;
       }
+      if(scheduleLyricsMode === 'cloud') app.saveLyricsCloudKeyIfChanged();
       scheduleLyricsTranscribing = true;
       statusEl.textContent = 'Transcribing… this can take a minute.';
       document.getElementById('feed-lyrics-transcribe-btn').disabled = true;
