@@ -1378,7 +1378,84 @@ if (driven) {
   }
   const silhouetteUrl = urlParams.get('silhouette');
   const silhouetteLayer = silhouetteUrl ? createSilhouetteLayer(decodeURIComponent(silhouetteUrl)) : null;
-  layers = silhouetteLayer ? [bgLayer, ...shapeLayers, silhouetteLayer] : [bgLayer, ...shapeLayers];
+
+  // Optional 5th visible layer: synced lyric captions, one line at a time,
+  // timed off Whisper's own start/end seconds for that line (see index.html's
+  // "Design the visuals" step 3 -> app.runLyricsTranscription). Drawn to a
+  // plain 2D canvas like the silhouette layer, with a stacked-shadow trick to
+  // fake depth ("3D-ish") since this pipeline is raymarched GLSL, not a mesh
+  // scene that could hold real 3D text geometry.
+  function createLyricsLayer(segments){
+    const canvas = document.createElement('canvas');
+    canvas.className = 'layerCanvas';
+    canvas.style.zIndex = '5';
+    canvas.style.mixBlendMode = 'screen';
+    layersEl.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    let enabled = true, scale = 1, offsetX = 0, offsetY = 32, curIdx = -1, popT = 0;
+    function resize(){ canvas.width = innerWidth; canvas.height = innerHeight; }
+    addEventListener('resize', resize); resize();
+    function findActive(t){
+      // Segments are sorted by start (Whisper already emits them in order);
+      // a small binary-ish linear scan is plenty for a song-length list.
+      for (let i = segments.length - 1; i >= 0; i--) {
+        if (t >= segments[i].start && t <= segments[i].end + 0.15) return i;
+      }
+      return -1;
+    }
+    function step(){
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!enabled || !audioEl) return;
+      const t = audioEl.currentTime;
+      const idx = findActive(t);
+      if (idx !== curIdx) { curIdx = idx; popT = 0; }
+      if (curIdx < 0) return;
+      const seg = segments[curIdx];
+      popT = Math.min(1, popT + 0.06);
+      // ease-out pop, plus a tiny beat-reactive breathe so it doesn't sit dead still
+      const pop = 1 - Math.pow(1 - popT, 3);
+      const breathe = 1 + (audio.hit ? 0.03 : 0);
+      const baseSize = Math.min(canvas.width, canvas.height) * 0.07 * scale;
+      const size = baseSize * (0.7 + pop * 0.3) * breathe;
+      const cx = canvas.width / 2 + (offsetX / 100) * canvas.width;
+      const cy = canvas.height / 2 + (offsetY / 100) * canvas.height;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.font = `700 ${size}px "Arial Black", Arial, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      // Stacked, offset, dimming shadow copies read as depth/extrusion —
+      // the "3D lyrics" look without any actual 3D text geometry.
+      const depth = 10;
+      for (let i = depth; i >= 1; i--) {
+        ctx.globalAlpha = 0.85 * pop * (1 - i / (depth + 3));
+        ctx.fillStyle = '#0a2a33';
+        ctx.fillText(seg.text, i * 0.55, i * 0.55);
+      }
+      ctx.globalAlpha = pop;
+      ctx.fillStyle = '#eafeff';
+      ctx.shadowColor = '#7ff2ff'; ctx.shadowBlur = size * 0.25;
+      ctx.fillText(seg.text, 0, 0);
+      ctx.restore();
+    }
+    return {
+      canvas, isLyrics: true, label: 'Lyrics', blend: 'screen',
+      get scale(){ return scale; }, set scale(v){ scale = v; },
+      get offsetX(){ return offsetX; }, set offsetX(v){ offsetX = v; },
+      get offsetY(){ return offsetY; }, set offsetY(v){ offsetY = v; },
+      setEnabled(v){ enabled = v; canvas.style.display = v ? 'block' : 'none'; },
+      setAutoBeat(){}, setInterval(){},
+      step, precompile(){ return Promise.resolve(); },
+    };
+  }
+  const lyricsParam = urlParams.get('lyrics');
+  let lyricsSegments = null;
+  if (lyricsParam) {
+    try { lyricsSegments = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(lyricsParam))))); }
+    catch (e) { console.warn('lyrics param parse failed', e); }
+  }
+  const lyricsLayer = (lyricsSegments && lyricsSegments.length) ? createLyricsLayer(lyricsSegments) : null;
+
+  layers = [bgLayer, ...shapeLayers, silhouetteLayer, lyricsLayer].filter(Boolean);
 
   // ---- VISUAL DNA: pick each shape layer's arrangement (see deArranged in
   // buildMorphFrag — same 8 shape SDFs, 8 different ways to place them in
@@ -1531,6 +1608,25 @@ if (driven) {
             <span>${layer.label}</span>
           </div>
           <div class="lr-size"><span>size</span><input class="lr-scale" type="range" min="0.3" max="1.8" step="0.05" value="${layer.scale}"></div>
+          <div class="lr-size"><span>x</span><input class="lr-offx" type="range" min="-50" max="50" step="1" value="${layer.offsetX}"></div>
+          <div class="lr-size"><span>y</span><input class="lr-offy" type="range" min="-50" max="50" step="1" value="${layer.offsetY}"></div>
+        `;
+        row.querySelector('input[type=checkbox]').addEventListener('change', e=>{ layer.setEnabled(e.target.checked); });
+        row.querySelector('.lr-scale').addEventListener('input', e=>{ layer.scale = +e.target.value; });
+        row.querySelector('.lr-offx').addEventListener('input', e=>{ layer.offsetX = +e.target.value; });
+        row.querySelector('.lr-offy').addEventListener('input', e=>{ layer.offsetY = +e.target.value; });
+        body.appendChild(row);
+        return;
+      }
+      if (layer.isLyrics) {
+        // Same as the silhouette row — no blend/arrangement pick, just
+        // enable + size/X/Y, since it's a plain 2D text overlay too.
+        row.innerHTML = `
+          <div class="lr-head">
+            <input type="checkbox" checked>
+            <span>${layer.label}</span>
+          </div>
+          <div class="lr-size"><span>size</span><input class="lr-scale" type="range" min="0.4" max="2" step="0.05" value="${layer.scale}"></div>
           <div class="lr-size"><span>x</span><input class="lr-offx" type="range" min="-50" max="50" step="1" value="${layer.offsetX}"></div>
           <div class="lr-size"><span>y</span><input class="lr-offy" type="range" min="-50" max="50" step="1" value="${layer.offsetY}"></div>
         `;

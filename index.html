@@ -627,6 +627,9 @@
      a phone's native text-selection ("Copy / Select all / Web search / Share") wins
      the gesture race and steals it before any pointerdown handler ever sees it. */
   .studio-timeline{ border:1px solid var(--line); border-radius:12px; background:var(--surface); overflow:hidden; margin-bottom:10px; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+  .studio3d-stage{ position:relative; border:1px solid var(--line); border-radius:12px; background:#000; overflow:hidden; margin-bottom:10px; height:min(60vh, 480px); touch-action:none; }
+  .studio3d-stage canvas{ width:100%; height:100%; display:block; }
+  .studio3d-hint{ position:absolute; left:10px; bottom:8px; font-size:11px; color:var(--muted); pointer-events:none; background:color-mix(in srgb, #000 55%, transparent); padding:3px 8px; border-radius:999px; }
   .timeline-scroll{ position:relative; overflow-x:auto; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; overscroll-behavior-x:contain; touch-action:pan-x; }
   .timeline-content{ position:relative; transform-origin:0 0; }
   .track-lane-row{ display:flex; border-bottom:1px solid var(--line-soft); }
@@ -1245,8 +1248,13 @@
           <div id="feed-lyrics-body" hidden style="display:flex;flex-direction:column;gap:8px;">
             <label style="display:flex;align-items:center;gap:8px;"><input type="radio" name="feed-lyrics-mode" value="local" checked onchange="app.setLyricsMode('local')"> Run locally (via Ghost) — free, needs Ghost running</label>
             <label style="display:flex;align-items:center;gap:8px;"><input type="radio" name="feed-lyrics-mode" value="cloud" onchange="app.setLyricsMode('cloud')"> Use my own cloud key</label>
-            <input type="password" id="feed-lyrics-cloud-key" placeholder="Your transcription API key" hidden style="padding:8px;border-radius:8px;">
-            <div class="pad-hint">This decides HOW the words get timed to your voice — the actual captions get generated after you post.</div>
+            <input type="password" id="feed-lyrics-cloud-key" placeholder="Your transcription API key (Groq)" hidden style="padding:8px;border-radius:8px;" oninput="app.setLyricsCloudKey(this.value)">
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="btn btn-sm" id="feed-lyrics-transcribe-btn" onclick="app.runLyricsTranscription()">Transcribe now</button>
+              <span class="pad-hint" id="feed-lyrics-transcribe-status"></span>
+            </div>
+            <div id="feed-lyrics-segments" style="display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;"></div>
+            <div class="pad-hint">Got a word or line's timing wrong? Nudge its start/end seconds below — it's saved with the post.</div>
           </div>
         </div>
 
@@ -1991,6 +1999,7 @@
   }
   let feedPlayerSongUrl = null;
   let feedPlayerSilhouetteUrl = null;
+  let feedPlayerLyricsSegments = null;
   // Modern black/white stroke icons, matching the rest of the site's icon style — no emoji.
   const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
   const ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
@@ -2015,6 +2024,7 @@
     // — the full scheduled switching plays out once the viewer goes fullscreen.
     if(sched) src += '&driven=1&shape=' + sched[0].shape;
     if(isBlended && p.media.effectSilhouette) src += '&silhouette=' + encodeURIComponent(p.media.effectSilhouette);
+    if(isBlended && p.media.effectLyrics?.segments?.length) src += '&lyrics=' + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(p.media.effectLyrics.segments)))));
     return `<div class="feed-inline-player">
       <iframe class="feed-inline-frame" id="feed-inline-frame-${p.id}" src="${src}" allow="autoplay" loading="lazy"></iframe>
       <div class="feed-inline-bar">
@@ -2260,6 +2270,9 @@
   let scheduleSilhouetteRecording = false;
   let scheduleLyricsEnabled = false;
   let scheduleLyricsMode = 'local';
+  let scheduleLyricsCloudKey = '';
+  let scheduleLyricsSegments = null; // [{start,end,text}] once transcribed, editable before posting
+  let scheduleLyricsTranscribing = false;
   function scheduleFrame(){ return document.getElementById('feed-schedule-frame-sphere'); }
   // Uploads the chosen song once (for preview) and reuses that same upload
   // for the real post if one follows, instead of uploading twice.
@@ -2476,6 +2489,7 @@
         src += '&viewer=1';
       }
       if(effect === 'sphere' && feedPlayerSilhouetteUrl) src += '&silhouette=' + encodeURIComponent(feedPlayerSilhouetteUrl);
+      if(effect === 'sphere' && feedPlayerLyricsSegments && feedPlayerLyricsSegments.length) src += '&lyrics=' + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(feedPlayerLyricsSegments)))));
       const frame = feedPlayerFrame(effect);
       frame.src = src;
       if(effect === 'sphere' && feedPlayerBlendedSwitchPoints && feedPlayerBlendedSwitchPoints.length){
@@ -3397,6 +3411,7 @@
     s.lanes.forEach(l=>{ if(!l.fx) l.fx = []; if(!l.assignedTo) l.assignedTo = []; if(l.locked==null) l.locked = false; });
   }
   let studioActiveLane = {}; // vid -> primary lane id (upload/MIDI/QWERTY target)
+  let studio3D = {}; // vid -> bool, 2D arrangement vs 3D galaxy session view
   let studioArmedLanes = {}; // vid -> Set of armed lane ids (multi-track record)
   let laneInputDevice = {}; // `${vid}::${laneId}` -> deviceId, per-armed-track input
   function isLaneArmed(vid, laneId){ return !!(studioArmedLanes[vid] && studioArmedLanes[vid].has(laneId)); }
@@ -4730,6 +4745,212 @@
         </div>
       </div>`;
   }
+  // ---- 3D session view: same lanes/clips/loops/sequencer as the 2D studio, just a
+  // different way to look at them — every track renders as a liquid blob in a galaxy
+  // scene instead of a row. Click a blob to arm it (same app.toggleArmLane the 2D
+  // track dot uses), then Rec/pads/MIDI/QWERTY all work exactly as they already do.
+  function studio3DStageHtml(v){
+    const s = v.studio;
+    const tab = studioTab[v.id];
+    return `
+      <div class="studio3d-stage" id="studio3d-${v.id}">
+        <canvas id="studio3d-canvas-${v.id}"></canvas>
+        <div class="studio3d-hint">Tap a blob to arm it for recording — drag to look around</div>
+      </div>
+      ${!tab ? `<div class="btn-row" style="margin-top:6px;"><button class="btn btn-ghost btn-sm" onclick="app.toggleInstrumentsPanel('${v.id}')">Open pads / step sequencer</button></div>` : ''}
+    `;
+  }
+
+  const STUDIO3D = {}; // vid -> { renderer, scene, camera, canvas, blobs:Map(laneId->{mesh,glow,geo,base,pulse}), raf, resizeObs }
+  function studio3DLaneColor(v, laneId, i){
+    const lane = (v.studio.lanes||[]).find(l=>l.id===laneId);
+    return (lane && lane.color) || TRACK_COLORS[i%TRACK_COLORS.length];
+  }
+  function studio3DGlowTex(){
+    const size = 128;
+    const c = document.createElement('canvas'); c.width = c.height = size;
+    const g = c.getContext('2d');
+    const rg = g.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
+    rg.addColorStop(0,'rgba(255,255,255,1)'); rg.addColorStop(0.4,'rgba(255,255,255,0.5)'); rg.addColorStop(1,'rgba(255,255,255,0)');
+    g.fillStyle = rg; g.fillRect(0,0,size,size);
+    return new THREE.CanvasTexture(c);
+  }
+  function studio3DNebulaSprite(color, glow){
+    const mat = new THREE.SpriteMaterial({ map:glow, color, transparent:true, opacity:0.22, blending:THREE.AdditiveBlending, depthWrite:false });
+    const sp = new THREE.Sprite(mat);
+    sp.scale.set(900, 900, 1);
+    return sp;
+  }
+  function mountStudio3D(vid){
+    const v = VOYAGES.find(x=>x.id===vid);
+    if(!v || !v.studio || typeof THREE==='undefined') return;
+    const canvas = document.getElementById('studio3d-canvas-'+vid);
+    if(!canvas) return;
+    unmountStudio3D(vid);
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 4000);
+    camera.position.set(0, 40, 260);
+    camera.lookAt(0,0,0);
+    const glow = studio3DGlowTex();
+
+    // galaxy backdrop — starfield + a couple of drifting nebula-colored sprites, no black-hole
+    // geometry needed, the additive-blended glow sprites read as a nebula on their own.
+    const starCount = 700;
+    const starPos = new Float32Array(starCount*3);
+    for(let i=0;i<starCount;i++){
+      const rad = 300 + Math.random()*1400;
+      const th = Math.random()*Math.PI*2, ph = Math.acos(2*Math.random()-1);
+      starPos[i*3] = rad*Math.sin(ph)*Math.cos(th);
+      starPos[i*3+1] = rad*Math.sin(ph)*Math.sin(th);
+      starPos[i*3+2] = rad*Math.cos(ph);
+    }
+    const starGeo = new THREE.BufferGeometry();
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
+    const starMat = new THREE.PointsMaterial({ map:glow, size:3, color:0xffffff, transparent:true, opacity:0.5, depthWrite:false, blending:THREE.AdditiveBlending });
+    scene.add(new THREE.Points(starGeo, starMat));
+    const nebulaColors = [0x7CFFB2, 0x5AA6FF, 0xE8D27C];
+    const nebulae = nebulaColors.map((c,i)=>{
+      const sp = studio3DNebulaSprite(c, glow);
+      sp.position.set(Math.cos(i*2.4)*600, Math.sin(i*1.7)*200, -900 - i*200);
+      scene.add(sp);
+      return sp;
+    });
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const key = new THREE.PointLight(0xffffff, 1.2, 2000);
+    key.position.set(100, 200, 200);
+    scene.add(key);
+
+    const lanes = v.studio.lanes||[];
+    const n = Math.max(1, lanes.length);
+    const blobs = new Map();
+    lanes.forEach((lane,i)=>{
+      const angle = (i/n) * Math.PI*2;
+      const radius = 90 + (n>6 ? (i%2)*30 : 0);
+      const pos = new THREE.Vector3(Math.cos(angle)*radius, Math.sin(i*1.3)*18, Math.sin(angle)*radius);
+      const color = studio3DLaneColor(v, lane.id, i);
+      const geo = new THREE.IcosahedronGeometry(20, 5);
+      const base = new Float32Array(geo.attributes.position.array); // undisturbed sphere, used every frame as the noise baseline
+      const mat = new THREE.MeshStandardMaterial({ color, roughness:0.25, metalness:0.15, emissive:color, emissiveIntensity:0.35, transparent:true, opacity:0.92 });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.copy(pos);
+      mesh.userData = { laneId:lane.id };
+      scene.add(mesh);
+      const glowMat = new THREE.SpriteMaterial({ map:glow, color, transparent:true, opacity:0.4, blending:THREE.AdditiveBlending, depthWrite:false });
+      const glowSprite = new THREE.Sprite(glowMat);
+      glowSprite.position.copy(pos);
+      glowSprite.scale.set(70,70,1);
+      scene.add(glowSprite);
+      blobs.set(lane.id, { mesh, glowSprite, geo, base, pulse:0 });
+    });
+
+    const raycaster = new THREE.Raycaster();
+    const pointerNdc = new THREE.Vector2();
+    let dragYaw = 0, dragPitch = 0, dragging = false, lastX=0, lastY=0, moved=false;
+    const onDown = (e)=>{ dragging=true; moved=false; lastX=e.clientX; lastY=e.clientY; };
+    const onMove = (e)=>{
+      if(!dragging) return;
+      const dx = e.clientX-lastX, dy = e.clientY-lastY;
+      if(Math.abs(dx)+Math.abs(dy) > 3) moved = true;
+      dragYaw -= dx*0.005; dragPitch = Math.max(-0.6, Math.min(0.6, dragPitch - dy*0.005));
+      lastX=e.clientX; lastY=e.clientY;
+    };
+    const onUp = (e)=>{
+      dragging = false;
+      if(moved) return;
+      const rect = canvas.getBoundingClientRect();
+      pointerNdc.x = ((e.clientX-rect.left)/rect.width)*2-1;
+      pointerNdc.y = -((e.clientY-rect.top)/rect.height)*2+1;
+      raycaster.setFromCamera(pointerNdc, camera);
+      const hit = raycaster.intersectObjects(Array.from(blobs.values()).map(b=>b.mesh))[0];
+      if(hit) app.arm3DLane(vid, hit.object.userData.laneId);
+    };
+    canvas.addEventListener('pointerdown', onDown);
+    canvas.addEventListener('pointermove', onMove);
+    canvas.addEventListener('pointerup', onUp);
+    canvas.addEventListener('pointerleave', ()=>{ dragging=false; });
+
+    const resize = ()=>{
+      const w = canvas.clientWidth||1, h = canvas.clientHeight||1;
+      renderer.setSize(w, h, false);
+      camera.aspect = w/h; camera.updateProjectionMatrix();
+    };
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    resize();
+
+    const state = { renderer, scene, camera, canvas, blobs, ro, onDown, onMove, onUp, t0:performance.now() };
+    STUDIO3D[vid] = state;
+
+    const armed = ()=> studioArmedLanes[vid] || new Set();
+    const animate = ()=>{
+      if(!STUDIO3D[vid] || STUDIO3D[vid]!==state) return;
+      const t = (performance.now()-state.t0)/1000;
+      const armedSet = armed();
+      blobs.forEach((b, laneId)=>{
+        const isArmed = armedSet.has(laneId);
+        b.pulse *= 0.9; // ripple decay from pad hits / clip starts
+        const target = isArmed ? 1.15 : 1;
+        const pos = b.geo.attributes.position;
+        for(let i=0;i<pos.count;i++){
+          const ix = i*3;
+          const bx=b.base[ix], by=b.base[ix+1], bz=b.base[ix+2];
+          const len = Math.sqrt(bx*bx+by*by+bz*bz) || 1;
+          const nx=bx/len, ny=by/len, nz=bz/len;
+          const noise = Math.sin(nx*3 + t*1.4) * Math.cos(ny*3 + t*1.1) * Math.sin(nz*3 + t*0.9);
+          const disp = 1 + noise*0.12 + b.pulse*0.35;
+          pos.setXYZ(i, nx*len*disp, ny*len*disp, nz*len*disp);
+        }
+        pos.needsUpdate = true;
+        b.geo.computeVertexNormals();
+        b.mesh.scale.setScalar(target);
+        b.glowSprite.scale.setScalar(70 * (target*0.9 + b.pulse*0.5));
+        b.mesh.material.emissiveIntensity = 0.35 + b.pulse*0.6 + (isArmed?0.25:0);
+      });
+      nebulae.forEach((sp,i)=>{ sp.rotation.z = t*0.02*(i+1); });
+      camera.position.x = Math.sin(dragYaw)*260*Math.cos(dragPitch);
+      camera.position.z = Math.cos(dragYaw)*260*Math.cos(dragPitch);
+      camera.position.y = 40 + Math.sin(dragPitch)*260;
+      camera.lookAt(0,0,0);
+      renderer.render(scene, camera);
+      state.raf = requestAnimationFrame(animate);
+    };
+    animate();
+  }
+  function pulseStudio3DLane(vid, laneId){
+    const st = STUDIO3D[vid];
+    if(!st || !laneId) return;
+    const b = st.blobs.get(laneId);
+    if(b) b.pulse = 1;
+  }
+  function unmountStudio3D(vid){
+    const st = STUDIO3D[vid];
+    if(!st) return;
+    delete STUDIO3D[vid];
+    if(st.raf) cancelAnimationFrame(st.raf);
+    try{ st.ro.disconnect(); }catch(e){}
+    try{
+      st.canvas.removeEventListener('pointerdown', st.onDown);
+      st.canvas.removeEventListener('pointermove', st.onMove);
+      st.canvas.removeEventListener('pointerup', st.onUp);
+    }catch(e){}
+    st.blobs.forEach(b=>{ b.geo.dispose(); b.mesh.material.dispose(); b.glowSprite.material.dispose(); });
+    try{ st.renderer.dispose(); }catch(e){}
+  }
+  // Called after every renderVoyageDetail() — the DOM (and any 3D canvas in it) gets
+  // fully rebuilt on most state changes, so this re-mounts onto the fresh canvas
+  // whenever one exists and tears the engine down the moment the user leaves 3D mode,
+  // instead of trying to keep a WebGL context alive across an innerHTML replace.
+  function syncStudio3DMount(vid){
+    if(!studio3D[vid]){ unmountStudio3D(vid); return; }
+    const canvas = document.getElementById('studio3d-canvas-'+vid);
+    if(!canvas){ unmountStudio3D(vid); return; }
+    const st = STUDIO3D[vid];
+    if(st && st.canvas === canvas) return;
+    requestAnimationFrame(()=>mountStudio3D(vid));
+  }
   function studioHtml(v){
     migrateStudio(v);
     const s = v.studio;
@@ -4830,6 +5051,7 @@
           </label>
         </div>`;
       })()}
+      ${studio3D[v.id] ? studio3DStageHtml(v) : `
       <div class="studio-timeline">
         <div class="timeline-scroll" id="timeline-scroll-${v.id}">
           <div class="timeline-content" id="timeline-content-${v.id}">
@@ -4856,7 +5078,7 @@
             <div class="studio-playline" id="studio-playline-${v.id}" style="left:${LANE_SIDEBAR_PX}px;"></div>
           </div>
         </div>
-      </div>
+      </div>`}
       <div class="btn-row" style="margin-top:6px;">
         <button class="btn btn-ghost btn-sm" onclick="app.addTrack('${v.id}')">+ Add track</button>
       </div>
@@ -5349,6 +5571,7 @@
       <div class="voyage-title-row">
         <h2>${v.name}${v.fromSeed ? '<span class="from-seed-tag">from Imagine</span>' : ''}</h2>
         <div style="display:flex; gap:6px; flex:none;">
+          ${v.studio ? `<button class="btn ${studio3D[v.id]?'btn-primary':'btn-ghost'} btn-sm" title="${studio3D[v.id] ? 'Back to the flat arrangement view' : 'Jam in the 3D session view — every track is a liquid blob you can arm and record into'}" onclick="app.toggle3DStudio('${v.id}')">${studio3D[v.id] ? '🪐 3D' : '🪐 3D'}</button>` : ''}
           ${v.kind==='music' && isVoyageCaptain(v) ? `<button class="btn btn-ghost btn-sm" title="${v.isPrivate ? 'Private — only people with the link can find or join this jam. Tap to make it public.' : 'Public — listed under Jam › open jams for anyone to find. Tap to make it private.'}" onclick="app.togglePrivate('${v.id}')">${v.isPrivate ? '🔒 Private' : '🌐 Public'}</button>` : ''}
           <button class="btn btn-ghost btn-sm share-voyage-btn" title="Copy a link to invite someone into this ship" onclick="app.shareVoyage('${v.id}')">🔗 Share</button>
         </div>
@@ -5424,6 +5647,7 @@
     `;
     if(v.studio) paintClipWaveforms(v);
     if(v.studio && clipMenuOpen) positionClipMenu();
+    if(v.studio) syncStudio3DMount(v.id);
   }
   function positionClipMenu(){
     const anchor = document.getElementById('clip-'+clipMenuOpen);
@@ -6844,6 +7068,13 @@
       else toast('MIDI input on — play your keyboard/pad controller. It records into whichever track is armed.');
       renderVoyageDetail();
     },
+    toggle3DStudio(vid){
+      studio3D[vid] = !studio3D[vid];
+      renderVoyageDetail();
+    },
+    arm3DLane(vid, laneId){
+      app.toggleArmLane(vid, laneId);
+    },
     toggleArmLane(vid, laneId){
       const v = VOYAGES.find(x=>x.id===vid);
       if(!v || !v.studio) return;
@@ -7032,6 +7263,7 @@
             SEQ_ROWS.forEach(pad=>{ if(seq.drumGrid[pad][stepIdx]) hitDrumSampleUrl(drumSampleUrl(v, pad), seqCtx, dests); });
           }
           updateSeqPlayheadDom(vid, stepIdx);
+          if(STUDIO3D[vid]) pulseStudio3DLane(vid, studioActiveLane[vid]);
         }
         p.seqRaf = requestAnimationFrame(seqTick);
       };
@@ -7049,6 +7281,7 @@
             if(el.dataset.loopId !== loop.id || el.paused){
               el.src = loop.url; el.dataset.loopId = loop.id; el.loop = !!loop.pattern; el.currentTime = 0;
               el.play().catch(err=>console.error('Playback blocked for lane', l.id, err));
+              if(STUDIO3D[vid]) pulseStudio3DLane(vid, l.id);
             }
             if(l.fx && l.fx.some(f=>!f.bypassed)) ensureLaneAudioGraph(vid, l.id, el);
             el.volume = Math.max(0, Math.min(1, (l.volume==null?0.8:l.volume) * vol));
@@ -7793,6 +8026,7 @@
       if(input.id === 'feed-post-song'){
         scheduleDraft = null; scheduleUploadedMedia = null; scheduleUploadedForFile = null;
         scheduleSilhouetteMedia = null; scheduleLyricsEnabled = false; scheduleLyricsMode = 'local';
+        scheduleLyricsSegments = null; scheduleLyricsCloudKey = '';
         document.getElementById('feed-post-schedule-status').textContent = 'defaults to Sphere';
       }
     },
@@ -7838,6 +8072,7 @@
         document.getElementById('feed-post-schedule-status').textContent = '';
         scheduleDraft = null; scheduleUploadedMedia = null; scheduleUploadedForFile = null;
         scheduleSilhouetteMedia = null; scheduleLyricsEnabled = false; scheduleLyricsMode = 'local';
+        scheduleLyricsSegments = null; scheduleLyricsCloudKey = '';
         hideProgress();
         renderFeed();
         toast('Posted.');
@@ -7896,10 +8131,10 @@
       const bits = [];
       if(n > 1) bits.push(n + ' switch' + (n===2?'':'es'));
       if(scheduleSilhouetteMedia) bits.push('dance silhouette');
-      if(scheduleLyricsEnabled) bits.push('lyrics (' + scheduleLyricsMode + ')');
+      if(scheduleLyricsEnabled) bits.push('lyrics (' + scheduleLyricsMode + (scheduleLyricsSegments?.length ? ', ' + scheduleLyricsSegments.length + ' lines' : ', not transcribed yet') + ')');
       document.getElementById('feed-post-schedule-status').textContent = bits.join(', ');
       scheduleDraft.silhouetteUrl = scheduleSilhouetteMedia?.url || null;
-      scheduleDraft.lyrics = scheduleLyricsEnabled ? { enabled: true, mode: scheduleLyricsMode } : null;
+      scheduleDraft.lyrics = scheduleLyricsEnabled ? { enabled: true, mode: scheduleLyricsMode, segments: scheduleLyricsSegments || [] } : null;
       app.closeScheduleEditor();
     },
     // ---- Step 2: dance silhouette ----
@@ -8004,7 +8239,7 @@
         if(schedulePlaying) app.toggleSchedulePreview();
       }
     },
-    // ---- Step 3: lyrics choice ----
+    // ---- Step 3: lyrics choice + transcription ----
     toggleLyricsChoice(enabled){
       scheduleLyricsEnabled = enabled;
       document.getElementById('feed-lyrics-body').hidden = !enabled;
@@ -8012,6 +8247,95 @@
     setLyricsMode(mode){
       scheduleLyricsMode = mode;
       document.getElementById('feed-lyrics-cloud-key').hidden = mode !== 'cloud';
+    },
+    setLyricsCloudKey(v){ scheduleLyricsCloudKey = v; },
+    // Transcribes the already-uploaded song into timed line segments. Local
+    // mode goes through Ghost's own whisper relay (free, needs Ghost/hermes
+    // reachable); cloud mode calls Groq's hosted Whisper directly from the
+    // browser with the poster's own key — never touches Barak's billing.
+    async runLyricsTranscription(){
+      const statusEl = document.getElementById('feed-lyrics-transcribe-status');
+      if(scheduleLyricsTranscribing) return;
+      const songUrl = scheduleUploadedMedia?.url;
+      if(!songUrl){ statusEl.textContent = 'Upload a song first.'; return; }
+      if(scheduleLyricsMode === 'cloud' && !scheduleLyricsCloudKey.trim()){
+        statusEl.textContent = 'Paste your API key above first.';
+        return;
+      }
+      scheduleLyricsTranscribing = true;
+      statusEl.textContent = 'Transcribing… this can take a minute.';
+      document.getElementById('feed-lyrics-transcribe-btn').disabled = true;
+      try {
+        const audioBlob = await fetch(songUrl).then(r => r.blob());
+        let segments;
+        if(scheduleLyricsMode === 'cloud'){
+          const fd = new FormData();
+          fd.append('file', audioBlob, 'song.mp3');
+          fd.append('model', 'whisper-large-v3');
+          fd.append('response_format', 'verbose_json');
+          const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + scheduleLyricsCloudKey.trim() },
+            body: fd,
+          });
+          if(!res.ok) throw new Error('Cloud transcription failed (' + res.status + ') — check your key.');
+          const json = await res.json();
+          segments = (json.segments || []).map(s => ({ start: s.start, end: s.end, text: (s.text||'').trim() }));
+        } else {
+          const reader = new FileReader();
+          const b64 = await new Promise((resolve, reject) => {
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(audioBlob);
+          });
+          const res = await fetch('https://hermes.shapeless.love/ghost/whisper/transcribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ audio_b64: b64, ext: 'mp3' }),
+          });
+          const json = await res.json().catch(() => null);
+          if(!json || !json.ok) throw new Error('Ghost is not reachable right now — start Ghost locally, or switch to your own cloud key above.');
+          segments = (json.segments || []).map(s => ({ start: s.start, end: s.end, text: (s.text||'').trim() }));
+        }
+        segments = segments.filter(s => s.text);
+        if(!segments.length) throw new Error('No words detected — is this an instrumental?');
+        scheduleLyricsSegments = segments;
+        statusEl.textContent = segments.length + ' lines found. Fix any timing below, then Post.';
+        app.renderLyricsSegments();
+      } catch(e){
+        console.error('runLyricsTranscription failed:', e);
+        statusEl.textContent = e?.message || 'Transcription failed.';
+      } finally {
+        scheduleLyricsTranscribing = false;
+        document.getElementById('feed-lyrics-transcribe-btn').disabled = false;
+      }
+    },
+    // Renders each transcribed line with editable start/end seconds, so a
+    // wrong-timed word can be nudged by hand before the post goes out.
+    renderLyricsSegments(){
+      const host = document.getElementById('feed-lyrics-segments');
+      if(!host) return;
+      if(!scheduleLyricsSegments || !scheduleLyricsSegments.length){ host.innerHTML = ''; return; }
+      host.innerHTML = scheduleLyricsSegments.map((s, i) => `
+        <div style="display:flex;gap:6px;align-items:center;font-size:13px;">
+          <input type="number" step="0.1" value="${s.start.toFixed(2)}" style="width:60px;padding:4px;border-radius:6px;" onchange="app.updateLyricsSegmentTime(${i},'start',this.value)">
+          <span style="opacity:.5;">→</span>
+          <input type="number" step="0.1" value="${s.end.toFixed(2)}" style="width:60px;padding:4px;border-radius:6px;" onchange="app.updateLyricsSegmentTime(${i},'end',this.value)">
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(s.text)}</span>
+          <button class="btn btn-ghost btn-sm" style="padding:2px 8px;" onclick="app.deleteLyricsSegment(${i})">✕</button>
+        </div>
+      `).join('');
+    },
+    updateLyricsSegmentTime(i, field, value){
+      if(!scheduleLyricsSegments || !scheduleLyricsSegments[i]) return;
+      const v = parseFloat(value);
+      if(Number.isNaN(v)) return;
+      scheduleLyricsSegments[i][field] = v;
+    },
+    deleteLyricsSegment(i){
+      if(!scheduleLyricsSegments) return;
+      scheduleLyricsSegments.splice(i, 1);
+      app.renderLyricsSegments();
     },
     scheduleTrackClick(ev){
       // Tapping the timeline moves the playhead (and plays there so you can
@@ -8236,6 +8560,7 @@
       }
       feedPlayerSongUrl = p.media.url;
       feedPlayerSilhouetteUrl = p.media.effectSilhouette || null;
+      feedPlayerLyricsSegments = p.media.effectLyrics?.segments || null;
       const isBlended = p.media.effect === 'sphere-blended';
       const sched = !isBlended && Array.isArray(p.media.effectSchedule) && p.media.effectSchedule.length ? p.media.effectSchedule.slice().sort((a,b)=>a.t-b.t) : null;
       feedPlayerActiveSchedule = sched;
