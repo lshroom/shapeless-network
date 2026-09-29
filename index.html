@@ -627,12 +627,63 @@
      a phone's native text-selection ("Copy / Select all / Web search / Share") wins
      the gesture race and steals it before any pointerdown handler ever sees it. */
   .studio-timeline{ border:1px solid var(--line); border-radius:12px; background:var(--surface); overflow:hidden; margin-bottom:10px; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
-  .studio3d-stage{ position:relative; border:1px solid var(--line); border-radius:12px; background:#000; overflow:hidden; margin-bottom:10px; height:min(60vh, 480px); touch-action:none; }
-  .studio3d-stage canvas{ width:100%; height:100%; display:block; }
-  .studio3d-bar{ position:absolute; top:8px; left:8px; right:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; pointer-events:none; }
-  .studio3d-bar > *{ pointer-events:auto; background:color-mix(in srgb, #000 60%, transparent); border-radius:999px; }
-  .studio3d-bar select, .studio3d-bar input{ background:var(--surface-2); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:2px 4px; }
-  .studio3d-armed{ font-size:12px; color:var(--text); padding:4px 10px; }
+  /* 3D Studio — the prototype's full-screen layout (Shapeless 3D Studio.html) */
+  body.s3d-open{ overflow:hidden; }
+  body.s3d-open .toast{ z-index:1001; bottom:auto; top:38%; }
+  .s3d-root{ --s3d-panel:#0d1512cc; --s3d-line:#1d3a2f; --s3d-fg:#e8fff5; --s3d-acc:#5dffb0; position:fixed; inset:0; z-index:1000; background:#050807; color:var(--s3d-fg); font:13px system-ui, sans-serif; overflow:hidden; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+  .s3d-canvas{ display:block; position:absolute; inset:0; touch-action:none; }
+  .s3d-bar{ position:absolute; left:0; right:0; top:env(safe-area-inset-top,0px); display:flex; gap:8px; align-items:center; padding:10px; flex-wrap:wrap; z-index:2; pointer-events:none; }
+  .s3d-bar > *{ pointer-events:auto; }
+  .s3d-box{ background:var(--s3d-panel); border:1px solid var(--s3d-line); border-radius:10px; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); padding:6px 8px; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .s3d-root button{ background:#12211b; color:var(--s3d-fg); border:1px solid var(--s3d-line); border-radius:8px; padding:8px 12px; font:inherit; cursor:pointer; touch-action:manipulation; }
+  .s3d-root button.on{ background:var(--s3d-acc); color:#04130c; border-color:var(--s3d-acc); }
+  .s3d-root button.rec.on{ background:#ff4d6d; border-color:#ff4d6d; color:#fff; }
+  .s3d-root input[type=number]{ width:52px; background:#0a120f; color:var(--s3d-fg); border:1px solid var(--s3d-line); border-radius:6px; padding:6px; font:inherit; }
+  .s3d-root select{ background:#0a120f; color:var(--s3d-fg); border:1px solid var(--s3d-line); border-radius:6px; padding:6px; font:inherit; }
+  .s3d-root label{ display:inline-flex; align-items:center; gap:4px; }
+  .s3d-chip{ border-left:6px solid var(--c) !important; }
+  .s3d-chip.sel{ outline:2px solid var(--s3d-acc); }
+  .s3d-crew{ margin-left:auto; }
+  .s3d-av{ width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:#031; border:2px solid #050807; margin-left:-6px; }
+  .s3d-arr{ display:flex; gap:4px; }
+  .s3d-arr button{ padding:6px 8px !important; min-width:26px; }
+  .s3d-arr button.full{ background:#1b3a2e; }
+  .s3d-arr button.tgt{ outline:2px solid var(--s3d-acc); }
+  .s3d-arr button.now{ background:#fff; color:#000; }
+  .s3d-dock{ position:absolute; left:50%; transform:translateX(-50%); bottom:calc(10px + env(safe-area-inset-bottom,0px)); z-index:2; flex-direction:column; align-items:stretch; flex-wrap:nowrap; width:min(560px, 96vw); max-height:62vh; overflow-y:auto; box-sizing:border-box; }
+  .s3d-head{ display:flex; justify-content:space-between; align-items:center; gap:6px; flex-wrap:wrap; }
+  .s3d-head > span{ display:flex; gap:4px; flex-wrap:wrap; }
+  .s3d-head button, .s3d-head select{ padding:5px 8px !important; font-size:12px !important; }
+  .s3d-seqhead{ display:flex; justify-content:space-between; gap:6px; opacity:.85; margin-top:6px; font-size:11px; flex-wrap:wrap; }
+  .s3d-mini{ padding:0 7px !important; }
+  .s3d-seq{ display:grid; grid-template-columns:repeat(16, 1fr); gap:3px; margin-top:4px; }
+  .s3d-st{ height:26px; padding:0 !important; border-radius:5px !important; background:#0f1a15 !important; }
+  .s3d-st.bt{ border-color:#2f6a55 !important; }
+  .s3d-st.has{ background:#1b3a2e !important; }
+  .s3d-st.on{ background:var(--tc) !important; border-color:var(--tc) !important; }
+  .s3d-st.ph{ outline:2px solid #fff; }
+  .s3d-pads-wrap{ margin-top:6px; }
+  .s3d-pads{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
+  .s3d-pad{ height:clamp(52px, 11vh, 78px); border-radius:12px !important; padding:0 !important; font-size:11px !important; color:#bfe !important; background:#101b16 !important; transition:transform .05s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; touch-action:none; }
+  .s3d-pad small{ opacity:.45; font-size:9px; }
+  .s3d-pad.sel{ border-color:var(--tc) !important; }
+  .s3d-pad.hit{ background:var(--tc) !important; color:#031 !important; transform:scale(.94); }
+  .s3d-pads-wrap .chorder{ margin-bottom:0; }
+  .s3d-pads-wrap .chorder-btn{ padding:2px !important; }
+  .s3d-pads-wrap .chorder-strum-seg{ padding:0 !important; }
+  .s3d-dock.min .s3d-pads-wrap{ display:none; }
+  .s3d-hint{ position:absolute; left:12px; bottom:14px; opacity:.5; font-size:11px; z-index:1; max-width:min(30vw, calc(50vw - 300px)); pointer-events:none; }
+  @media (max-width:760px){
+    .s3d-bar{ gap:5px; padding:6px; }
+    .s3d-box{ padding:4px 5px; gap:4px; }
+    .s3d-root button{ padding:6px 8px; font-size:12px; }
+    .s3d-arr button{ padding:5px 6px !important; min-width:22px; }
+    .s3d-root input[type=number]{ width:44px; padding:4px; }
+    .s3d-root select{ padding:4px; }
+    .s3d-crew{ margin-left:0; }
+    .s3d-hint{ display:none; }
+    .s3d-pad{ height:clamp(40px, 7.5vh, 60px); }
+  }
   .chorder{ display:flex; gap:8px; margin-bottom:8px; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; touch-action:none; }
   .chorder-grid{ flex:1; display:grid; grid-template-columns:repeat(7, 1fr); gap:5px; }
   .chorder-btn{ min-height:48px; border-radius:8px; border:1px solid var(--chord-color); background:color-mix(in srgb, var(--chord-color) 8%, transparent); color:var(--chord-color); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; cursor:pointer; padding:2px; transition:background .12s, box-shadow .12s; }
@@ -2276,7 +2327,6 @@
   let scheduleStep = 1;
   let scheduleSilhouetteMedia = null; // uploaded silhouette video, once recorded
   let scheduleSilhouetteStream = null; // raw webcam MediaStream
-  let scheduleSilhouetteSegmenter = null; // MediaPipe SelfieSegmentation instance
   let scheduleSilhouetteRAF = null;
   let scheduleSilhouetteRecorder = null;
   let scheduleSilhouetteChunks = [];
@@ -4599,7 +4649,7 @@
     const lane = (v.studio.lanes||[]).find(l=>l.id===laneId);
     if(!lane) return;
     const seq = seqFor(vid);
-    const loop = (lane.loops||[]).find(l=>l.pattern);
+    const loop = (lane.loops||[]).find(l=>l.pattern && !l.slot3d);
     seq.skip = {}; seq.liveDirty = false;
     const total = () => seq.bars*SEQ_STEPS_PER_BAR;
     if(loop){
@@ -4910,72 +4960,133 @@
         </div>
       </div>`;
   }
-  // ---- 3D session view: same lanes/clips/loops/sequencer as the 2D studio, just a
-  // different way to look at them — every track renders as a liquid blob in a galaxy
-  // scene instead of a row. Tap a blob to arm it (same app.toggleArmLane the 2D track
-  // dot uses); the master-loop length set here is the same seq.bars the pads/Chorder
-  // record into, and the result is the same clip the 2D arrangement shows.
-  function studio3DStageHtml(v){
-    const s = v.studio;
-    const tab = studioTab[v.id];
-    const seq = seqFor(v.id);
-    const armedId = studioActiveLane[v.id];
-    const armedLane = (s.lanes||[]).find(l=>l.id===armedId);
+  // ---- 3D Studio: the "Shapeless 3D Studio" prototype, ported onto the real studio. ----
+  // Full-screen scene (one persistent WebGL renderer, outside the innerHTML-rebuilt voyage
+  // DOM) with the prototype's top bar (2D/3D, transport, BPM, master-loop length, track
+  // chips, arrangement slots, crew) and its bottom dock (armed track, step sequencer for the
+  // selected pad, 16 pads or Chorder). Everything drives the same lanes / clips / sequencer
+  // the 2D arrangement uses — the 2D view stays rendered underneath with the same data.
+  const S3D_PAD_KEYS = '1234qwerasdfzxcv';
+  const S3D_SCALE = [0,3,5,7,10]; // prototype's pentatonic-minor melodic pads
+  const S3D_SLOTS = 8;
+  const STUDIO3D = {}; // vid -> engine state (renderer, scene, blobs...)
+  const s3dUi = {};    // vid -> { sel, page, min, slot, pendingCommit }
+  function s3dUiFor(vid){ return s3dUi[vid] || (s3dUi[vid] = { sel:null, page:0, min:false, slot:0, pendingCommit:0 }); }
+  function s3dPadList(vid){
+    const seq = seqFor(vid);
+    if(seq.kind==='drum') return DRUM_PADS.map(p=>({ play:p.id, row:p.id, label:p.label }));
+    if(seq.kind==='chop') return CHOP_SLOTS.map((c,i)=>({ play:i, row:c, label:'Chop '+(i+1) }));
+    return Array.from({length:16}, (_,i)=>{ const n = 48 + S3D_SCALE[i%5] + 12*Math.floor(i/5); return { play:n, row:n, label:noteName(n) }; });
+  }
+  function s3dGrid(seq){ return seq.kind==='melodic' ? seq.melGrid : (seq.kind==='chop' ? seq.chopGrid : seq.drumGrid); }
+  function s3dNameColor(name){ let h = 0; for(const ch of String(name)) h = (h*31 + ch.charCodeAt(0))>>>0; return TRACK_COLORS[h % TRACK_COLORS.length]; }
+  function s3dCrew(v){
+    const names = new Set();
+    if(v.captain) names.add(v.captain);
+    (v.coCaptains||[]).forEach(n=>names.add(n));
+    (v.roles||[]).forEach(r=>(r.crew||[]).forEach(c=>{ if(c.status==='approved') names.add(c.name); }));
+    (v.studio.lanes||[]).forEach(l=>{ if(l.owner) names.add(l.owner); });
+    return Array.from(names).filter(Boolean).slice(0, 8);
+  }
+  function s3dSlotFull(v, i, L){
+    // a slot is filled once a "Loop → Slot" copy (or any clip made from one) sits on its first bar
+    return (v.studio.lanes||[]).some(l=>(l.clips||[]).some(c=>c.startBar<=i*L && i*L<c.startBar+c.lengthBars && (l.loops||[]).some(lo=>lo.id===c.loopId && lo.slot3d)));
+  }
+  function s3dEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+
+  function s3dBarHtml(v){
+    const vid = v.id, s = v.studio, seq = seqFor(vid), ui = s3dUiFor(vid);
+    const lanes = s.lanes||[];
+    const activeId = studioActiveLane[vid];
+    const playing = !!studioPlayback[vid], rec = !!studioRecorders[vid];
+    const L = seq.bars;
+    const song = !loopRegionFor(vid, s.bars||16).on;
+    const pb = studioPlayback[vid];
+    const nowSlot = (playing && pb && pb.songBar!=null) ? Math.floor(pb.songBar / L) % S3D_SLOTS : -1;
+    const crew = s3dCrew(v);
     return `
-      <div class="studio3d-stage" id="studio3d-${v.id}">
-        <canvas id="studio3d-canvas-${v.id}"></canvas>
-        <div class="studio3d-bar">
-          <label class="gt-bpm" title="Master loop length — what you record with pads/Chorder/keys loops over this many bars">
-            <span>Loop</span>
-            <select onchange="app.setSeqBars('${v.id}', this.value)">${[...new Set([1,2,4,8,16,32,64,seq.bars])].sort((a,b)=>a-b).map(n=>`<option value="${n}" ${n===seq.bars?'selected':''}>${n} bar${n>1?'s':''}</option>`).join('')}</select>
-            <input type="number" inputmode="numeric" min="1" max="128" step="1" value="${seq.bars}" style="width:48px;" title="Any length" onchange="app.setSeqBars('${v.id}', this.value)">
-          </label>
-          <span class="studio3d-armed">${armedLane ? `● ${armedLane.label||armedLane.role||'Track'}` : 'No track armed'}</span>
-        </div>
-        <div class="studio3d-hint">Tap a blob to arm it — drag to look around</div>
-        ${(s.lanes||[]).map(l=>`<audio id="lane-audio-${v.id}-${l.id}" preload="none" crossorigin="anonymous" hidden></audio>`).join('')}
+      <div class="s3d-box"><button data-act="2d">2D</button><button class="on">3D</button></div>
+      <div class="s3d-box">
+        <button data-act="play" class="${playing?'on':''}">▶ Play</button><button data-act="stop">■</button><button data-act="rec" class="rec ${rec?'on':''}">● Rec</button>
+        <label>BPM <input data-act="bpm" type="number" inputmode="numeric" min="40" max="300" value="${s.bpm||100}"></label>
+        <label title="Master loop length — what you play/record loops over this many bars">Loop <select data-act="bars">${[...new Set([1,2,4,8,16,32,64,L])].sort((a,b)=>a-b).map(n=>`<option value="${n}" ${n===L?'selected':''}>${n} bar${n>1?'s':''}</option>`).join('')}</select></label>
       </div>
-      ${!tab ? `<div class="btn-row" style="margin-top:6px;"><button class="btn btn-ghost btn-sm" onclick="app.toggleInstrumentsPanel('${v.id}')">Open pads / Chorder / step sequencer</button></div>` : ''}
-    `;
+      <div class="s3d-box s3d-chips">
+        ${lanes.map((l,i)=>`<button class="s3d-chip ${l.id===activeId?'sel':''}" style="--c:${s3dEsc(l.color||TRACK_COLORS[i%TRACK_COLORS.length])}" data-act="arm" data-lane="${s3dEsc(l.id)}">${s3dEsc(l.label||l.role||'Track')}</button>`).join('')}
+        <button data-act="addtrack">+ Track</button>
+      </div>
+      <div class="s3d-box">
+        <span class="s3d-arr">${Array.from({length:S3D_SLOTS},(_,i)=>`<button data-act="slot" data-i="${i}" title="Bars ${i*L+1}–${(i+1)*L}" class="${s3dSlotFull(v,i,L)?'full ':''}${i===ui.slot?'tgt ':''}${i===nowSlot?'now':''}">${i+1}</button>`).join('')}</span>
+        <button data-act="song" class="${song?'on':''}" title="${song?'Playing the whole arrangement — tap to loop just the target slot':'Looping the target slot — tap to play the whole song'}">Song</button>
+        <button data-act="commit" title="Copy every track's loop into the target slot of the arrangement">Loop → Slot</button>
+      </div>
+      <div class="s3d-box s3d-crew">Crew <span>${crew.map(n=>`<span class="s3d-av" title="${s3dEsc(n)}" style="background:${s3dNameColor(n)}">${s3dEsc(String(n).slice(0,1).toUpperCase())}</span>`).join('')}</span></div>`;
+  }
+  function s3dDockHtml(v){
+    const vid = v.id, s = v.studio, seq = seqFor(vid), ui = s3dUiFor(vid);
+    const lanes = s.lanes||[];
+    const armed = lanes.find(l=>l.id===studioActiveLane[vid]);
+    const color = armed ? (armed.color||'#5dffb0') : '#5dffb0';
+    const pads = s3dPadList(vid);
+    if(ui.sel==null || !pads.some(p=>String(p.row)===String(ui.sel))) ui.sel = pads[0].row;
+    const selPad = pads.find(p=>String(p.row)===String(ui.sel));
+    const grid = s3dGrid(seq);
+    const row = grid[ui.sel] || [];
+    const L = seq.bars;
+    ui.page = Math.max(0, Math.min(ui.page, L-1));
+    const base = ui.page*16;
+    const cells = Array.from({length:16}, (_,st)=>{
+      const i = base+st;
+      const has = Object.values(grid).some(r=>r && r[i]);
+      return `<button class="s3d-st${row[i]?' on':''}${has?' has':''}${st%4===0?' bt':''}" data-act="cell" data-i="${i}"></button>`;
+    }).join('');
+    const surface = (seq.kind==='melodic' && seqPlaySurface[vid]==='chorder') ? 'chorder' : 'pads';
+    const inst = SEQ_INSTRUMENTS.find(x=>x.kind===seq.kind && (!x.voice || x.voice===(seq.voice||'pad'))) || SEQ_INSTRUMENTS[0];
+    const kindLabel = seq.kind==='drum' ? 'drum pads' : (seq.kind==='chop' ? 'chop pads' : (surface==='chorder' ? 'Chorder' : 'melodic pads'));
+    return `
+      <div class="s3d-head">
+        <b>${armed ? s3dEsc(armed.label||armed.role||'Track') : 'No track armed'} · ${kindLabel}</b>
+        <span>
+          <select data-act="inst" title="Instrument">${SEQ_INSTRUMENTS.map(x=>`<option value="${x.id}" ${x===inst?'selected':''}>${x.icon} ${x.label}</option>`).join('')}</select>
+          ${seq.kind!=='chop' ? `<button data-act="surface" data-s="pads" class="${surface==='pads'?'on':''}">Pads</button><button data-act="surface" data-s="chorder" class="${surface==='chorder'?'on':''}">Chorder</button>` : ''}
+          <button data-act="clr">Clear loop</button>
+          <button data-act="min">${ui.min ? '▴ Pads' : '▾ Pads'}</button>
+        </span>
+      </div>
+      <div class="s3d-seqhead">
+        <span><button class="s3d-mini" data-act="page" data-d="-1">‹</button> <span id="s3d-pos-${vid}">${loopRegionFor(vid, s.bars||16).on?'Loop':'Song'} · Bar ${ui.page+1}/${L} · Step –/16</span> <button class="s3d-mini" data-act="page" data-d="1">›</button></span>
+        <span>Editing: ${armed ? s3dEsc(armed.label||'Track') : '—'} › ${s3dEsc(selPad ? selPad.label : '')} (tap a pad to switch)</span>
+      </div>
+      <div class="s3d-seq" style="--tc:${s3dEsc(color)}">${cells}</div>
+      <div class="s3d-pads-wrap" style="--tc:${s3dEsc(color)}">
+        ${surface==='chorder' ? chorderHtml(vid) : `<div class="s3d-pads">${pads.map((p,i)=>`<button class="s3d-pad${String(p.row)===String(ui.sel)?' sel':''}" data-act="pad" data-i="${i}">${s3dEsc(p.label)}<small>${S3D_PAD_KEYS[i]||''}</small></button>`).join('')}</div>`}
+      </div>`;
+  }
+  function s3dRenderHud(vid){
+    const st = STUDIO3D[vid];
+    const v = VOYAGES.find(x=>x.id===vid);
+    if(!st || !v || !v.studio) return;
+    const ae = document.activeElement;
+    const editing = ae && st.root.contains(ae) && (ae.tagName==='INPUT' || ae.tagName==='SELECT');
+    if(!editing) st.bar.innerHTML = s3dBarHtml(v);
+    st.dock.innerHTML = s3dDockHtml(v);
+    st.dock.classList.toggle('min', s3dUiFor(vid).min);
+    const armed = (v.studio.lanes||[]).find(l=>l.id===studioActiveLane[vid]);
+    st.hint.textContent = (v.studio.lanes||[]).length
+      ? (armed ? 'Drag: orbit · Wheel/pinch: zoom · Tap a blob to arm + play it · Steps: tap cells · Keys: 1-4 Q-R A-F Z-V' : 'Tap a blob (or a track chip) to arm it, then play the pads')
+      : 'Tap “+ Track” to add your first track';
   }
 
-  const STUDIO3D = {}; // vid -> { renderer, scene, camera, canvas, blobs:Map(laneId->blob), raf, ro }
-  function studio3DLaneColor(v, laneId, i){
-    const lane = (v.studio.lanes||[]).find(l=>l.id===laneId);
-    return (lane && lane.color) || TRACK_COLORS[i%TRACK_COLORS.length];
-  }
-  function studio3DGlowTex(){
-    const size = 128;
-    const c = document.createElement('canvas'); c.width = c.height = size;
-    const g = c.getContext('2d');
-    const rg = g.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
-    rg.addColorStop(0,'rgba(255,255,255,1)'); rg.addColorStop(0.4,'rgba(255,255,255,0.5)'); rg.addColorStop(1,'rgba(255,255,255,0)');
-    g.fillStyle = rg; g.fillRect(0,0,size,size);
-    return new THREE.CanvasTexture(c);
-  }
-  function studio3DLabelSprite(text, color){
-    const c = document.createElement('canvas'); c.width = 256; c.height = 64;
-    const g = c.getContext('2d');
-    g.font = '600 28px "JetBrains Mono", monospace';
-    g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(text.slice(0,16), 128, 32);
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(c), transparent:true, depthWrite:false }));
-    sp.scale.set(52, 13, 1);
-    return sp;
-  }
-
-  // Liquid blob — the deformation from the 3D Studio prototype (ambient wobble scaled by
-  // the track's live level, plus a travelling ripple on every note-on, glossy metal
-  // material, normals recomputed each frame), with the drum room Sculptor's waveform
-  // term added: each vertex also pushes out by the live time-domain sample picked by its
-  // normal's x (world/s2-overnight/F21_waveformSculptor.js), so the surface carries the
-  // actual waveform shape, not just its loudness.
+  // Liquid blob — the prototype's deformation (ambient wobble scaled by the live level,
+  // travelling ripple on every note-on, glossy material, normals recomputed each frame),
+  // plus the drum room Sculptor's waveform term: each vertex also pushes out by the live
+  // time-domain sample picked by its x (world/s2-overnight/F21_waveformSculptor.js).
   const BLOB_SEGS = (window.matchMedia && matchMedia('(pointer:coarse)').matches) ? [32, 20] : [48, 32];
   function buildLiquidBlob(colorHex){
     const geo = new THREE.SphereGeometry(1, BLOB_SEGS[0], BLOB_SEGS[1]);
     const mat = new THREE.MeshStandardMaterial({ color:colorHex, emissive:colorHex, emissiveIntensity:.25, metalness:.35, roughness:.18 });
     const mesh = new THREE.Mesh(geo, mat);
-    return { mesh, mat, geo, base:geo.attributes.position.array.slice(), waveData:new Uint8Array(256).fill(128), amp:0, k:0, dir:new THREE.Vector3(1,0,0), lastStep:-1 };
+    return { mesh, mat, geo, base:geo.attributes.position.array.slice(), waveData:new Uint8Array(256).fill(128), amp:0, k:0, squash:0, dir:new THREE.Vector3(1,0,0), lastStep:-1 };
   }
   function blobLevelFrom(analyser, blob){
     analyser.getByteTimeDomainData(blob.waveData);
@@ -4996,238 +5107,550 @@
     const g = laneAudioGraphs[laneFxKey(vid, laneId)];
     return g && g.analyser;
   }
+  function s3dGlowTex(){
+    const size = 128;
+    const c = document.createElement('canvas'); c.width = c.height = size;
+    const g = c.getContext('2d');
+    const rg = g.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
+    rg.addColorStop(0,'rgba(255,255,255,1)'); rg.addColorStop(0.4,'rgba(255,255,255,0.45)'); rg.addColorStop(1,'rgba(255,255,255,0)');
+    g.fillStyle = rg; g.fillRect(0,0,size,size);
+    return new THREE.CanvasTexture(c);
+  }
+  function s3dLabelSprite(text, color){
+    const c = document.createElement('canvas'); c.width = 256; c.height = 64;
+    const g = c.getContext('2d');
+    g.font = '600 30px system-ui, sans-serif';
+    g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.shadowColor = 'rgba(0,0,0,.9)'; g.shadowBlur = 6;
+    g.fillText(String(text).slice(0,16), 128, 32);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(c), transparent:true, depthWrite:false, fog:false }));
+    sp.scale.set(2.2, .55, 1);
+    return sp;
+  }
+  function s3dLanesKey(v){ return (v.studio.lanes||[]).map((l,i)=>l.id+'|'+(l.color||i)+'|'+(l.label||l.role||'')).join(','); }
+  function s3dBuildBlobs(st, v){
+    st.blobs.forEach(b=>{
+      st.scene.remove(b.mesh); st.scene.remove(b.glowSprite); st.scene.remove(b.label);
+      b.geo.dispose(); b.mat.dispose(); b.glowSprite.material.dispose();
+      if(b.label.material.map) b.label.material.map.dispose(); b.label.material.dispose();
+    });
+    st.blobs.clear();
+    const lanes = v.studio.lanes||[];
+    const n = Math.max(1, lanes.length);
+    lanes.forEach((lane,i)=>{
+      const color = lane.color || TRACK_COLORS[i%TRACK_COLORS.length];
+      const b = buildLiquidBlob(color);
+      b.i = i; b.n = n;
+      b.mesh.userData = { laneId:lane.id };
+      st.scene.add(b.mesh);
+      b.glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map:st.glow, color, transparent:true, opacity:.3, blending:THREE.AdditiveBlending, depthWrite:false, fog:false }));
+      st.scene.add(b.glowSprite);
+      b.label = s3dLabelSprite(lane.label||lane.role||lane.owner||'Track', color);
+      st.scene.add(b.label);
+      st.blobs.set(lane.id, b);
+    });
+    st.lanesKey = s3dLanesKey(v);
+  }
+
   function mountStudio3D(vid){
     const v = VOYAGES.find(x=>x.id===vid);
     if(!v || !v.studio || typeof THREE==='undefined') return;
-    const canvas = document.getElementById('studio3d-canvas-'+vid);
-    if(!canvas) return;
     unmountStudio3D(vid);
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 4000);
-    const glow = studio3DGlowTex();
-    const disposables = [glow];
+    if(studioTab[vid]) studioTab[vid] = null; // pads live in the 3D dock now, not the 2D panel
+    const root = document.createElement('div');
+    root.className = 's3d-root';
+    root.innerHTML = `<canvas class="s3d-canvas"></canvas><div class="s3d-bar"></div><div class="s3d-box s3d-dock"></div><div class="s3d-hint"></div>`;
+    document.body.appendChild(root);
+    document.body.classList.add('s3d-open');
+    const canvas = root.querySelector('canvas');
+    const st = { vid, root, canvas, bar:root.querySelector('.s3d-bar'), dock:root.querySelector('.s3d-dock'), hint:root.querySelector('.s3d-hint'), blobs:new Map(), disposables:[], t0:performance.now(), az:.6, el:.35, zoom:1, handlers:[] };
+    STUDIO3D[vid] = st;
+    let renderer;
+    try { renderer = new THREE.WebGLRenderer({ canvas, antialias:true }); }
+    catch(e){ console.error('3D Studio: WebGL unavailable', e); }
+    st.renderer = renderer;
+    if(renderer){
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+      renderer.setClearColor(0x050807, 1);
+      canvas.addEventListener('webglcontextlost', e=>{ e.preventDefault(); st.lost = true; });
+      canvas.addEventListener('webglcontextrestored', ()=>{ requestAnimationFrame(()=>{ if(STUDIO3D[vid]===st){ unmountStudio3D(vid); mountStudio3D(vid); } }); });
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x050807, .05);
+      const camera = new THREE.PerspectiveCamera(55, 1, .1, 400);
+      const glow = s3dGlowTex();
+      st.scene = scene; st.camera = camera; st.glow = glow;
+      st.disposables.push(glow);
 
-    // galaxy: deep starfield, three nebula clouds, and a black hole at the center — a dark
-    // core ringed by a slowly turning accretion disk of additive glow points
-    const starCount = 900;
-    const starPos = new Float32Array(starCount*3);
-    for(let i=0;i<starCount;i++){
-      const rad = 350 + Math.random()*1400;
-      const th = Math.random()*Math.PI*2, ph = Math.acos(2*Math.random()-1);
-      starPos[i*3] = rad*Math.sin(ph)*Math.cos(th);
-      starPos[i*3+1] = rad*Math.sin(ph)*Math.sin(th);
-      starPos[i*3+2] = rad*Math.cos(ph);
+      // prototype lights + floor grid
+      scene.add(new THREE.AmbientLight(0x88ffcc, .35));
+      const L1 = new THREE.PointLight(0xffffff, 1.2, 40); L1.position.set(5,6,5); scene.add(L1);
+      const L2 = new THREE.PointLight(0xff5d8f, .8, 40); L2.position.set(-6,-2,-4); scene.add(L2);
+      const grid = new THREE.GridHelper(30, 30, 0x1d3a2f, 0x0f1f19); grid.position.y = -2.5; scene.add(grid);
+      st.disposables.push(grid.geometry, grid.material);
+
+      // galaxy behind it: starfield, nebula clouds, and a black hole with an accretion disk
+      // at the center of the ring of blobs — all outside the fog so the space stays deep
+      const starCount = 1400, starPos = new Float32Array(starCount*3), starCol = new Float32Array(starCount*3);
+      const sc = new THREE.Color();
+      for(let i=0;i<starCount;i++){
+        const r = 30 + Math.random()*90, th = Math.random()*Math.PI*2, ph = Math.acos(2*Math.random()-1);
+        starPos[i*3] = r*Math.sin(ph)*Math.cos(th); starPos[i*3+1] = r*Math.sin(ph)*Math.sin(th)*.6; starPos[i*3+2] = r*Math.cos(ph);
+        sc.setHSL(.45 + Math.random()*.4, .6, .75 + Math.random()*.25);
+        starCol[i*3] = sc.r; starCol[i*3+1] = sc.g; starCol[i*3+2] = sc.b;
+      }
+      const starGeo = new THREE.BufferGeometry();
+      starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
+      starGeo.setAttribute('color', new THREE.BufferAttribute(starCol,3));
+      const starMat = new THREE.PointsMaterial({ map:glow, size:.9, vertexColors:true, transparent:true, opacity:.85, depthWrite:false, blending:THREE.AdditiveBlending, fog:false });
+      const stars = new THREE.Points(starGeo, starMat); scene.add(stars);
+      st.disposables.push(starGeo, starMat);
+      st.nebulae = [0x7CFFB2, 0x5AA6FF, 0xC026FF, 0xff5d8f].map((c,i)=>{
+        const m = new THREE.SpriteMaterial({ map:glow, color:c, transparent:true, opacity:.16, blending:THREE.AdditiveBlending, depthWrite:false, fog:false });
+        const sp = new THREE.Sprite(m);
+        sp.scale.set(70, 70, 1);
+        const a = i*1.9;
+        sp.position.set(Math.cos(a)*55, -6 + Math.sin(i*1.3)*14, Math.sin(a)*55);
+        scene.add(sp); st.disposables.push(m);
+        return sp;
+      });
+      const holeGeo = new THREE.SphereGeometry(.42, 32, 16), holeMat = new THREE.MeshBasicMaterial({ color:0x000000, fog:false });
+      scene.add(new THREE.Mesh(holeGeo, holeMat));
+      const haloMat = new THREE.SpriteMaterial({ map:glow, color:0xffc27a, transparent:true, opacity:.35, blending:THREE.AdditiveBlending, depthWrite:false, fog:false });
+      const halo = new THREE.Sprite(haloMat); halo.scale.set(2.2,2.2,1); scene.add(halo);
+      st.disposables.push(holeGeo, holeMat, haloMat);
+      const diskCount = 2600, diskPos = new Float32Array(diskCount*3), diskCol = new Float32Array(diskCount*3);
+      const cIn = new THREE.Color(0xffd08a), cOut = new THREE.Color(0x8a4dff), tmp = new THREE.Color();
+      for(let i=0;i<diskCount;i++){
+        const r = .55 + Math.pow(Math.random(), 1.6)*1.9, a = Math.random()*Math.PI*2;
+        diskPos[i*3] = Math.cos(a)*r; diskPos[i*3+1] = (Math.random()-.5)*.05; diskPos[i*3+2] = Math.sin(a)*r;
+        tmp.copy(cIn).lerp(cOut, (r-.55)/1.9);
+        diskCol[i*3] = tmp.r; diskCol[i*3+1] = tmp.g; diskCol[i*3+2] = tmp.b;
+      }
+      const diskGeo = new THREE.BufferGeometry();
+      diskGeo.setAttribute('position', new THREE.BufferAttribute(diskPos,3));
+      diskGeo.setAttribute('color', new THREE.BufferAttribute(diskCol,3));
+      const diskMat = new THREE.PointsMaterial({ map:glow, size:.07, vertexColors:true, transparent:true, opacity:.9, depthWrite:false, blending:THREE.AdditiveBlending, fog:false });
+      const disk = new THREE.Points(diskGeo, diskMat); disk.rotation.x = .35; scene.add(disk);
+      st.disposables.push(diskGeo, diskMat);
+      st.stars = stars; st.disk = disk; st.halo = halo;
+      s3dBuildBlobs(st, v);
     }
-    const starGeo = new THREE.BufferGeometry();
-    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
-    const starMat = new THREE.PointsMaterial({ map:glow, size:3, color:0xffffff, transparent:true, opacity:0.55, depthWrite:false, blending:THREE.AdditiveBlending });
-    scene.add(new THREE.Points(starGeo, starMat));
-    disposables.push(starGeo, starMat);
-    const nebulae = [0x7CFFB2, 0x5AA6FF, 0xC026FF].map((c,i)=>{
-      const mat = new THREE.SpriteMaterial({ map:glow, color:c, transparent:true, opacity:0.2, blending:THREE.AdditiveBlending, depthWrite:false });
-      const sp = new THREE.Sprite(mat);
-      sp.scale.set(1100, 1100, 1);
-      sp.position.set(Math.cos(i*2.4)*650, Math.sin(i*1.7)*220, -950 - i*200);
-      scene.add(sp); disposables.push(mat);
-      return sp;
+
+    // ---- input: orbit drag, wheel + pinch zoom, tap a blob to arm + play it ----
+    const ray = typeof THREE!=='undefined' ? new THREE.Raycaster() : null;
+    const pointers = new Map();
+    let moved = 0, pinch0 = 0, zoom0 = 1;
+    const on = (el, ev, fn, opts)=>{ el.addEventListener(ev, fn, opts); st.handlers.push([el, ev, fn, opts]); };
+    on(canvas, 'pointerdown', e=>{
+      canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
+      pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+      if(pointers.size===1) moved = 0;
+      if(pointers.size===2){ const [a,b] = Array.from(pointers.values()); pinch0 = Math.hypot(a.x-b.x, a.y-b.y); zoom0 = st.zoom; moved = 99; }
     });
-    const holeMat = new THREE.MeshBasicMaterial({ color:0x000000 });
-    const holeGeo = new THREE.SphereGeometry(14, 32, 16);
-    scene.add(new THREE.Mesh(holeGeo, holeMat));
-    disposables.push(holeMat, holeGeo);
-    const diskCount = 2400;
-    const diskPos = new Float32Array(diskCount*3), diskCol = new Float32Array(diskCount*3);
-    const cInner = new THREE.Color(0xffd08a), cOuter = new THREE.Color(0x8a4dff), tmp = new THREE.Color();
-    for(let i=0;i<diskCount;i++){
-      const r = 18 + Math.pow(Math.random(), 1.6) * 46;
-      const a = Math.random()*Math.PI*2;
-      diskPos[i*3] = Math.cos(a)*r; diskPos[i*3+1] = (Math.random()-0.5)*1.6; diskPos[i*3+2] = Math.sin(a)*r;
-      tmp.copy(cInner).lerp(cOuter, (r-18)/46);
-      diskCol[i*3] = tmp.r; diskCol[i*3+1] = tmp.g; diskCol[i*3+2] = tmp.b;
-    }
-    const diskGeo = new THREE.BufferGeometry();
-    diskGeo.setAttribute('position', new THREE.BufferAttribute(diskPos,3));
-    diskGeo.setAttribute('color', new THREE.BufferAttribute(diskCol,3));
-    const diskMat = new THREE.PointsMaterial({ map:glow, size:2.4, vertexColors:true, transparent:true, opacity:0.8, depthWrite:false, blending:THREE.AdditiveBlending });
-    const disk = new THREE.Points(diskGeo, diskMat);
-    disk.rotation.x = 0.35;
-    scene.add(disk);
-    disposables.push(diskGeo, diskMat);
-
-    // same lights as the prototype (ambient mint + white key + pink rim), scaled to this scene
-    scene.add(new THREE.AmbientLight(0x88ffcc, .35));
-    const L1 = new THREE.PointLight(0xffffff, 1.2, 900); L1.position.set(110, 130, 110); scene.add(L1);
-    const L2 = new THREE.PointLight(0xff5d8f, .8, 900); L2.position.set(-130, -45, -90); scene.add(L2);
-
-    const lanes = v.studio.lanes||[];
-    const n = Math.max(1, lanes.length);
-    const BLOB_R = 20;
-    const blobs = new Map();
-    lanes.forEach((lane,i)=>{
-      const angle = (i/n) * Math.PI*2;
-      const radius = 115 + (n>6 ? (i%2)*30 : 0);
-      const pos = new THREE.Vector3(Math.cos(angle)*radius, Math.sin(i*1.7)*16, Math.sin(angle)*radius);
-      const color = studio3DLaneColor(v, lane.id, i);
-      const blob = buildLiquidBlob(color);
-      blob.home = pos.clone();
-      blob.mesh.position.copy(pos);
-      blob.mesh.scale.setScalar(BLOB_R);
-      blob.mesh.userData = { laneId:lane.id };
-      scene.add(blob.mesh);
-      const glowMat = new THREE.SpriteMaterial({ map:glow, color, transparent:true, opacity:0.3, blending:THREE.AdditiveBlending, depthWrite:false });
-      blob.glowSprite = new THREE.Sprite(glowMat);
-      blob.glowSprite.position.copy(pos);
-      blob.glowSprite.scale.set(70,70,1);
-      scene.add(blob.glowSprite);
-      blob.label = studio3DLabelSprite(lane.label||lane.role||lane.owner||'Track', color);
-      blob.label.position.copy(pos).add(new THREE.Vector3(0, -34, 0));
-      scene.add(blob.label);
-      blobs.set(lane.id, blob);
+    on(canvas, 'pointermove', e=>{
+      const p = pointers.get(e.pointerId);
+      if(!p) return;
+      const dx = e.clientX-p.x, dy = e.clientY-p.y;
+      p.x = e.clientX; p.y = e.clientY;
+      if(pointers.size===2){
+        const [a,b] = Array.from(pointers.values());
+        const d = Math.hypot(a.x-b.x, a.y-b.y);
+        if(pinch0 > 0) st.zoom = Math.max(.45, Math.min(1.8, zoom0 * pinch0 / Math.max(1, d)));
+        return;
+      }
+      moved += Math.abs(dx)+Math.abs(dy);
+      st.az -= dx*.005; st.el = Math.max(-.2, Math.min(1.3, st.el + dy*.005));
     });
-
-    const raycaster = new THREE.Raycaster();
-    const pointerNdc = new THREE.Vector2();
-    let dragYaw = 0, dragPitch = 0.18, dragging = false, lastX=0, lastY=0, moved=false;
-    const onDown = (e)=>{ dragging=true; moved=false; lastX=e.clientX; lastY=e.clientY; };
-    const onMove = (e)=>{
-      if(!dragging) return;
-      const dx = e.clientX-lastX, dy = e.clientY-lastY;
-      if(Math.abs(dx)+Math.abs(dy) > 3) moved = true;
-      dragYaw -= dx*0.005; dragPitch = Math.max(-0.2, Math.min(0.9, dragPitch + dy*0.005));
-      lastX=e.clientX; lastY=e.clientY;
+    const up = e=>{
+      const had = pointers.delete(e.pointerId);
+      if(!had || pointers.size || moved >= 6 || !ray || !st.camera) return;
+      const r = canvas.getBoundingClientRect();
+      ray.setFromCamera({ x:((e.clientX-r.left)/r.width)*2-1, y:-((e.clientY-r.top)/r.height)*2+1 }, st.camera);
+      const hit = ray.intersectObjects(Array.from(st.blobs.values()).map(b=>b.mesh))[0];
+      if(hit) s3dTapBlob(vid, hit.object.userData.laneId);
     };
-    const onUp = (e)=>{
-      dragging = false;
-      if(moved) return;
-      const rect = canvas.getBoundingClientRect();
-      pointerNdc.x = ((e.clientX-rect.left)/rect.width)*2-1;
-      pointerNdc.y = -((e.clientY-rect.top)/rect.height)*2+1;
-      raycaster.setFromCamera(pointerNdc, camera);
-      const hit = raycaster.intersectObjects(Array.from(blobs.values()).map(b=>b.mesh))[0];
-      if(hit) app.arm3DLane(vid, hit.object.userData.laneId);
-    };
-    const onLeave = ()=>{ dragging=false; };
-    canvas.addEventListener('pointerdown', onDown);
-    canvas.addEventListener('pointermove', onMove);
-    canvas.addEventListener('pointerup', onUp);
-    canvas.addEventListener('pointerleave', onLeave);
+    on(canvas, 'pointerup', up);
+    on(canvas, 'pointercancel', e=>{ pointers.delete(e.pointerId); });
+    on(canvas, 'wheel', e=>{ e.preventDefault(); st.zoom = Math.max(.45, Math.min(1.8, st.zoom * (1 + e.deltaY*.001))); }, { passive:false });
 
+    // ---- HUD: one delegated listener each for taps, pad presses and field changes ----
+    on(root, 'click', e=>{
+      const t = e.target.closest('[data-act]');
+      if(!t || !root.contains(t)) return;
+      s3dAction(vid, t.dataset.act, t);
+    });
+    on(root, 'pointerdown', e=>{
+      const t = e.target.closest('[data-act="pad"]');
+      if(!t) return;
+      e.preventDefault();
+      s3dHitPad(vid, parseInt(t.dataset.i,10));
+    });
+    on(root, 'change', e=>{
+      const t = e.target.closest('[data-act]');
+      if(!t) return;
+      if(t.dataset.act==='bpm') app.setStudioBpm(vid, t.value);
+      else if(t.dataset.act==='bars'){ app.setSeqBars(vid, t.value); s3dRenderHud(vid); }
+      else if(t.dataset.act==='inst'){ app.setSeqInstrument(vid, t.value); }
+    });
+    on(window, 'keydown', e=>{
+      if(e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+      const tag = e.target && e.target.tagName;
+      if(['INPUT','TEXTAREA','SELECT'].includes(tag)) return;
+      const i = S3D_PAD_KEYS.indexOf(e.key.toLowerCase());
+      if(e.key===' '){ e.preventDefault(); e.stopPropagation(); studioPlayback[vid] ? app.stopStudio(vid) : app.playStudio(vid); s3dRenderHud(vid); return; }
+      if(i < 0) return;
+      e.stopPropagation(); // the 2D pad-panel keyboard handler must not also fire
+      s3dHitPad(vid, i);
+    }, true);
     const resize = ()=>{
-      const w = canvas.clientWidth||1, h = canvas.clientHeight||1;
-      renderer.setSize(w, h, false);
-      camera.aspect = w/h; camera.updateProjectionMatrix();
+      if(!st.renderer) return;
+      const w = window.innerWidth, h = window.innerHeight;
+      st.renderer.setSize(w, h, false);
+      canvas.style.width = w+'px'; canvas.style.height = h+'px';
+      st.camera.aspect = w/h; st.camera.updateProjectionMatrix();
     };
-    const ro = new ResizeObserver(resize);
-    ro.observe(canvas);
+    on(window, 'resize', resize);
     resize();
-
-    const state = { renderer, scene, camera, canvas, blobs, ro, onDown, onMove, onUp, onLeave, disposables, t0:performance.now() };
-    STUDIO3D[vid] = state;
+    s3dRenderHud(vid);
+    if(!renderer) st.hint.textContent = '3D isn’t available on this device’s browser — tap 2D to go back.';
 
     const animate = ()=>{
-      if(STUDIO3D[vid]!==state) return;
-      if(document.hidden){ state.raf = requestAnimationFrame(animate); return; }
-      const T = (performance.now()-state.t0)/1000;
-      const armedSet = studioArmedLanes[vid] || new Set();
-      const activeId = studioActiveLane[vid];
-      const live = studioLiveAnalyser[vid];
-      const pb = studioPlayback[vid];
-      const songBar = pb && pb.songBar;
-      blobs.forEach((b, laneId)=>{
-        // level + waveform: the track's own clip playback, plus — for the armed track —
-        // whatever's being played live into it; whichever is louder this frame wins
-        let lv = -1;
-        const la = laneAnalyserFor(vid, laneId);
-        if(la) lv = blobLevelFrom(la, b);
-        if(laneId === activeId && live){
-          const saved = b.waveData.slice();
-          const lvLive = blobLevelFrom(live.analyser, b);
-          if(lvLive >= lv) lv = lvLive; else b.waveData.set(saved);
-        }
-        if(lv < 0){ lv = 0; b.waveData.fill(128); }
-        b.amp += (Math.min(lv*3, 1) - b.amp) * .3;
-        // note-on ripples for MIDI clips playing back: fire when the song crosses a step
-        // that has a note in this track's pattern (live hits ripple via ripple3D)
-        if(songBar != null){
-          const lane = lanes.find(l=>l.id===laneId);
-          const clip = lane && (lane.clips||[]).find(c=>songBar>=c.startBar && songBar<c.startBar+c.lengthBars);
-          const loop = clip && (lane.loops||[]).find(lo=>lo.id===clip.loopId);
-          const seq = studioSeq[vid];
-          const heldForSeq = seq && loop && loop.id === seq.editingLoopId && seqSyncStatus[vid] !== 'synced';
-          if(loop && loop.pattern && loop.pattern.grid && !heldForSeq && !lane.muted){
-            const lb = loop.pattern.bars || loop.bars || 1;
-            const step = Math.floor((((songBar - clip.startBar) % lb) + lb) % lb * SEQ_STEPS_PER_BAR);
-            if(step !== b.lastStep){
-              b.lastStep = step;
-              if(Object.values(loop.pattern.grid).some(row=>row && row[step])) rippleBlob(b);
-            }
+      if(STUDIO3D[vid]!==st) return;
+      const ov = document.getElementById('voyage-overlay');
+      if(!studio3D[vid] || currentVoyageId!==vid || (ov && ov.hidden)){ unmountStudio3D(vid); return; }
+      st.raf = requestAnimationFrame(animate);
+      s3dTickHud(vid, st);
+      if(document.hidden || !st.renderer || st.lost) return;
+      s3dFrame(vid, st, v);
+    };
+    st.raf = requestAnimationFrame(animate);
+  }
+
+  function s3dFrame(vid, st, v){
+    const T = (performance.now()-st.t0)/1000;
+    const cam = st.camera, W = window.innerWidth, H = window.innerHeight;
+    // frame the ring of blobs inside the space left between the top bar and the dock
+    const barR = st.bar.getBoundingClientRect(), dockR = st.dock.getBoundingClientRect();
+    const top = Math.min(H*.45, barR.bottom), bottom = Math.max(top + H*.25, dockR.top);
+    const hv = Math.max(80, bottom - top);
+    const centerY = (top + bottom)/2;
+    const portrait = W < H;
+    const ringR = portrait ? 2.5 : 3.2;
+    const tanHalf = Math.tan(27.5*Math.PI/180);
+    const fit = Math.max(9, (ringR+1.4)/(tanHalf*W/H), 3/(tanHalf*hv/H));
+    const dist = fit * st.zoom;
+    st.scene.fog.density = .05 * 9/dist;
+    cam.setViewOffset(W, H, 0, H/2 - centerY, W, H);
+    cam.position.set(Math.sin(st.az)*Math.cos(st.el)*dist, Math.sin(st.el)*dist, Math.cos(st.az)*Math.cos(st.el)*dist);
+    cam.lookAt(0,0,0);
+    if(st.lanesKey !== s3dLanesKey(v)) s3dBuildBlobs(st, v);
+
+    const activeId = studioActiveLane[vid];
+    const armedSet = studioArmedLanes[vid] || new Set();
+    const live = studioLiveAnalyser[vid];
+    const pb = studioPlayback[vid];
+    const songBar = pb && pb.songBar;
+    const lanes = v.studio.lanes||[];
+    const seq = studioSeq[vid];
+    let master = 0;
+    st.blobs.forEach((b, laneId)=>{
+      // level + waveform: the track's own clip playback, plus — for the armed track —
+      // whatever's being played live into it; whichever is louder this frame wins
+      let lv = -1;
+      const la = laneAnalyserFor(vid, laneId);
+      if(la) lv = blobLevelFrom(la, b);
+      if(laneId === activeId && live){
+        const saved = b.waveData.slice();
+        const lvLive = blobLevelFrom(live.analyser, b);
+        if(lvLive >= lv) lv = lvLive; else b.waveData.set(saved);
+      }
+      if(lv < 0){ lv = 0; b.waveData.fill(128); }
+      b.amp += (Math.min(lv*3, 1) - b.amp) * .3;
+      master = Math.max(master, b.amp);
+      // note-on ripples for saved MIDI clips as the song crosses a step with a note in it
+      if(songBar != null){
+        const lane = lanes.find(l=>l.id===laneId);
+        const clip = lane && (lane.clips||[]).find(c=>songBar>=c.startBar && songBar<c.startBar+c.lengthBars);
+        const loop = clip && (lane.loops||[]).find(lo=>lo.id===clip.loopId);
+        const heldForSeq = seq && loop && loop.id === seq.editingLoopId && seqSyncStatus[vid] !== 'synced';
+        if(loop && loop.pattern && loop.pattern.grid && !heldForSeq && !lane.muted){
+          const lb = loop.pattern.bars || loop.bars || 1;
+          const step = Math.floor((((songBar - clip.startBar) % lb) + lb) % lb * SEQ_STEPS_PER_BAR);
+          if(step !== b.lastStep){
+            b.lastStep = step;
+            if(Object.values(loop.pattern.grid).some(row=>row && row[step])) rippleBlob(b);
           }
         }
-        b.k *= .93;
-        const armed = armedSet.has(laneId);
-        const sel = armed ? 1.08 : 1;
-        const p = b.geo.attributes.position, base = b.base, wd = b.waveData;
-        for(let i=0;i<p.count;i++){
-          const x = base[i*3], y = base[i*3+1], z = base[i*3+2];
-          const w = Math.sin(x*3+T*2)*Math.cos(y*3.3+T*1.7)*Math.sin(z*2.7+T*2.3);
-          const rip = Math.sin((x*b.dir.x + y*b.dir.y + z*b.dir.z)*7 - T*14) * b.k;
-          const wave = (wd[Math.min(255, ((x*.5+.5)*255)|0)] - 128) / 128;
-          const d = (1 + .05*w + b.amp*.55*w + .35*rip*b.k + b.k*.15 + wave*b.amp*.23) * sel;
-          p.array[i*3] = x*d; p.array[i*3+1] = y*d; p.array[i*3+2] = z*d;
+      }
+      b.k *= .93;
+      b.squash *= .9;
+      const armed = armedSet.has(laneId) || laneId===activeId;
+      const sel = armed ? 1.08 : 1;
+      const p = b.geo.attributes.position, base = b.base, wd = b.waveData;
+      for(let i=0;i<p.count;i++){
+        const x = base[i*3], y = base[i*3+1], z = base[i*3+2];
+        const w = Math.sin(x*3+T*2)*Math.cos(y*3.3+T*1.7)*Math.sin(z*2.7+T*2.3);
+        const rip = Math.sin((x*b.dir.x + y*b.dir.y + z*b.dir.z)*7 - T*14) * b.k;
+        const wave = (wd[Math.min(255, ((x*.5+.5)*255)|0)] - 128) / 128;
+        const d = (1 + .05*w + b.amp*.55*w + .35*rip*b.k + b.k*.15 + wave*b.amp*.23) * sel;
+        p.array[i*3] = x*d; p.array[i*3+1] = y*d*(1 - b.squash*.35); p.array[i*3+2] = z*d;
+      }
+      p.needsUpdate = true;
+      b.geo.computeVertexNormals();
+      b.mat.emissiveIntensity = .2 + b.amp*1.2 + b.k*.5;
+      b.mesh.rotation.y = T*.1;
+      const a = b.i/b.n*Math.PI*2;
+      b.mesh.position.x = Math.cos(a)*ringR; b.mesh.position.z = Math.sin(a)*ringR;
+      const homeY = Math.sin(b.i*1.7)*.8;
+      b.mesh.position.y += (homeY + Math.sin(T + b.mesh.position.x)*.3 - b.mesh.position.y) * .02;
+      b.glowSprite.position.copy(b.mesh.position);
+      b.glowSprite.material.opacity = (armed ? .45 : .22) + b.amp*.4;
+      b.glowSprite.scale.setScalar(3.4 * sel * (1 + b.amp*.5 + b.k*.25));
+      b.label.position.set(b.mesh.position.x, b.mesh.position.y - 1.45, b.mesh.position.z);
+      b.label.material.opacity = armed ? 1 : .7;
+    });
+    st.disk.rotation.y = T*.35;
+    st.halo.scale.setScalar(2.2 + master*1.4);
+    st.halo.material.opacity = .3 + master*.4;
+    st.stars.rotation.y = T*.01;
+    st.nebulae.forEach((sp,i)=>{ sp.material.rotation = T*.02*(i+1); sp.material.opacity = .14 + master*.08; });
+    st.renderer.render(st.scene, cam);
+  }
+
+  // per-frame HUD bits that follow the transport: step playhead, readout, bar page, slot "now"
+  function s3dTickHud(vid, st){
+    const seq = studioSeq[vid];
+    const ui = s3dUiFor(vid);
+    const v = VOYAGES.find(x=>x.id===vid);
+    if(!seq || !v || !v.studio) return;
+    const pb = studioPlayback[vid];
+    const playing = !!pb && seq.pos!=null;
+    const L = seq.bars;
+    let step = -1;
+    if(playing){
+      const total = L*SEQ_STEPS_PER_BAR;
+      const idx = Math.min(total-1, Math.floor(seq.pos));
+      const pageNow = Math.floor(idx/16);
+      if(pageNow !== ui.page){ ui.page = pageNow; st.dock.innerHTML = s3dDockHtml(v); }
+      step = idx % 16;
+      const slotNow = pb.songBar!=null ? Math.floor(pb.songBar / L) % S3D_SLOTS : -1;
+      if(slotNow !== st.lastSlotNow){
+        st.lastSlotNow = slotNow;
+        st.bar.querySelectorAll('.s3d-arr button').forEach((b,i)=>b.classList.toggle('now', i===slotNow));
+      }
+    } else if(st.lastSlotNow !== -1){
+      st.lastSlotNow = -1;
+      st.bar.querySelectorAll('.s3d-arr button').forEach(b=>b.classList.remove('now'));
+    }
+    if(step !== st.lastStep){
+      st.lastStep = step;
+      st.dock.querySelectorAll('.s3d-st').forEach((e,k)=>e.classList.toggle('ph', k===step));
+      const pos = document.getElementById('s3d-pos-'+vid);
+      if(pos) pos.textContent = `${loopRegionFor(vid, v.studio.bars||16).on?'Loop':'Song'} · Bar ${ui.page+1}/${L} · Step ${step<0?'–':step+1}/16`;
+    }
+    // "Loop → Slot" after a take in Loop mode: once Rec has stopped and the take is saved
+    if(ui.pendingCommit && !studioRecorders[vid]){
+      if(performance.now() - ui.pendingCommit > 20000) ui.pendingCommit = 0;
+      else if(seqSyncStatus[vid]==='synced' && !seqAutoSyncTimer[vid]){ ui.pendingCommit = 0; s3dCommit(vid); }
+    }
+  }
+
+  function s3dHitPad(vid, i){
+    const pads = s3dPadList(vid);
+    const p = pads[i];
+    if(!p) return;
+    const seq = seqFor(vid);
+    const ui = s3dUiFor(vid);
+    if(!studioActiveLane[vid]){
+      const v = VOYAGES.find(x=>x.id===vid);
+      const mine = v && (v.studio.lanes||[]).find(l=>l.owner===myName());
+      if(mine) s3dArm(vid, mine.id);
+    }
+    app.hitPad(vid, seq.kind, p.play);
+    const st = STUDIO3D[vid];
+    if(!st) return;
+    const prevSel = ui.sel;
+    ui.sel = p.row;
+    const btn = st.dock.querySelectorAll('.s3d-pad')[i];
+    if(btn){ btn.classList.add('hit'); setTimeout(()=>btn.classList.remove('hit'), 110); }
+    if(String(prevSel) !== String(p.row)){
+      if(seq.kind==='melodic') ensureMelRow(seq, p.row);
+      st.dock.innerHTML = s3dDockHtml(VOYAGES.find(x=>x.id===vid));
+      const b2 = st.dock.querySelectorAll('.s3d-pad')[i];
+      if(b2){ b2.classList.add('hit'); setTimeout(()=>b2.classList.remove('hit'), 110); }
+    }
+  }
+  function s3dArm(vid, laneId){
+    if(studioActiveLane[vid] === laneId) return true;
+    if(studioRecorders[vid]){ toast('Stop Rec first — then arm the next track.'); return false; }
+    // one armed track at a time here, like the prototype: disarm the rest, then arm this one
+    const set = studioArmedLanes[vid];
+    if(set) Array.from(set).filter(id=>id!==laneId).forEach(id=>app.toggleArmLane(vid, id));
+    if(!(studioArmedLanes[vid] && studioArmedLanes[vid].has(laneId))) app.toggleArmLane(vid, laneId);
+    return studioActiveLane[vid] === laneId;
+  }
+  function s3dTapBlob(vid, laneId){
+    const st = STUDIO3D[vid];
+    const b = st && st.blobs.get(laneId);
+    if(b){ b.squash = 1; rippleBlob(b); }
+    const was = studioActiveLane[vid];
+    if(s3dArm(vid, laneId) && was === laneId){
+      // tapping the armed blob plays the selected pad, so the blob itself is an instrument
+      const pads = s3dPadList(vid);
+      const ui = s3dUiFor(vid);
+      const i = Math.max(0, pads.findIndex(p=>String(p.row)===String(ui.sel)));
+      s3dHitPad(vid, i);
+    }
+  }
+  // Clip placement that never overlaps: anything already under [start, start+len) on this
+  // track is trimmed or split around the new clip (so the song clip keeps playing either side).
+  function placeClipExclusive(lane, clip){
+    const s = clip.startBar, e = clip.startBar + clip.lengthBars;
+    const out = [];
+    (lane.clips||[]).forEach(c=>{
+      const cs = c.startBar, ce = c.startBar + c.lengthBars;
+      if(ce <= s || cs >= e){ out.push(c); return; }
+      if(cs < s) out.push({ ...c, lengthBars: s - cs });
+      if(ce > e) out.push({ ...c, id: cs < s ? uid('clip') : c.id, startBar: e, lengthBars: ce - e });
+    });
+    out.push(clip);
+    lane.clips = out;
+  }
+  async function s3dCommit(vid){
+    const v = VOYAGES.find(x=>x.id===vid);
+    if(!v || !v.studio) return;
+    if(!requireAuth()) return;
+    const seq = seqFor(vid), ui = s3dUiFor(vid);
+    if(studioRecorders[vid]){ toast('Stop Rec first — then send the loop to a slot.'); return; }
+    const activeId = studioActiveLane[vid];
+    const hasNotes = Object.values(s3dGrid(seq)).some(r=>r && r.some(Boolean));
+    if(activeId && hasNotes && (seqSyncStatus[vid]!=='synced' || !seq.editingLoopId)){
+      if(seqAutoSyncTimer[vid]){ clearTimeout(seqAutoSyncTimer[vid]); delete seqAutoSyncTimer[vid]; }
+      toast('Saving the loop…');
+      await app.bounceSequence(vid, { silent:true });
+    }
+    const L = seq.bars, start = ui.slot*L;
+    let n = 0;
+    (v.studio.lanes||[]).forEach(lane=>{
+      const liveLoop = (lane.id===activeId && seq.editingLoopId && (lane.loops||[]).find(lo=>lo.id===seq.editingLoopId))
+        || (lane.loops||[]).find(lo=>lo.pattern && !lo.slot3d);
+      if(!liveLoop || !liveLoop.url || !liveLoop.pattern) return;
+      const frozen = { id: uid('loop'), name: `${liveLoop.name||'loop'} · slot ${ui.slot+1}`, url: liveLoop.url, kind: liveLoop.kind||'audio', bars: liveLoop.bars, pattern: JSON.parse(JSON.stringify(liveLoop.pattern)), slot3d: true };
+      lane.loops.push(frozen);
+      placeClipExclusive(lane, { id: uid('clip'), loopId: frozen.id, startBar: start, lengthBars: L });
+      n++;
+    });
+    if(!n){ toast('Nothing to send yet — play some pads (or tap step cells) on a track first.'); return; }
+    persistStudio(v);
+    renderVoyageDetail();
+    toast(`Loop sent to slot ${ui.slot+1} (bars ${start+1}–${start+L}) on ${n} track${n>1?'s':''} — it's in the 2D arrangement too.`);
+  }
+  function s3dSetLoopRegionToSlot(vid){
+    const v = VOYAGES.find(x=>x.id===vid);
+    if(!v || !v.studio) return;
+    const L = seqFor(vid).bars, ui = s3dUiFor(vid);
+    const lr = loopRegionFor(vid, v.studio.bars||16);
+    lr.start = ui.slot*L; lr.len = L;
+    if(lr.start + L > (v.studio.bars||16)){ v.studio.bars = lr.start + L; }
+  }
+  function s3dAction(vid, act, t){
+    const v = VOYAGES.find(x=>x.id===vid);
+    if(!v || !v.studio) return;
+    const ui = s3dUiFor(vid), seq = seqFor(vid);
+    switch(act){
+      case '2d': app.toggle3DStudio(vid); return;
+      case 'play': app.playStudio(vid); s3dRenderHud(vid); return;
+      case 'stop': app.stopStudio(vid); s3dRenderHud(vid); return;
+      case 'rec': {
+        const wasRec = !!studioRecorders[vid];
+        if(!wasRec && !studioActiveLane[vid]){
+          const mine = (v.studio.lanes||[]).find(l=>l.owner===myName());
+          if(mine) s3dArm(vid, mine.id);
+          else { toast('Add a track first (+ Track), then hit Rec.'); return; }
         }
-        p.needsUpdate = true;
-        b.geo.computeVertexNormals();
-        b.mat.emissiveIntensity = .2 + b.amp*1.2 + b.k*.5;
-        b.mesh.rotation.y = T*.1;
-        b.mesh.position.y += (b.home.y + Math.sin(T + b.home.x)*6 - b.mesh.position.y) * .02;
-        b.glowSprite.position.copy(b.mesh.position);
-        b.glowSprite.material.opacity = (armed ? 0.5 : 0.25) + b.amp*0.4;
-        b.glowSprite.scale.setScalar(70 * sel * (1 + b.amp*0.5 + b.k*0.2));
-      });
-      disk.rotation.y = T*0.12;
-      nebulae.forEach((sp,i)=>{ sp.material.rotation = T*0.015*(i+1); });
-      const R = 300;
-      camera.position.set(Math.sin(dragYaw)*R*Math.cos(dragPitch), Math.sin(dragPitch)*R, Math.cos(dragYaw)*R*Math.cos(dragPitch));
-      camera.lookAt(0,0,0);
-      renderer.render(scene, camera);
-      state.raf = requestAnimationFrame(animate);
-    };
-    animate();
+        Promise.resolve(app.toggleStudioRecording(vid)).then(()=>{
+          if(wasRec && loopRegionFor(vid, v.studio.bars||16).on) ui.pendingCommit = performance.now();
+          if(!wasRec && !studioPlayback[vid]) app.playStudio(vid);
+          s3dRenderHud(vid);
+        });
+        return;
+      }
+      case 'arm': s3dArm(vid, t.dataset.lane); s3dRenderHud(vid); return;
+      case 'addtrack': app.addTrack(vid); return;
+      case 'slot': {
+        ui.slot = parseInt(t.dataset.i,10)||0;
+        const lr = loopRegionFor(vid, v.studio.bars||16);
+        if(lr.on){ s3dSetLoopRegionToSlot(vid); renderVoyageDetail(); if(studioPlayback[vid]) app.playStudio(vid); }
+        else s3dRenderHud(vid);
+        return;
+      }
+      case 'song': {
+        const lr = loopRegionFor(vid, v.studio.bars||16);
+        if(!lr.on) s3dSetLoopRegionToSlot(vid);
+        app.toggleLoopRegionOn(vid);
+        return;
+      }
+      case 'commit': s3dCommit(vid); return;
+      case 'cell': {
+        const i = parseInt(t.dataset.i,10);
+        if(seq.kind==='melodic') ensureMelRow(seq, ui.sel);
+        const grid = s3dGrid(seq);
+        if(!grid[ui.sel]) return;
+        const turningOn = !grid[ui.sel][i];
+        if(!studioActiveLane[vid]){
+          const mine = (v.studio.lanes||[]).find(l=>l.owner===myName());
+          if(mine) s3dArm(vid, mine.id);
+        }
+        app.toggleSeqCell(vid, ui.sel, i);
+        if(turningOn){
+          const p = s3dPadList(vid).find(x=>String(x.row)===String(ui.sel));
+          if(p){ const ctx = getStudioCtx(), bus = voiceBusFor(vid, ctx);
+            if(seq.kind==='drum') hitDrumSampleUrl(drumSampleUrl(v, p.play), ctx, [bus.filter]);
+            else if(seq.kind==='chop') hitChop(vid, p.play, ctx, [bus.filter]);
+            else hitVoice(seq.voice||'pad', p.play, ctx, [bus.filter]);
+            ripple3D(vid, studioActiveLane[vid]); }
+        }
+        return;
+      }
+      case 'clr': {
+        const grid = s3dGrid(seq);
+        Object.values(grid).forEach(r=>r && r.fill(false));
+        seq.rev = (seq.rev||0) + 1;
+        if(seq.editingLoopId){ seqSyncStatus[vid] = 'pending'; scheduleSeqAutoSync(vid); }
+        renderVoyageDetail();
+        return;
+      }
+      case 'min': ui.min = !ui.min; s3dRenderHud(vid); return;
+      case 'page': ui.page = Math.max(0, Math.min(seq.bars-1, ui.page + (parseInt(t.dataset.d,10)||0))); s3dRenderHud(vid); return;
+      case 'surface': app.setPlaySurface(vid, t.dataset.s); return;
+    }
   }
   function unmountStudio3D(vid){
     const st = STUDIO3D[vid];
     if(!st) return;
     delete STUDIO3D[vid];
     if(st.raf) cancelAnimationFrame(st.raf);
-    try{ st.ro.disconnect(); }catch(e){}
-    try{
-      st.canvas.removeEventListener('pointerdown', st.onDown);
-      st.canvas.removeEventListener('pointermove', st.onMove);
-      st.canvas.removeEventListener('pointerup', st.onUp);
-      st.canvas.removeEventListener('pointerleave', st.onLeave);
-    }catch(e){}
+    st.handlers.forEach(([el, ev, fn, opts])=>{ try{ el.removeEventListener(ev, fn, opts); }catch(e){} });
     st.blobs.forEach(b=>{
-      b.geo.dispose(); b.mat.dispose();
-      b.glowSprite.material.dispose();
+      b.geo.dispose(); b.mat.dispose(); b.glowSprite.material.dispose();
       if(b.label.material.map) b.label.material.map.dispose();
       b.label.material.dispose();
     });
-    (st.disposables||[]).forEach(d=>{ try{ d.dispose(); }catch(e){} });
-    try{ st.renderer.dispose(); }catch(e){}
+    st.disposables.forEach(d=>{ try{ d.dispose(); }catch(e){} });
+    if(st.renderer){
+      try{ st.renderer.dispose(); }catch(e){}
+      try{ st.renderer.forceContextLoss(); }catch(e){} // release the GL context now — mobile caps how many can exist
+    }
+    st.root.remove();
+    if(!Object.keys(STUDIO3D).length) document.body.classList.remove('s3d-open');
   }
-  // Called after every renderVoyageDetail() — the DOM (and any 3D canvas in it) gets
-  // fully rebuilt on most state changes, so this re-mounts onto the fresh canvas
-  // whenever one exists and tears the engine down the moment the user leaves 3D mode,
-  // instead of trying to keep a WebGL context alive across an innerHTML replace.
+  // Called after every renderVoyageDetail(): the 3D view is a persistent full-screen layer,
+  // so this only mounts it once when 3D turns on (and drops it when 3D turns off) — the
+  // rest of the time it just refreshes the HUD from the current studio state.
   function syncStudio3DMount(vid){
     if(!studio3D[vid]){ unmountStudio3D(vid); return; }
-    const canvas = document.getElementById('studio3d-canvas-'+vid);
-    if(!canvas){ unmountStudio3D(vid); return; }
-    const st = STUDIO3D[vid];
-    if(st && st.canvas === canvas) return;
-    requestAnimationFrame(()=>mountStudio3D(vid));
+    if(!STUDIO3D[vid]){ mountStudio3D(vid); return; }
+    s3dRenderHud(vid);
   }
   function studioHtml(v){
     migrateStudio(v);
@@ -5329,7 +5752,7 @@
           </label>
         </div>`;
       })()}
-      ${studio3D[v.id] ? studio3DStageHtml(v) : `
+      ${`
       <div class="studio-timeline">
         <div class="timeline-scroll" id="timeline-scroll-${v.id}">
           <div class="timeline-content" id="timeline-content-${v.id}">
@@ -6719,7 +7142,7 @@
       // live-played MIDI lands in this track — overdub onto its existing clip, never replace it
       {
         const pLane = (v.studio.lanes||[]).find(l=>l.id===primaryLaneId);
-        const pLoop = pLane && (pLane.loops||[]).find(l=>l.pattern);
+        const pLoop = pLane && (pLane.loops||[]).find(l=>l.pattern && !l.slot3d);
         const seq = seqFor(vid);
         if(studioActiveLane[vid] !== primaryLaneId || (pLoop && seq.editingLoopId !== pLoop.id)){
           studioActiveLane[vid] = primaryLaneId;
@@ -7054,7 +7477,7 @@
         // clip, which spans the whole song and repeats via the audio element's native loop),
         // instead of piling up separate loops every time you tap Save.
         lane.loops = lane.loops || [];
-        let loop = (editingSnap && lane.loops.find(l=>l.id===editingSnap)) || lane.loops.find(l=>l.pattern);
+        let loop = (editingSnap && lane.loops.find(l=>l.id===editingSnap)) || lane.loops.find(l=>l.pattern && !l.slot3d);
         let newClipStart = 0;
         if(loop){
           loop.url = media.url; loop.bars = barsSnap; loop.pattern = pattern; loop.name = label;
@@ -7062,7 +7485,11 @@
           const existingClip = lane.clips.find(c=>c.loopId===loop.id);
           if(existingClip){
             newClipStart = existingClip.startBar;
-            existingClip.lengthBars = Math.max(barsSnap, v.studio.bars - existingClip.startBar);
+            // grow to the song's end, but never over a clip placed after it (3D slot clips)
+            const laterStarts = lane.clips.filter(c=>c!==existingClip && c.startBar>existingClip.startBar).map(c=>c.startBar);
+            existingClip.lengthBars = laterStarts.length
+              ? Math.max(1, Math.min(...laterStarts) - existingClip.startBar)
+              : Math.max(barsSnap, v.studio.bars - existingClip.startBar);
           } else {
             lane.clips.push({ id: uid('clip'), loopId: loop.id, startBar: 0, lengthBars: v.studio.bars });
           }
@@ -8517,6 +8944,9 @@
       // transcribed captions actually show up in the space as you fix their
       // timing, not just after the post goes out.
       document.getElementById('feed-schedule-preview-wrap').hidden = false;
+      // sphere.html's own layer-mix bar/panel is only wanted while actively
+      // designing in step 1 — steps 2/3 just want the plain preview.
+      scheduleFrame()?.contentWindow?.postMessage({ type: 'setUiVisible', visible: n === 1 }, '*');
       if(n === 3) app.pushLiveLyricsPreview();
       const labels = ['Design the visuals', 'Dance silhouette', 'Lyrics'];
       document.getElementById('feed-schedule-head-label').textContent = `Step ${n} of 3 — ${labels[n-1]}`;
@@ -8548,22 +8978,12 @@
     // ---- Step 2: dance silhouette ----
     // Loaded lazily (only once the user actually opens this step) so every
     // page load doesn't pay for a segmentation model nobody may ever use.
-    async ensureSilhouetteLib(){
-      if(window.SelfieSegmentation) return;
-      await new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js';
-        s.onload = resolve; s.onerror = () => reject(new Error('could not load the silhouette model'));
-        document.head.appendChild(s);
-      });
-    },
     async toggleSilhouette(enabled){
       document.getElementById('feed-silhouette-body').hidden = !enabled;
       if(!enabled){ app.stopSilhouetteCamera(); return; }
       const statusEl = document.getElementById('feed-silhouette-status');
       try {
         statusEl.textContent = 'Loading…';
-        await app.ensureSilhouetteLib();
         scheduleSilhouetteStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
         const video = document.getElementById('feed-silhouette-cam');
         video.srcObject = scheduleSilhouetteStream;
@@ -8576,7 +8996,7 @@
         // uses), instead of a separate flat 2D copy sitting on top of it.
         canvas.style.display = 'none';
         const ctx = canvas.getContext('2d');
-        let gotFirstResult = false, liveFrameTick = 0;
+        let liveFrameTick = 0;
         // Throttled so a real-time cutout doesn't spam createImageBitmap/
         // postMessage at 60fps — a few pushes a second reads as smooth for a
         // dancing silhouette.
@@ -8587,43 +9007,15 @@
             scheduleFrame()?.contentWindow?.postMessage({ type: 'silhouetteFrame', bitmap: bmp }, '*', [bmp]);
           } catch(e){ /* iframe not ready yet, or bitmap failed — just skip this frame */ }
         }
-        const seg = new window.SelfieSegmentation({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${f}` });
-        seg.setOptions({ modelSelection: 1 });
-        seg.onResults((res) => {
-          gotFirstResult = true;
-          // Draws the mask as a bright cyan silhouette on solid black — this
-          // is what sphere.html composites in with 'screen' blend mode, same
-          // trick as every other layer there, so the black just vanishes and
-          // only the bright silhouette shows through.
-          ctx.save();
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.globalCompositeOperation = 'source-over';
-          ctx.drawImage(res.segmentationMask, 0, 0, canvas.width, canvas.height);
-          ctx.globalCompositeOperation = 'source-in';
-          ctx.fillStyle = '#7ff2ff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.restore();
-          pushLiveFrame();
-        });
-        scheduleSilhouetteSegmenter = seg;
-        const loop = async () => {
-          if(!scheduleSilhouetteSegmenter) return;
-          try { await seg.send({ image: video }); }
-          catch(e){ console.warn('[silhouette] segmentation send failed:', e?.message || e); }
-          scheduleSilhouetteRAF = requestAnimationFrame(loop);
-        };
-        loop();
-        // The old MediaPipe cutout model can silently fail to ever call
-        // onResults (broken WASM load, missing crossOriginIsolated, etc.) —
-        // instead of sitting on a blank canvas forever (the "blank" bug),
-        // fall back to the plain camera feed so there's always something.
-        setTimeout(() => {
-          if (gotFirstResult || !scheduleSilhouetteSegmenter) return;
-          console.warn('[silhouette] segmentation model produced no result in time — falling back to plain camera feed');
-          scheduleSilhouetteSegmenter = null;
-          if (scheduleSilhouetteRAF) cancelAnimationFrame(scheduleSilhouetteRAF);
-          statusEl.textContent = "Couldn't load background removal — showing your plain camera feed instead.";
+        // The old @mediapipe/selfie_segmentation background-removal model
+        // (deprecated by Google, unmaintained) turned out to actively call
+        // onResults with a broken, static mask instead of either working or
+        // failing cleanly — Barak 2026-09-29: "nothing I do in front of the
+        // camera changes, it's just white dots in the form of a carpet."
+        // Rather than ship an unreliable cutout, this draws your RAW camera
+        // frame straight in — no background removal yet, but it's real,
+        // moving, and actually you, which a broken "clean" cutout wasn't.
+        {
           const rawLoop = () => {
             if (!scheduleSilhouetteStream) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -8632,7 +9024,7 @@
             scheduleSilhouetteRAF = requestAnimationFrame(rawLoop);
           };
           rawLoop();
-        }, 5000);
+        }
         statusEl.textContent = 'Stand in frame, then press record and dance — recording runs alongside the song.';
       } catch(e){
         console.error('toggleSilhouette failed:', e);
@@ -8645,7 +9037,6 @@
       if(scheduleSilhouetteRecording) app.toggleSilhouetteRecording();
       if(scheduleSilhouetteRAF) cancelAnimationFrame(scheduleSilhouetteRAF);
       scheduleSilhouetteRAF = null;
-      scheduleSilhouetteSegmenter = null;
       scheduleSilhouetteStream?.getTracks().forEach(t => t.stop());
       scheduleSilhouetteStream = null;
       const canvas = document.getElementById('feed-silhouette-canvas');

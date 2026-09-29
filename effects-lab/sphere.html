@@ -1621,6 +1621,15 @@ if (driven) {
     if (e.data?.type === 'silhouetteFrame' && e.data.bitmap) {
       setLiveSilhouette(e.data.bitmap);
     }
+    if (e.data?.type === 'setUiVisible') {
+      // The wizard shares one persistent iframe across all 3 steps so
+      // playback and the live silhouette/lyrics layers survive step
+      // changes — this lets index.html hide the uploader's own layer-mix
+      // bar/panel once they've moved past step 1, without reloading it.
+      const show = !!e.data.visible;
+      const bar = document.getElementById('bar'); if (bar) bar.style.display = show ? '' : 'none';
+      const bp = document.getElementById('blendPanel'); if (bp) bp.style.display = show ? '' : 'none';
+    }
     if (e.data?.type === 'setActive') {
       if (e.data.active) {
         if (audioEl && isFinite(e.data.time) && Math.abs(audioEl.currentTime - e.data.time) > 0.4) audioEl.currentTime = e.data.time;
