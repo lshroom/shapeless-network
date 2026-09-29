@@ -721,14 +721,7 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera, 
     if (reactBand === 'harmony') return audio.harmonyHit;
     return audio.hit;
   }
-  // Not 'high-performance' — forcing that on a hybrid-graphics (integrated +
-  // discrete) laptop makes Chrome negotiate a GPU switch for the context,
-  // which is a documented cause of the WebGL context creation just hanging
-  // or crashing outright (chromium issue 40209965). This page opens up to 4
-  // of these renderers at once (schedule editor's blended preview), so the
-  // odds of hitting it are real — and a phone has no second GPU to switch
-  // to, which is why the exact same scene opens instantly there.
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha, powerPreference:'default' });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha, powerPreference:'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
   renderer.setClearColor(0x05060a, alpha ? 0 : 1);
   const scene = new THREE.Scene();
@@ -911,7 +904,7 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera, 
 // under whichever shape layers are switched off, and reacts to the same
 // shared audio signal (hue drifts with the mids, a small beat-synced glow).
 function createBackgroundLayer({ canvas }){
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias:false, alpha:false, powerPreference:'default' });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:false, alpha:false, powerPreference:'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
   renderer.setClearColor(0x05060a, 1);
   const scene = new THREE.Scene();

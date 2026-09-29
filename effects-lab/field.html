@@ -62,10 +62,7 @@ import { pal } from '/h5555/core.js';
 
 // ---- renderer / scene / camera ----
 const canvas = document.getElementById('stage');
-// Not 'high-performance' — forces a GPU switch on hybrid-graphics laptops,
-// a documented cause of WebGL context creation hanging/crashing outright
-// (chromium issue 40209965); see sphere.html for the fuller writeup.
-const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'default' });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
 renderer.setClearColor(0x05060a, 1);
 const scene = new THREE.Scene();

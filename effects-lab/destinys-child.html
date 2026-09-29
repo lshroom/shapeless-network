@@ -219,10 +219,7 @@ video.play().catch(()=>{});
 // lighter rendering settings there keep phones smooth without touching the
 // full standalone Worlds experience's fidelity.
 const IS_FEED_EMBED = new URLSearchParams(location.search).has('world');
-// Not 'high-performance' — forces a GPU switch on hybrid-graphics laptops,
-// a documented cause of WebGL context creation hanging/crashing outright
-// (chromium issue 40209965); see sphere.html for the fuller writeup.
-const renderer = new THREE.WebGLRenderer({ canvas: stage, antialias: !IS_FEED_EMBED, alpha: true, powerPreference: 'default' });
+const renderer = new THREE.WebGLRenderer({ canvas: stage, antialias: !IS_FEED_EMBED, alpha: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, IS_FEED_EMBED ? 1.5 : 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.setClearColor(0x000000, 1);
