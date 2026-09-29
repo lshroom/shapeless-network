@@ -629,6 +629,20 @@
   .studio-timeline{ border:1px solid var(--line); border-radius:12px; background:var(--surface); overflow:hidden; margin-bottom:10px; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
   .studio3d-stage{ position:relative; border:1px solid var(--line); border-radius:12px; background:#000; overflow:hidden; margin-bottom:10px; height:min(60vh, 480px); touch-action:none; }
   .studio3d-stage canvas{ width:100%; height:100%; display:block; }
+  .studio3d-bar{ position:absolute; top:8px; left:8px; right:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; pointer-events:none; }
+  .studio3d-bar > *{ pointer-events:auto; background:color-mix(in srgb, #000 60%, transparent); border-radius:999px; }
+  .studio3d-bar select, .studio3d-bar input{ background:var(--surface-2); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:2px 4px; }
+  .studio3d-armed{ font-size:12px; color:var(--text); padding:4px 10px; }
+  .chorder{ display:flex; gap:8px; margin-bottom:8px; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; touch-action:none; }
+  .chorder-grid{ flex:1; display:grid; grid-template-columns:repeat(7, 1fr); gap:5px; }
+  .chorder-btn{ min-height:48px; border-radius:8px; border:1px solid var(--chord-color); background:color-mix(in srgb, var(--chord-color) 8%, transparent); color:var(--chord-color); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; cursor:pointer; padding:2px; transition:background .12s, box-shadow .12s; }
+  .chorder-btn b{ font-size:16px; line-height:1; }
+  .chorder-btn span{ font-size:9px; color:color-mix(in srgb, var(--text) 70%, transparent); letter-spacing:.05em; }
+  .chorder-btn.armed{ background:color-mix(in srgb, var(--chord-color) 26%, transparent); box-shadow:0 0 0 1px var(--chord-color), 0 0 12px color-mix(in srgb, var(--chord-color) 55%, transparent); }
+  .chorder-btn.hit{ background:color-mix(in srgb, #fff 45%, var(--chord-color)); }
+  .chorder-strum{ width:46px; flex:none; display:flex; flex-direction:column; gap:3px; }
+  .chorder-strum-seg{ flex:1; min-height:16px; border-radius:5px; border:1px solid var(--seg-color); background:color-mix(in srgb, var(--seg-color) 12%, transparent); cursor:pointer; transition:background .1s; }
+  .chorder-strum-seg.hit{ background:var(--seg-color); }
   .studio3d-hint{ position:absolute; left:10px; bottom:8px; font-size:11px; color:var(--muted); pointer-events:none; background:color-mix(in srgb, #000 55%, transparent); padding:3px 8px; border-radius:999px; }
   .timeline-scroll{ position:relative; overflow-x:auto; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; overscroll-behavior-x:contain; touch-action:pan-x; }
   .timeline-content{ position:relative; transform-origin:0 0; }
@@ -1202,10 +1216,13 @@
           <button class="feed-schedule-close" onclick="app.closeScheduleEditor()">✕</button>
         </div>
 
+        <div class="feed-schedule-preview" id="feed-schedule-preview-wrap" style="position:relative;">
+          <iframe id="feed-schedule-frame-sphere" class="feed-schedule-frame" data-active="true" allow="autoplay"></iframe>
+          <video id="feed-silhouette-cam" autoplay muted playsinline style="display:none;"></video>
+          <canvas id="feed-silhouette-canvas" style="position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;mix-blend-mode:screen;"></canvas>
+        </div>
+
         <div id="feed-schedule-step1">
-          <div class="feed-schedule-preview">
-            <iframe id="feed-schedule-frame-sphere" class="feed-schedule-frame" data-active="true" allow="autoplay"></iframe>
-          </div>
           <div class="feed-schedule-transport">
             <button id="feed-schedule-play" onclick="app.toggleSchedulePreview()">▶</button>
             <span id="feed-schedule-time">0:00</span>
@@ -1226,13 +1243,9 @@
         <div id="feed-schedule-step2" hidden style="padding:14px;">
           <label class="feed-schedule-toggle-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <input type="checkbox" id="feed-silhouette-enable" onchange="app.toggleSilhouette(this.checked)">
-            <span>Add a dance silhouette — record yourself dancing to the song, we'll turn it into a silhouette layer on top of the visuals.</span>
+            <span>Add a dance silhouette — the visuals above keep playing from the top, dance in front of a plain wall and we'll cut you out on top of them.</span>
           </label>
           <div id="feed-silhouette-body" hidden>
-            <div class="feed-silhouette-stage" style="position:relative;background:#000;border-radius:10px;overflow:hidden;aspect-ratio:16/9;">
-              <video id="feed-silhouette-cam" autoplay muted playsinline style="display:none;"></video>
-              <canvas id="feed-silhouette-canvas" style="width:100%;height:100%;display:block;"></canvas>
-            </div>
             <div class="pad-hint" id="feed-silhouette-status" style="margin:8px 0;">Stand in front of a plain wall, in frame, for the best cutout.</div>
             <div style="display:flex;gap:8px;">
               <button class="btn btn-primary btn-sm" id="feed-silhouette-record-btn" style="flex:1" onclick="app.toggleSilhouetteRecording()">● Record while the song plays</button>
@@ -3837,6 +3850,16 @@
   // ---- melodic keyboard (ported from the drum room's synth voice engine) ----
   const MELODIC_VOICES = { bass:'Bass', pad:'Pad / Synth', morpheus:'Morpheus', bassouka:'Bassouka', spectra:'Spectra', coastalpluck:'Coastal Pluck', bass808:'808 Bass', masterkeys:'MasterKeys', operator:'Operator', wavetable:'Wavetable' };
   const KEYBOARD_NOTES = [60,61,62,63,64,65,66,67,68,69,70,71]; // full chromatic octave, C4–B4, all 12 semitones
+  // The melodic grid is keyed by MIDI note and always has the C4–B4 rows, plus a row for
+  // any other pitch that's been recorded (Chorder / MIDI keyboard), so notes keep their
+  // real octave instead of being folded into one.
+  const NOTE_NAMES_12 = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  function noteName(n){ return NOTE_NAMES_12[((n%12)+12)%12] + (Math.floor(n/12)-1); }
+  function melNotesOf(grid){ return Object.keys(grid||{}).map(Number).filter(n=>!isNaN(n)).sort((a,b)=>a-b); }
+  function ensureMelRow(seq, note){
+    if(!seq.melGrid[note]) seq.melGrid[note] = Array(seq.bars*SEQ_STEPS_PER_BAR).fill(false);
+    return seq.melGrid[note];
+  }
   const NOTE_LABELS = { 60:'C',61:'C#',62:'D',63:'D#',64:'E',65:'F',66:'F#',67:'G',68:'G#',69:'A',70:'A#',71:'B' };
   let studioVoice = {}; // vid -> 'bass' | 'pad'
   let studioVoiceFX = {}; // vid -> { volume, cutoff }
@@ -3849,6 +3872,7 @@
       const filter = ctx.createBiquadFilter(); filter.type='lowpass'; filter.frequency.value = fx.cutoff;
       const gain = ctx.createGain(); gain.gain.value = fx.volume;
       filter.connect(gain); gain.connect(ctx.destination);
+      gain.connect(liveAnalyserFor(vid, ctx).input);
       bus = { ctx, filter, gain, recConnected:null };
       studioVoiceBus[vid] = bus;
     }
@@ -4160,16 +4184,17 @@
     if(!v || !v.studio) return;
     const seq = seqFor(vid);
     const ctx = getStudioCtx();
-    const dests = [ctx.destination];
-    const recDest = studioRecordDest[vid];
-    if(recDest) dests.push(recDest);
+    const dests = [ctx.destination, liveAnalyserFor(vid, ctx).input];
     if(seq.kind==='melodic'){
       hitVoice(seq.voice||'pad', note, ctx, dests);
+      recordLiveHit(vid, 'melodic', note);
     } else if(seq.kind==='chop'){
-      hitChop(vid, Math.max(0, Math.min(CHOP_SLOTS.length-1, note-60)), ctx, dests);
+      const idx = Math.max(0, Math.min(CHOP_SLOTS.length-1, note-60));
+      hitChop(vid, idx, ctx, dests);
+      recordLiveHit(vid, 'chop', idx);
     } else {
       const padId = MIDI_DRUM_MAP[note];
-      if(padId) hitDrumSampleUrl(drumSampleUrl(v, padId), ctx, dests);
+      if(padId){ hitDrumSampleUrl(drumSampleUrl(v, padId), ctx, dests); recordLiveHit(vid, 'drum', padId); }
     }
   }
   // ---- FX rack: core effects, plain Web Audio (ported from the drum room's fxChain.js factories) ----
@@ -4304,6 +4329,7 @@
     const fxList = (lane && lane.fx) || [];
     graph.fxNodes.forEach(f=>{ try{ f.node.dispose(); }catch(e){} });
     try{ graph.gain.disconnect(); }catch(e){}
+    if(graph.analyser) graph.gain.connect(graph.analyser);
     const ctx = graph.gain.context;
     const active = fxList.filter(f=>!f.bypassed);
     const nodes = active.map(f=>({ effectId:f.id, node:createFxNode(ctx, f.type, f.params) }));
@@ -4385,7 +4411,7 @@
       grid[k]=next;
     });
     resize(seq.drumGrid, SEQ_ROWS);
-    resize(seq.melGrid, KEYBOARD_NOTES);
+    resize(seq.melGrid, [...new Set([...KEYBOARD_NOTES, ...melNotesOf(seq.melGrid)])]);
     resize(seq.chopGrid, CHOP_SLOTS);
     seq.bars = bars;
   }
@@ -4417,7 +4443,7 @@
     const seq = studioSeq[vid];
     if(!seq) return;
     if(seq.timer) clearInterval(seq.timer);
-    seq.timer = null; seq.playing = false; seq.step = 0;
+    seq.timer = null; seq.playing = false; seq.step = 0; seq.pos = null; seq.skip = {};
   }
   let seqLabelMode = {}; // vid -> 'pads' | 'notes' — how melodic rows are labeled (view-only)
   const SEQ_INSTRUMENTS = [
@@ -4475,6 +4501,128 @@
         </div>
       </div>`;
   }
+  // ---- Chorder — same layout/voicing as the drum room's Chorder: 3 rows (MAJ/MIN/7TH)
+  // × 7 roots, plus an 8-segment strum bar that plays the armed chord's tones cycling
+  // up through octaves (omnichord-style). Notes go through the exact same voice bus as
+  // the melodic pads, so Rec captures them identically.
+  const CHORD_ROOTS = ['C','D','E','F','G','A','B'];
+  const CHORD_ROOT_ST = [0,2,4,5,7,9,11];
+  const CHORD_TYPES = [
+    { label:'MAJ', intervals:[0,4,7],    color:'#ffb340' },
+    { label:'MIN', intervals:[0,3,7],    color:'#4488ff' },
+    { label:'7TH', intervals:[0,4,7,10], color:'#c026ff' },
+  ];
+  const CHORDER_STRUM_SEGS = 8;
+  let seqPlaySurface = {}; // vid -> 'pads' | 'chorder' (melodic only)
+  let chorderState = {};   // vid -> { armed:{typeIdx,rootIdx}|null, octave }
+  function chorderFor(vid){ return chorderState[vid] || (chorderState[vid] = { armed:null, octave:0 }); }
+  function chorderHtml(vid){
+    const cs = chorderFor(vid);
+    const btns = CHORD_TYPES.map((ct,ti)=>CHORD_ROOTS.map((root,ri)=>{
+      const armed = cs.armed && cs.armed.typeIdx===ti && cs.armed.rootIdx===ri;
+      return `<button class="chorder-btn ${armed?'armed':''}" id="chorder-${vid}-${ti}-${ri}" style="--chord-color:${ct.color}" onpointerdown="app.hitChord('${vid}',${ti},${ri})"><b>${root}</b><span>${ct.label}</span></button>`;
+    }).join('')).join('');
+    const segs = Array.from({length:CHORDER_STRUM_SEGS}, (_,i)=>CHORDER_STRUM_SEGS-1-i).map(si=>{
+      const hue = Math.round((0.62 - (si/(CHORDER_STRUM_SEGS-1))*0.38)*360);
+      return `<button class="chorder-strum-seg" id="chorder-strum-${vid}-${si}" style="--seg-color:hsl(${hue} 85% 62%)" onpointerdown="app.hitStrum('${vid}',${si})" onpointerenter="if(event.buttons) app.hitStrum('${vid}',${si})"></button>`;
+    }).join('');
+    return `
+      <div class="chorder">
+        <div class="chorder-grid">${btns}</div>
+        <div class="chorder-strum" title="Strum — plays the armed chord's notes, low to high">${segs}</div>
+      </div>
+      <div class="seq-bpm-row">
+        <label>Octave</label>
+        <button class="mini-toggle" onclick="app.setChorderOctave('${vid}',-1)">−</button>
+        <span class="loop-len-badge" id="chorder-oct-${vid}">${cs.octave>0?'+':''}${cs.octave}</span>
+        <button class="mini-toggle" onclick="app.setChorderOctave('${vid}',1)">+</button>
+      </div>`;
+  }
+  function chorderFire(vid, note){
+    const ctx = getStudioCtx();
+    const bus = voiceBusFor(vid, ctx);
+    hitVoice(seqFor(vid).voice||'pad', note, ctx, [bus.filter]);
+  }
+  // Everything played live — pads, Chorder, QWERTY, a MIDI keyboard — records as MIDI
+  // notes into the armed track while Rec is on: quantized to the nearest 16th inside the
+  // master loop (seq.bars), written into the same pattern the step grid edits and the
+  // arrangement plays. It's never baked into the audio take (only the mic is), so there's
+  // one copy of every note, editable afterwards like any other step.
+  function recordLiveHit(vid, kind, key){
+    if(!studioRecorders[vid]) return;
+    const seq = seqFor(vid);
+    if(!seq.playing || seq.pos==null || kind!==seq.kind) return;
+    const total = seq.bars*SEQ_STEPS_PER_BAR;
+    const step = Math.round(seq.pos) % total;
+    let rowKey = key;
+    if(kind==='chop') rowKey = CHOP_SLOTS[key];
+    const grid = kind==='melodic' ? seq.melGrid : (kind==='chop' ? seq.chopGrid : seq.drumGrid);
+    const newRow = kind==='melodic' && !grid[rowKey];
+    if(kind==='melodic') ensureMelRow(seq, rowKey);
+    if(!grid[rowKey]) return;
+    grid[rowKey][step] = true;
+    // rounded forward onto a step the playhead hasn't reached yet → you already heard this
+    // note, so don't let the sequencer fire it again a few ms later on this pass
+    if(step !== seq.step) (seq.skip || (seq.skip = {}))[rowKey+'@'+step] = true;
+    seq.rev = (seq.rev||0) + 1;
+    seq.liveDirty = true;
+    // the sequencer now holds newer notes than the saved clip → it plays this track, not the clip
+    if(seqSyncStatus[vid] === 'synced'){
+      seqSyncStatus[vid] = 'pending';
+      const el = document.getElementById('lane-audio-'+vid+'-'+studioActiveLane[vid]);
+      if(el && seq.editingLoopId && el.dataset.loopId === seq.editingLoopId){ el.pause(); el.dataset.loopId = ''; }
+    }
+    const panel = document.getElementById('seq-panel-'+vid);
+    if(newRow){ if(panel) renderVoyageDetail(); return; }
+    const cell = panel && panel.querySelector(`.seq-cell[onclick*="'${rowKey}',${step})"]`);
+    if(cell) cell.classList.add('on');
+  }
+  function loadLaneIntoSeq(vid, laneId){
+    const v = VOYAGES.find(x=>x.id===vid);
+    if(!v || !v.studio) return;
+    const lane = (v.studio.lanes||[]).find(l=>l.id===laneId);
+    if(!lane) return;
+    const seq = seqFor(vid);
+    const loop = (lane.loops||[]).find(l=>l.pattern);
+    seq.skip = {}; seq.liveDirty = false;
+    const total = () => seq.bars*SEQ_STEPS_PER_BAR;
+    if(loop){
+      const p = loop.pattern;
+      seq.kind = (p.grid && 'chop0' in p.grid) ? 'chop' : (p.kind || 'drum');
+      seq.editingLoopId = loop.id;
+      seqResizeBars(seq, p.bars || seq.bars);
+      if(seq.kind==='melodic'){ seq.melGrid = JSON.parse(JSON.stringify(p.grid)); KEYBOARD_NOTES.forEach(n=>ensureMelRow(seq, n)); seq.voice = p.voice || 'pad'; }
+      else if(seq.kind==='chop'){ seq.chopGrid = JSON.parse(JSON.stringify(p.grid)); }
+      else { seq.drumGrid = JSON.parse(JSON.stringify(p.grid)); SEQ_ROWS.forEach(r=>{ if(!seq.drumGrid[r]) seq.drumGrid[r] = Array(total()).fill(false); }); if(p.padKits) v.studio.padKits = { ...v.studio.padKits, ...p.padKits }; }
+      seqSyncStatus[vid] = 'synced';
+    } else {
+      seq.editingLoopId = null;
+      seq.drumGrid = Object.fromEntries(SEQ_ROWS.map(r=>[r, Array(total()).fill(false)]));
+      seq.melGrid = Object.fromEntries(KEYBOARD_NOTES.map(n=>[n, Array(total()).fill(false)]));
+      seq.chopGrid = Object.fromEntries(CHOP_SLOTS.map(c=>[c, Array(total()).fill(false)]));
+      delete seqSyncStatus[vid];
+    }
+  }
+  // One analyser per jam for everything played live (pads/Chorder/keys/MIDI + the step
+  // sequencer), so the armed track's blob moves with the real signal, not a fake pulse.
+  let studioLiveAnalyser = {}; // vid -> { ctx, input, analyser }
+  function liveAnalyserFor(vid, ctx){
+    let la = studioLiveAnalyser[vid];
+    if(!la || la.ctx !== ctx){
+      const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.6;
+      const input = ctx.createGain(); input.connect(analyser);
+      la = studioLiveAnalyser[vid] = { ctx, input, analyser };
+    }
+    return la;
+  }
+  function ensureLaneAnalyser(graph){
+    if(!graph.analyser){
+      graph.analyser = graph.gain.context.createAnalyser();
+      graph.analyser.fftSize = 256; graph.analyser.smoothingTimeConstant = 0.6;
+      graph.gain.connect(graph.analyser);
+    }
+    return graph.analyser;
+  }
   function sequencerHtml(vid, v){
     const seq = seqFor(vid);
     const isDrum = seq.kind === 'drum';
@@ -4482,7 +4630,7 @@
     const isMelodic = seq.kind === 'melodic';
     const labelMode = seqLabelMode[vid] || 'pads';
     const instId = currentInstrumentId(seq);
-    const melNotes = KEYBOARD_NOTES.slice().reverse();
+    const melNotes = melNotesOf(seq.melGrid).reverse();
     const pc = v.studio.pollyChops;
     const rows = isDrum
       ? SEQ_ROWS.map(padId=>{
@@ -4493,8 +4641,8 @@
       ? CHOP_SLOTS.map((chopId,idx)=>
           `<div class="seq-row"><span class="seq-row-label" onclick="app.hitChopPad('${vid}',${idx})" style="cursor:pointer;">Chop ${idx+1}</span><div class="seq-cells">${seq.chopGrid[chopId].map((on,i)=>`<button class="seq-cell ${on?'on':''} ${i%4===0?'beat':''} ${i%16===0?'bar-start':''} ${seq.playing && seq.step===i?'playhead':''}" data-step="${i}" onclick="app.toggleSeqCell('${vid}','${chopId}',${i})"></button>`).join('')}</div></div>`
         ).join('')
-      : melNotes.map((note,idx)=>
-          `<div class="seq-row"><span class="seq-row-label">${labelMode==='pads' ? ('Pad '+(idx+1)) : NOTE_LABELS[note]}</span><div class="seq-cells">${seq.melGrid[note].map((on,i)=>`<button class="seq-cell ${on?'on':''} ${i%4===0?'beat':''} ${i%16===0?'bar-start':''} ${seq.playing && seq.step===i?'playhead':''}" data-step="${i}" onclick="app.toggleSeqCell('${vid}','${note}',${i})"></button>`).join('')}</div></div>`
+      : melNotes.map(note=>
+          `<div class="seq-row"><span class="seq-row-label">${!KEYBOARD_NOTES.includes(note) ? noteName(note) : (labelMode==='pads' ? ('Pad '+(KEYBOARD_NOTES.length - KEYBOARD_NOTES.indexOf(note))) : NOTE_LABELS[note])}</span><div class="seq-cells">${seq.melGrid[note].map((on,i)=>`<button class="seq-cell ${on?'on':''} ${i%4===0?'beat':''} ${i%16===0?'bar-start':''} ${seq.playing && seq.step===i?'playhead':''}" data-step="${i}" onclick="app.toggleSeqCell('${vid}','${note}',${i})"></button>`).join('')}</div></div>`
         ).join('');
     const fx = voiceFxFor(vid);
     const QWERTY_PAD_ROW = ['a','s','d','f','g','h','j','k'];
@@ -4512,11 +4660,12 @@
           </select>
           ${isDrum ? `<select class="instrument-select kit-select" title="Drum kit" onchange="app.setSeqKit('${vid}', this.value)">${DRUM_KITS.map(k=>`<option value="${k}" ${k===((v.studio.padKits&&v.studio.padKits.kick)||'808')?'selected':''}>${DRUM_KIT_LABELS[k]}</option>`).join('')}</select>` : ''}
         </div>
-        <p class="pad-hint" style="margin:0 0 6px;">Tap to play live — arm Rec in the transport above to capture it.</p>
-        <div class="pad-grid live-pad-grid">${playPads}</div>
+        ${!isChop ? `<div class="tab-row" style="margin:0 0 6px;"><button class="tab-btn ${!(isMelodic && seqPlaySurface[vid]==='chorder')?'active':''}" onclick="app.setPlaySurface('${vid}','pads')">🔲 Pads</button><button class="tab-btn ${isMelodic && seqPlaySurface[vid]==='chorder'?'active':''}" onclick="app.setPlaySurface('${vid}','chorder')">🎼 Chorder</button></div>` : ''}
+        <p class="pad-hint" style="margin:0 0 6px;">Tap to play live — hit Rec in the transport above and what you play records as MIDI notes into the armed track's ${seq.bars}-bar loop (it shows up in the step grid below and in the arrangement).</p>
+        ${isMelodic && seqPlaySurface[vid]==='chorder' ? chorderHtml(vid) : `<div class="pad-grid live-pad-grid">${playPads}</div>`}
         <div class="seq-bpm-row">
           <label>Bars</label>
-          <select onchange="app.setSeqBars('${vid}', this.value)">${[1,2,4,8,16,32,64].map(n=>`<option value="${n}" ${n===seq.bars?'selected':''}>${n}</option>`).join('')}</select>
+          <select onchange="app.setSeqBars('${vid}', this.value)">${[...new Set([1,2,4,8,16,32,64,seq.bars])].sort((a,b)=>a-b).map(n=>`<option value="${n}" ${n===seq.bars?'selected':''}>${n}</option>`).join('')}</select>
           <button class="mini-toggle ${metronomeOn[vid]?'active':''}" title="Click / metronome while recording" onclick="app.toggleMetronome('${vid}')">🎵</button>
           ${isDrum ? `<button class="btn btn-ghost btn-sm" onclick="app.toggleSampleBrowser('${vid}')">🔊 Browse samples</button>` : ''}
           ${isChop ? `<button class="btn btn-ghost btn-sm" onclick="document.getElementById('pollychops-file-${vid}').click()">📂 ${pc ? 'Replace sample' : 'Load sample'}</button><input type="file" id="pollychops-file-${vid}" accept=".wav,.mp3,.m4a,.aac,.flac,.ogg,.wma,.aiff,audio/wav,audio/x-wav,audio/mpeg,audio/x-m4a,audio/flac,audio/aac" hidden onchange="app.pickPollyChopsSample(this,'${vid}')">${pc ? `<span class="loop-len-badge">${pc.name}</span>` : ''}` : ''}
@@ -4667,7 +4816,7 @@
         </div>
       </div>
       ${canControl ? laneFxPanelHtml(v, lane) : ''}
-      <audio id="lane-audio-${v.id}-${lane.id}" preload="none" hidden></audio>
+      <audio id="lane-audio-${v.id}-${lane.id}" preload="none" crossorigin="anonymous" hidden></audio>
     `;
   }
   let laneManageOpen = {}; // laneId -> bool
@@ -4747,21 +4896,34 @@
   }
   // ---- 3D session view: same lanes/clips/loops/sequencer as the 2D studio, just a
   // different way to look at them — every track renders as a liquid blob in a galaxy
-  // scene instead of a row. Click a blob to arm it (same app.toggleArmLane the 2D
-  // track dot uses), then Rec/pads/MIDI/QWERTY all work exactly as they already do.
+  // scene instead of a row. Tap a blob to arm it (same app.toggleArmLane the 2D track
+  // dot uses); the master-loop length set here is the same seq.bars the pads/Chorder
+  // record into, and the result is the same clip the 2D arrangement shows.
   function studio3DStageHtml(v){
     const s = v.studio;
     const tab = studioTab[v.id];
+    const seq = seqFor(v.id);
+    const armedId = studioActiveLane[v.id];
+    const armedLane = (s.lanes||[]).find(l=>l.id===armedId);
     return `
       <div class="studio3d-stage" id="studio3d-${v.id}">
         <canvas id="studio3d-canvas-${v.id}"></canvas>
-        <div class="studio3d-hint">Tap a blob to arm it for recording — drag to look around</div>
+        <div class="studio3d-bar">
+          <label class="gt-bpm" title="Master loop length — what you record with pads/Chorder/keys loops over this many bars">
+            <span>Loop</span>
+            <select onchange="app.setSeqBars('${v.id}', this.value)">${[...new Set([1,2,4,8,16,32,64,seq.bars])].sort((a,b)=>a-b).map(n=>`<option value="${n}" ${n===seq.bars?'selected':''}>${n} bar${n>1?'s':''}</option>`).join('')}</select>
+            <input type="number" inputmode="numeric" min="1" max="128" step="1" value="${seq.bars}" style="width:48px;" title="Any length" onchange="app.setSeqBars('${v.id}', this.value)">
+          </label>
+          <span class="studio3d-armed">${armedLane ? `● ${armedLane.label||armedLane.role||'Track'}` : 'No track armed'}</span>
+        </div>
+        <div class="studio3d-hint">Tap a blob to arm it — drag to look around</div>
+        ${(s.lanes||[]).map(l=>`<audio id="lane-audio-${v.id}-${l.id}" preload="none" crossorigin="anonymous" hidden></audio>`).join('')}
       </div>
-      ${!tab ? `<div class="btn-row" style="margin-top:6px;"><button class="btn btn-ghost btn-sm" onclick="app.toggleInstrumentsPanel('${v.id}')">Open pads / step sequencer</button></div>` : ''}
+      ${!tab ? `<div class="btn-row" style="margin-top:6px;"><button class="btn btn-ghost btn-sm" onclick="app.toggleInstrumentsPanel('${v.id}')">Open pads / Chorder / step sequencer</button></div>` : ''}
     `;
   }
 
-  const STUDIO3D = {}; // vid -> { renderer, scene, camera, canvas, blobs:Map(laneId->{mesh,glow,geo,base,pulse}), raf, resizeObs }
+  const STUDIO3D = {}; // vid -> { renderer, scene, camera, canvas, blobs:Map(laneId->blob), raf, ro }
   function studio3DLaneColor(v, laneId, i){
     const lane = (v.studio.lanes||[]).find(l=>l.id===laneId);
     return (lane && lane.color) || TRACK_COLORS[i%TRACK_COLORS.length];
@@ -4775,11 +4937,134 @@
     g.fillStyle = rg; g.fillRect(0,0,size,size);
     return new THREE.CanvasTexture(c);
   }
-  function studio3DNebulaSprite(color, glow){
-    const mat = new THREE.SpriteMaterial({ map:glow, color, transparent:true, opacity:0.22, blending:THREE.AdditiveBlending, depthWrite:false });
-    const sp = new THREE.Sprite(mat);
-    sp.scale.set(900, 900, 1);
+  function studio3DLabelSprite(text, color){
+    const c = document.createElement('canvas'); c.width = 256; c.height = 64;
+    const g = c.getContext('2d');
+    g.font = '600 28px "JetBrains Mono", monospace';
+    g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(text.slice(0,16), 128, 32);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(c), transparent:true, depthWrite:false }));
+    sp.scale.set(52, 13, 1);
     return sp;
+  }
+
+  // Waveform Sculptor — ported verbatim from the drum room (world/s2-overnight/
+  // F21_waveformSculptor.js): FBM noise + the live time-domain waveform baked into a
+  // 256×1 texture, sampled by each vertex's normal, with bass/mid/high/rms bands.
+  const SCULPT_VERT = `
+precision highp float;
+attribute vec3 position;
+attribute vec3 normal;
+attribute vec2 uv;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+uniform mat4 normalMatrix_u;
+uniform sampler2D uWaveform;
+uniform float uTime;
+uniform float uBass;
+uniform float uMid;
+uniform float uHigh;
+uniform float uRms;
+uniform vec3  uColor;
+varying vec3 vNormal;
+varying vec3 vPos;
+varying float vDisplace;
+varying vec3  vColor;
+vec3 hash3f(vec3 p) {
+  p = fract(p * vec3(443.8975, 397.2973, 491.1871));
+  p += dot(p, p.yxz + 19.19);
+  return fract((p.xxy + p.yxx) * p.zyx);
+}
+float valueNoise(vec3 p) {
+  vec3 i = floor(p), f = fract(p);
+  f = f*f*(3.0-2.0*f);
+  return mix(
+    mix(mix(hash3f(i).x,   hash3f(i+vec3(1,0,0)).x, f.x),
+        mix(hash3f(i+vec3(0,1,0)).x, hash3f(i+vec3(1,1,0)).x, f.x), f.y),
+    mix(mix(hash3f(i+vec3(0,0,1)).x, hash3f(i+vec3(1,0,1)).x, f.x),
+        mix(hash3f(i+vec3(0,1,1)).x, hash3f(i+vec3(1,1,1)).x, f.x), f.y),
+    f.z
+  );
+}
+float fbm(vec3 p) {
+  float v = 0.0, amp = 0.5, freq = 1.0;
+  for (int i = 0; i < 5; i++) {
+    v += amp * valueNoise(p * freq);
+    freq *= 2.1; amp *= 0.5;
+  }
+  return v;
+}
+void main() {
+  float wSample = (normal.x * 0.5 + 0.5);
+  float wVal = texture2D(uWaveform, vec2(wSample, 0.5)).r * 2.0 - 1.0;
+  vec3 noisePos = position * (2.0 + uMid * 3.0) + uTime * 0.3;
+  float fbmVal = fbm(noisePos) - 0.5;
+  float waveDisp  = wVal * uRms * 0.35;
+  float noiseDisp = fbmVal * (0.05 + uMid * 0.15);
+  float bassDisp  = uBass * 0.25;
+  float totalDisp = waveDisp + noiseDisp + bassDisp;
+  vDisplace = totalDisp;
+  float spikes = fbm(position * (8.0 + uHigh * 6.0) + uTime * 0.7) * uHigh * 0.15;
+  totalDisp += spikes;
+  vec3 newPos = position + normal * totalDisp;
+  vNormal = normalize(normalMatrix_u * vec4(normal, 0.0)).xyz;
+  vPos    = newPos;
+  vColor = uColor + vec3(totalDisp * 0.3, totalDisp * 0.1, -totalDisp * 0.2);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
+}
+`;
+  const SCULPT_FRAG = `
+precision highp float;
+varying vec3 vNormal;
+varying vec3 vPos;
+varying float vDisplace;
+varying vec3  vColor;
+uniform float uRms;
+uniform float uBass;
+uniform float uTime;
+void main() {
+  vec3 N = normalize(vNormal);
+  vec3 L = normalize(vec3(1.0, 1.5, 2.0));
+  vec3 col = vColor;
+  float diff = max(0.0, dot(N, L));
+  float rim  = pow(1.0 - max(0.0, dot(N, vec3(0,0,1))), 2.5);
+  col = col * (0.3 + diff * 0.7) + col * rim * 0.4 * (1.0 + uBass);
+  col *= 0.8 + uRms * 0.5;
+  col += max(0.0, vDisplace) * vec3(0.3, 0.5, 1.0) * uRms;
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+  function buildSculptorBlob(colorHex){
+    const waveData = new Uint8Array(256).fill(128);
+    // LuminanceFormat (not RedFormat) so it also works on a WebGL1 fallback; .r reads it the same
+    const waveTex = new THREE.DataTexture(waveData, 256, 1, THREE.LuminanceFormat, THREE.UnsignedByteType);
+    waveTex.magFilter = THREE.LinearFilter;
+    waveTex.needsUpdate = true;
+    const c = new THREE.Color(colorHex);
+    const mat = new THREE.RawShaderMaterial({
+      vertexShader: SCULPT_VERT, fragmentShader: SCULPT_FRAG,
+      uniforms: {
+        uWaveform:{ value:waveTex }, uTime:{ value:0 }, uBass:{ value:0 }, uMid:{ value:0 }, uHigh:{ value:0 }, uRms:{ value:0 },
+        uColor:{ value:new THREE.Vector3(c.r, c.g, c.b) }, normalMatrix_u:{ value:new THREE.Matrix4() },
+      },
+      side: THREE.FrontSide,
+    });
+    const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1.5, 5), mat);
+    return { mesh, mat, waveData, waveTex, freqData:new Uint8Array(128), bands:{ bass:0, mid:0, high:0, rms:0 } };
+  }
+  // bass/mid/high/rms off an analyser (fftSize 256 → 128 bins of ~172Hz), smoothed with a
+  // fast attack / slower release so hits snap out and settle back like the drum room
+  function sculptorBandsFrom(analyser, blob){
+    analyser.getByteTimeDomainData(blob.waveData);
+    analyser.getByteFrequencyData(blob.freqData);
+    let sum = 0;
+    for(let i=0;i<256;i++){ const x = (blob.waveData[i]-128)/128; sum += x*x; }
+    const avg = (a,b)=>{ let s=0; for(let i=a;i<b;i++) s += blob.freqData[i]; return s/((b-a)*255); };
+    return { rms: Math.min(1, Math.sqrt(sum/256)*3), bass: avg(0,3), mid: avg(3,30), high: avg(30,90) };
+  }
+  function laneAnalyserFor(vid, laneId){
+    const g = laneAudioGraphs[laneFxKey(vid, laneId)];
+    return g && g.analyser;
   }
   function mountStudio3D(vid){
     const v = VOYAGES.find(x=>x.id===vid);
@@ -4791,16 +5076,15 @@
     renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 4000);
-    camera.position.set(0, 40, 260);
-    camera.lookAt(0,0,0);
     const glow = studio3DGlowTex();
+    const disposables = [glow];
 
-    // galaxy backdrop — starfield + a couple of drifting nebula-colored sprites, no black-hole
-    // geometry needed, the additive-blended glow sprites read as a nebula on their own.
-    const starCount = 700;
+    // galaxy: deep starfield, three nebula clouds, and a black hole at the center — a dark
+    // core ringed by a slowly turning accretion disk of additive glow points
+    const starCount = 900;
     const starPos = new Float32Array(starCount*3);
     for(let i=0;i<starCount;i++){
-      const rad = 300 + Math.random()*1400;
+      const rad = 350 + Math.random()*1400;
       const th = Math.random()*Math.PI*2, ph = Math.acos(2*Math.random()-1);
       starPos[i*3] = rad*Math.sin(ph)*Math.cos(th);
       starPos[i*3+1] = rad*Math.sin(ph)*Math.sin(th);
@@ -4808,53 +5092,74 @@
     }
     const starGeo = new THREE.BufferGeometry();
     starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
-    const starMat = new THREE.PointsMaterial({ map:glow, size:3, color:0xffffff, transparent:true, opacity:0.5, depthWrite:false, blending:THREE.AdditiveBlending });
+    const starMat = new THREE.PointsMaterial({ map:glow, size:3, color:0xffffff, transparent:true, opacity:0.55, depthWrite:false, blending:THREE.AdditiveBlending });
     scene.add(new THREE.Points(starGeo, starMat));
-    const nebulaColors = [0x7CFFB2, 0x5AA6FF, 0xE8D27C];
-    const nebulae = nebulaColors.map((c,i)=>{
-      const sp = studio3DNebulaSprite(c, glow);
-      sp.position.set(Math.cos(i*2.4)*600, Math.sin(i*1.7)*200, -900 - i*200);
-      scene.add(sp);
+    disposables.push(starGeo, starMat);
+    const nebulae = [0x7CFFB2, 0x5AA6FF, 0xC026FF].map((c,i)=>{
+      const mat = new THREE.SpriteMaterial({ map:glow, color:c, transparent:true, opacity:0.2, blending:THREE.AdditiveBlending, depthWrite:false });
+      const sp = new THREE.Sprite(mat);
+      sp.scale.set(1100, 1100, 1);
+      sp.position.set(Math.cos(i*2.4)*650, Math.sin(i*1.7)*220, -950 - i*200);
+      scene.add(sp); disposables.push(mat);
       return sp;
     });
-
-    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-    const key = new THREE.PointLight(0xffffff, 1.2, 2000);
-    key.position.set(100, 200, 200);
-    scene.add(key);
+    const holeMat = new THREE.MeshBasicMaterial({ color:0x000000 });
+    const holeGeo = new THREE.SphereGeometry(14, 32, 16);
+    scene.add(new THREE.Mesh(holeGeo, holeMat));
+    disposables.push(holeMat, holeGeo);
+    const diskCount = 2400;
+    const diskPos = new Float32Array(diskCount*3), diskCol = new Float32Array(diskCount*3);
+    const cInner = new THREE.Color(0xffd08a), cOuter = new THREE.Color(0x8a4dff), tmp = new THREE.Color();
+    for(let i=0;i<diskCount;i++){
+      const r = 18 + Math.pow(Math.random(), 1.6) * 46;
+      const a = Math.random()*Math.PI*2;
+      diskPos[i*3] = Math.cos(a)*r; diskPos[i*3+1] = (Math.random()-0.5)*1.6; diskPos[i*3+2] = Math.sin(a)*r;
+      tmp.copy(cInner).lerp(cOuter, (r-18)/46);
+      diskCol[i*3] = tmp.r; diskCol[i*3+1] = tmp.g; diskCol[i*3+2] = tmp.b;
+    }
+    const diskGeo = new THREE.BufferGeometry();
+    diskGeo.setAttribute('position', new THREE.BufferAttribute(diskPos,3));
+    diskGeo.setAttribute('color', new THREE.BufferAttribute(diskCol,3));
+    const diskMat = new THREE.PointsMaterial({ map:glow, size:2.4, vertexColors:true, transparent:true, opacity:0.8, depthWrite:false, blending:THREE.AdditiveBlending });
+    const disk = new THREE.Points(diskGeo, diskMat);
+    disk.rotation.x = 0.35;
+    scene.add(disk);
+    disposables.push(diskGeo, diskMat);
 
     const lanes = v.studio.lanes||[];
     const n = Math.max(1, lanes.length);
+    const BLOB_SCALE = 13; // sculptor geometry is radius 1.5 (drum-room units) → ~20 here
     const blobs = new Map();
     lanes.forEach((lane,i)=>{
       const angle = (i/n) * Math.PI*2;
-      const radius = 90 + (n>6 ? (i%2)*30 : 0);
-      const pos = new THREE.Vector3(Math.cos(angle)*radius, Math.sin(i*1.3)*18, Math.sin(angle)*radius);
+      const radius = 115 + (n>6 ? (i%2)*30 : 0);
+      const pos = new THREE.Vector3(Math.cos(angle)*radius, Math.sin(i*1.3)*16, Math.sin(angle)*radius);
       const color = studio3DLaneColor(v, lane.id, i);
-      const geo = new THREE.IcosahedronGeometry(20, 5);
-      const base = new Float32Array(geo.attributes.position.array); // undisturbed sphere, used every frame as the noise baseline
-      const mat = new THREE.MeshStandardMaterial({ color, roughness:0.25, metalness:0.15, emissive:color, emissiveIntensity:0.35, transparent:true, opacity:0.92 });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.copy(pos);
-      mesh.userData = { laneId:lane.id };
-      scene.add(mesh);
-      const glowMat = new THREE.SpriteMaterial({ map:glow, color, transparent:true, opacity:0.4, blending:THREE.AdditiveBlending, depthWrite:false });
-      const glowSprite = new THREE.Sprite(glowMat);
-      glowSprite.position.copy(pos);
-      glowSprite.scale.set(70,70,1);
-      scene.add(glowSprite);
-      blobs.set(lane.id, { mesh, glowSprite, geo, base, pulse:0 });
+      const blob = buildSculptorBlob(color);
+      blob.mesh.position.copy(pos);
+      blob.mesh.scale.setScalar(BLOB_SCALE);
+      blob.mesh.userData = { laneId:lane.id };
+      scene.add(blob.mesh);
+      const glowMat = new THREE.SpriteMaterial({ map:glow, color, transparent:true, opacity:0.35, blending:THREE.AdditiveBlending, depthWrite:false });
+      blob.glowSprite = new THREE.Sprite(glowMat);
+      blob.glowSprite.position.copy(pos);
+      blob.glowSprite.scale.set(70,70,1);
+      scene.add(blob.glowSprite);
+      blob.label = studio3DLabelSprite(lane.label||lane.role||lane.owner||'Track', color);
+      blob.label.position.copy(pos).add(new THREE.Vector3(0, -34, 0));
+      scene.add(blob.label);
+      blobs.set(lane.id, blob);
     });
 
     const raycaster = new THREE.Raycaster();
     const pointerNdc = new THREE.Vector2();
-    let dragYaw = 0, dragPitch = 0, dragging = false, lastX=0, lastY=0, moved=false;
+    let dragYaw = 0, dragPitch = 0.18, dragging = false, lastX=0, lastY=0, moved=false;
     const onDown = (e)=>{ dragging=true; moved=false; lastX=e.clientX; lastY=e.clientY; };
     const onMove = (e)=>{
       if(!dragging) return;
       const dx = e.clientX-lastX, dy = e.clientY-lastY;
       if(Math.abs(dx)+Math.abs(dy) > 3) moved = true;
-      dragYaw -= dx*0.005; dragPitch = Math.max(-0.6, Math.min(0.6, dragPitch - dy*0.005));
+      dragYaw -= dx*0.005; dragPitch = Math.max(-0.2, Math.min(0.9, dragPitch + dy*0.005));
       lastX=e.clientX; lastY=e.clientY;
     };
     const onUp = (e)=>{
@@ -4867,10 +5172,11 @@
       const hit = raycaster.intersectObjects(Array.from(blobs.values()).map(b=>b.mesh))[0];
       if(hit) app.arm3DLane(vid, hit.object.userData.laneId);
     };
+    const onLeave = ()=>{ dragging=false; };
     canvas.addEventListener('pointerdown', onDown);
     canvas.addEventListener('pointermove', onMove);
     canvas.addEventListener('pointerup', onUp);
-    canvas.addEventListener('pointerleave', ()=>{ dragging=false; });
+    canvas.addEventListener('pointerleave', onLeave);
 
     const resize = ()=>{
       const w = canvas.clientWidth||1, h = canvas.clientHeight||1;
@@ -4881,49 +5187,51 @@
     ro.observe(canvas);
     resize();
 
-    const state = { renderer, scene, camera, canvas, blobs, ro, onDown, onMove, onUp, t0:performance.now() };
+    const state = { renderer, scene, camera, canvas, blobs, ro, onDown, onMove, onUp, onLeave, disposables, t0:performance.now() };
     STUDIO3D[vid] = state;
 
-    const armed = ()=> studioArmedLanes[vid] || new Set();
+    const smooth = (prev, next) => next > prev ? prev + (next-prev)*0.6 : prev + (next-prev)*0.12;
     const animate = ()=>{
-      if(!STUDIO3D[vid] || STUDIO3D[vid]!==state) return;
+      if(STUDIO3D[vid]!==state) return;
       const t = (performance.now()-state.t0)/1000;
-      const armedSet = armed();
+      const armedSet = studioArmedLanes[vid] || new Set();
+      const activeId = studioActiveLane[vid];
+      const live = studioLiveAnalyser[vid];
       blobs.forEach((b, laneId)=>{
-        const isArmed = armedSet.has(laneId);
-        b.pulse *= 0.9; // ripple decay from pad hits / clip starts
-        const target = isArmed ? 1.15 : 1;
-        const pos = b.geo.attributes.position;
-        for(let i=0;i<pos.count;i++){
-          const ix = i*3;
-          const bx=b.base[ix], by=b.base[ix+1], bz=b.base[ix+2];
-          const len = Math.sqrt(bx*bx+by*by+bz*bz) || 1;
-          const nx=bx/len, ny=by/len, nz=bz/len;
-          const noise = Math.sin(nx*3 + t*1.4) * Math.cos(ny*3 + t*1.1) * Math.sin(nz*3 + t*0.9);
-          const disp = 1 + noise*0.12 + b.pulse*0.35;
-          pos.setXYZ(i, nx*len*disp, ny*len*disp, nz*len*disp);
+        // the track's own clip playback, plus — for the armed track — whatever's being
+        // played live into it right now; whichever is louder this frame shapes the blob
+        let bands = null;
+        const la = laneAnalyserFor(vid, laneId);
+        if(la) bands = sculptorBandsFrom(la, b);
+        if(laneId === activeId && live){
+          const saved = b.waveData.slice();
+          const lb = sculptorBandsFrom(live.analyser, b);
+          if(!bands || lb.rms >= bands.rms) bands = lb; else b.waveData.set(saved);
         }
-        pos.needsUpdate = true;
-        b.geo.computeVertexNormals();
-        b.mesh.scale.setScalar(target);
-        b.glowSprite.scale.setScalar(70 * (target*0.9 + b.pulse*0.5));
-        b.mesh.material.emissiveIntensity = 0.35 + b.pulse*0.6 + (isArmed?0.25:0);
+        if(!bands){ b.waveData.fill(128); bands = { rms:0, bass:0, mid:0, high:0 }; }
+        b.waveTex.needsUpdate = true;
+        b.bands.rms = smooth(b.bands.rms, bands.rms);
+        b.bands.bass = smooth(b.bands.bass, bands.bass);
+        b.bands.mid = smooth(b.bands.mid, bands.mid);
+        b.bands.high = smooth(b.bands.high, bands.high);
+        const u = b.mat.uniforms;
+        u.uTime.value = t; u.uRms.value = b.bands.rms; u.uBass.value = b.bands.bass; u.uMid.value = b.bands.mid; u.uHigh.value = b.bands.high;
+        const armed = armedSet.has(laneId);
+        b.mesh.scale.setScalar(BLOB_SCALE * (armed ? 1.15 : 1));
+        b.mesh.updateMatrixWorld();
+        u.normalMatrix_u.value.copy(b.mesh.matrixWorld);
+        b.glowSprite.material.opacity = (armed ? 0.55 : 0.3) + b.bands.rms*0.4;
+        b.glowSprite.scale.setScalar(70 * (armed ? 1.2 : 1) * (1 + b.bands.bass*0.5));
       });
-      nebulae.forEach((sp,i)=>{ sp.rotation.z = t*0.02*(i+1); });
-      camera.position.x = Math.sin(dragYaw)*260*Math.cos(dragPitch);
-      camera.position.z = Math.cos(dragYaw)*260*Math.cos(dragPitch);
-      camera.position.y = 40 + Math.sin(dragPitch)*260;
+      disk.rotation.y = t*0.12;
+      nebulae.forEach((sp,i)=>{ sp.material.rotation = t*0.015*(i+1); });
+      const R = 300;
+      camera.position.set(Math.sin(dragYaw)*R*Math.cos(dragPitch), Math.sin(dragPitch)*R, Math.cos(dragYaw)*R*Math.cos(dragPitch));
       camera.lookAt(0,0,0);
       renderer.render(scene, camera);
       state.raf = requestAnimationFrame(animate);
     };
     animate();
-  }
-  function pulseStudio3DLane(vid, laneId){
-    const st = STUDIO3D[vid];
-    if(!st || !laneId) return;
-    const b = st.blobs.get(laneId);
-    if(b) b.pulse = 1;
   }
   function unmountStudio3D(vid){
     const st = STUDIO3D[vid];
@@ -4935,8 +5243,15 @@
       st.canvas.removeEventListener('pointerdown', st.onDown);
       st.canvas.removeEventListener('pointermove', st.onMove);
       st.canvas.removeEventListener('pointerup', st.onUp);
+      st.canvas.removeEventListener('pointerleave', st.onLeave);
     }catch(e){}
-    st.blobs.forEach(b=>{ b.geo.dispose(); b.mesh.material.dispose(); b.glowSprite.material.dispose(); });
+    st.blobs.forEach(b=>{
+      b.mesh.geometry.dispose(); b.mat.dispose(); b.waveTex.dispose();
+      b.glowSprite.material.dispose();
+      if(b.label.material.map) b.label.material.map.dispose();
+      b.label.material.dispose();
+    });
+    (st.disposables||[]).forEach(d=>{ try{ d.dispose(); }catch(e){} });
     try{ st.renderer.dispose(); }catch(e){}
   }
   // Called after every renderVoyageDetail() — the DOM (and any 3D canvas in it) gets
@@ -5429,7 +5744,7 @@
     const totalSteps = bars*16;
     const offline = new OfflineAudioContext(2, Math.ceil(barSec*bars*44100), 44100);
     for(let i=0;i<totalSteps;i++){
-      for(const note of KEYBOARD_NOTES){
+      for(const note of melNotesOf(grid)){
         if(grid[note][i]) hitVoice(voice||'pad', note, offline, [offline.destination], i*stepSec);
       }
     }
@@ -6405,10 +6720,8 @@
     },
     hitChopPad(vid, chopIdx){
       const ctx = getStudioCtx();
-      const dests = [ctx.destination];
-      const recDest = studioRecordDest[vid];
-      if(recDest) dests.push(recDest);
-      hitChop(vid, chopIdx, ctx, dests);
+      hitChop(vid, chopIdx, ctx, [ctx.destination, liveAnalyserFor(vid, ctx).input]);
+      recordLiveHit(vid, 'chop', chopIdx);
     },
     async populateInputDevices(vid, laneId){
       try {
@@ -6440,13 +6753,26 @@
       if(!armed.length){ toast('Arm a track first — tap ● on a track below.'); return; }
       const ctx = getStudioCtx();
       const primaryLaneId = studioActiveLane[vid] || armed[0];
+      // live-played MIDI lands in this track — overdub onto its existing clip, never replace it
+      {
+        const pLane = (v.studio.lanes||[]).find(l=>l.id===primaryLaneId);
+        const pLoop = pLane && (pLane.loops||[]).find(l=>l.pattern);
+        const seq = seqFor(vid);
+        if(studioActiveLane[vid] !== primaryLaneId || (pLoop && seq.editingLoopId !== pLoop.id)){
+          studioActiveLane[vid] = primaryLaneId;
+          if(pLoop) loadLaneIntoSeq(vid, primaryLaneId);
+        }
+        seq.liveDirty = false;
+      }
       const recs = [];
       let anyMic = false;
       let pending = 0;
       const finishOne = async (entry) => {
         if(entry.micStream) entry.micStream.getTracks().forEach(t=>t.stop());
         pending--;
-        if(entry.chunks.length){
+        // audio takes are mic/interface only — pads/Chorder/keys/MIDI went in as MIDI notes,
+        // so a track with no mic would otherwise get an empty take added on top of them
+        if(entry.chunks.length && entry.micStream){
           const blob = new Blob(entry.chunks, { type: entry.rec.mimeType || 'audio/webm' });
           const ext = (blob.type.split('/')[1]||'webm').split(';')[0];
           const file = new File([blob], `take-${Date.now()}-${entry.laneId}.${ext}`, { type: blob.type });
@@ -6457,8 +6783,15 @@
           delete studioRecorders[vid];
           stopStudioPlayback(vid);
           stopMetronome(vid);
+          const seq = seqFor(vid);
+          const hadMidi = seq.liveDirty;
+          if(hadMidi){
+            seq.liveDirty = false;
+            if(seqAutoSyncTimer[vid]){ clearTimeout(seqAutoSyncTimer[vid]); delete seqAutoSyncTimer[vid]; }
+            await app.bounceSequence(vid, { silent:true });
+          }
           renderVoyageDetail();
-          toast('Recorded — playing it back now.');
+          toast(hadMidi ? 'Recorded — your notes are in the track as MIDI. Playing it back now.' : 'Recorded — playing it back now.');
           app.playStudio(vid);
         }
       };
@@ -6492,8 +6825,8 @@
       toast(recs.length > 1
         ? `Recording ${recs.length} tracks at once from separate inputs. Wear headphones so they don't bleed into each other. Tap Rec again to stop and save.`
         : (anyMic
-          ? 'Recording — mic + anything you play (pads, keys, MIDI) all together. Wear headphones so it doesn\'t bleed in. Tap Rec again to stop and save.'
-          : 'Recording — no mic access, so this is capturing whatever you play (pads, keys, MIDI). Tap Rec again to stop and save.'));
+          ? `Recording — mic as audio, and anything you play on pads/Chorder/keys/MIDI as MIDI notes into the ${seqFor(vid).bars}-bar loop. Wear headphones so it doesn't bleed in. Tap Rec again to stop and save.`
+          : `Recording — no mic access, so this is capturing what you play on pads/Chorder/keys/MIDI as MIDI notes into the ${seqFor(vid).bars}-bar loop. Tap Rec again to stop and save.`));
       renderVoyageDetail();
     },
     toggleInstrumentsPanel(vid){ studioTab[vid] = studioTab[vid] ? null : 'sequencer'; renderVoyageDetail(); },
@@ -6508,17 +6841,57 @@
     },
     hitKey(vid, note){
       const ctx = getStudioCtx();
-      const bus = voiceBusFor(vid, ctx, studioRecordDest[vid]);
+      const bus = voiceBusFor(vid, ctx);
       hitVoice(studioVoice[vid]||'pad', note, ctx, [bus.filter]);
+      recordLiveHit(vid, 'melodic', note);
     },
     hitPad(vid, kind, key){
       const v = VOYAGES.find(x=>x.id===vid);
       const ctx = getStudioCtx();
-      const bus = voiceBusFor(vid, ctx, studioRecordDest[vid]);
+      const bus = voiceBusFor(vid, ctx);
       const dests = [bus.filter];
       if(kind==='drum') hitDrumSampleUrl(drumSampleUrl(v, key), ctx, dests);
       else if(kind==='chop') hitChop(vid, key, ctx, dests);
       else hitVoice(seqFor(vid).voice||'pad', key, ctx, dests);
+      recordLiveHit(vid, kind, key);
+    },
+    setPlaySurface(vid, surface){
+      seqPlaySurface[vid] = surface;
+      const seq = seqFor(vid);
+      if(surface==='chorder' && seq.kind!=='melodic'){
+        const firstMel = SEQ_INSTRUMENTS.find(x=>x.kind==='melodic');
+        seq.kind = 'melodic';
+        if(firstMel && firstMel.voice && !seq.voice) seq.voice = firstMel.voice;
+      }
+      renderVoyageDetail();
+    },
+    setChorderOctave(vid, delta){
+      const cs = chorderFor(vid);
+      cs.octave = Math.max(-2, Math.min(2, cs.octave + delta));
+      const el = document.getElementById('chorder-oct-'+vid);
+      if(el) el.textContent = (cs.octave>0?'+':'') + cs.octave;
+    },
+    hitChord(vid, typeIdx, rootIdx){
+      const cs = chorderFor(vid);
+      if(cs.armed){ const prev = document.getElementById(`chorder-${vid}-${cs.armed.typeIdx}-${cs.armed.rootIdx}`); if(prev) prev.classList.remove('armed'); }
+      cs.armed = { typeIdx, rootIdx };
+      const btn = document.getElementById(`chorder-${vid}-${typeIdx}-${rootIdx}`);
+      if(btn){ btn.classList.add('armed','hit'); setTimeout(()=>btn.classList.remove('hit'), 140); }
+      const base = 48 + CHORD_ROOT_ST[rootIdx] + cs.octave*12;
+      const notes = CHORD_TYPES[typeIdx].intervals.map(iv=>base+iv);
+      notes.forEach((n,i)=>{ if(i===0) chorderFire(vid, n); else setTimeout(()=>chorderFire(vid, n), i*25); });
+      notes.forEach(n=>recordLiveHit(vid, 'melodic', n));
+    },
+    hitStrum(vid, segIdx){
+      const cs = chorderFor(vid);
+      const chord = cs.armed || { typeIdx:0, rootIdx:0 };
+      const ct = CHORD_TYPES[chord.typeIdx];
+      const oct = Math.floor(segIdx / ct.intervals.length);
+      const note = 36 + CHORD_ROOT_ST[chord.rootIdx] + ct.intervals[segIdx % ct.intervals.length] + oct*12 + cs.octave*12;
+      const seg = document.getElementById(`chorder-strum-${vid}-${segIdx}`);
+      if(seg){ seg.classList.add('hit'); setTimeout(()=>seg.classList.remove('hit'), 160); }
+      chorderFire(vid, note);
+      recordLiveHit(vid, 'melodic', note);
     },
     setVoiceVolume(vid, val){
       const fx = voiceFxFor(vid); fx.volume = parseFloat(val);
@@ -6533,6 +6906,7 @@
       const seq = seqFor(vid);
       const grid = seq.kind==='melodic' ? seq.melGrid : (seq.kind==='chop' ? seq.chopGrid : seq.drumGrid);
       grid[rowKey][i] = !grid[rowKey][i];
+      seq.rev = (seq.rev||0) + 1;
       renderVoyageDetail();
       scheduleSeqAutoSync(vid);
     },
@@ -6552,7 +6926,16 @@
       if(!v || !v.studio) return;
       app.setStudioBpm(vid, (v.studio.bpm||100) + delta);
     },
-    setSeqBars(vid, val){ seqResizeBars(seqFor(vid), parseInt(val,10)||4); renderVoyageDetail(); },
+    setSeqBars(vid, val){
+      const seq = seqFor(vid);
+      const bars = Math.max(1, Math.min(128, parseInt(val,10)||4));
+      if(bars === seq.bars) return;
+      if(studioRecorders[vid]){ toast('Stop Rec first — then change the loop length.'); renderVoyageDetail(); return; }
+      seqResizeBars(seq, bars);
+      seq.rev = (seq.rev||0) + 1;
+      if(seq.editingLoopId) scheduleSeqAutoSync(vid);
+      renderVoyageDetail();
+    },
     jumpSeqBar(vid, barIndex){
       const el = document.getElementById('seq-grid-'+vid);
       if(el) el.scrollTo({ left: Math.max(0, barIndex*16*23 - 8), behavior:'smooth' });
@@ -6609,7 +6992,7 @@
       seq.editingLoopId = null;
       delete studioActiveLane[vid];
       SEQ_ROWS.forEach(p=>seq.drumGrid[p].fill(false));
-      KEYBOARD_NOTES.forEach(n=>seq.melGrid[n].fill(false));
+      seq.melGrid = Object.fromEntries(KEYBOARD_NOTES.map(n=>[n, Array(seq.bars*SEQ_STEPS_PER_BAR).fill(false)]));
       renderVoyageDetail();
     },
     editLoopPattern(vid, laneId, loopId){
@@ -6620,12 +7003,20 @@
       if(!loop || !loop.pattern) return;
       const p = loop.pattern;
       const seq = seqFor(vid);
-      seq.kind = p.kind || 'drum';
-      seq.bpm = p.bpm; seq.editingLoopId = loop.id;
+      if(seqAutoSyncTimer[vid] && studioActiveLane[vid] !== laneId){ clearTimeout(seqAutoSyncTimer[vid]); delete seqAutoSyncTimer[vid]; app.bounceSequence(vid, { silent:true }); }
       studioActiveLane[vid] = laneId;
-      seqResizeBars(seq, p.bars);
-      if(seq.kind==='melodic'){ seq.melGrid = JSON.parse(JSON.stringify(p.grid)); seq.voice = p.voice || 'pad'; }
-      else { seq.drumGrid = JSON.parse(JSON.stringify(p.grid)); if(p.padKits) v.studio.padKits = { ...v.studio.padKits, ...p.padKits }; }
+      loadLaneIntoSeq(vid, laneId);
+      if(seq.editingLoopId !== loop.id){
+        // the track has more than one patterned loop — load the specific one tapped
+        seq.kind = (p.grid && 'chop0' in p.grid) ? 'chop' : (p.kind || 'drum');
+        seq.editingLoopId = loop.id;
+        seqResizeBars(seq, p.bars);
+        if(seq.kind==='melodic'){ seq.melGrid = JSON.parse(JSON.stringify(p.grid)); KEYBOARD_NOTES.forEach(n=>ensureMelRow(seq, n)); seq.voice = p.voice || 'pad'; }
+        else if(seq.kind==='chop'){ seq.chopGrid = JSON.parse(JSON.stringify(p.grid)); }
+        else { seq.drumGrid = JSON.parse(JSON.stringify(p.grid)); if(p.padKits) v.studio.padKits = { ...v.studio.padKits, ...p.padKits }; }
+        seqSyncStatus[vid] = 'synced';
+      }
+      if(p.bpm) seq.bpm = p.bpm;
       studioTab[vid] = 'sequencer';
       renderVoyageDetail();
       toast(`Editing "${loop.name||'loop'}" — change it and tap Save to update it everywhere it's placed.`);
@@ -6642,11 +7033,9 @@
       const stepMs = (60/seq.bpm/4) * 1000;
       const totalSteps = seq.bars*SEQ_STEPS_PER_BAR;
       seq.timer = setInterval(()=>{
-        const dests = [ctx.destination];
-        const recDest = studioRecordDest[vid];
-        if(recDest) dests.push(recDest);
+        const dests = [ctx.destination, liveAnalyserFor(vid, ctx).input];
         if(seq.kind==='melodic'){
-          KEYBOARD_NOTES.forEach(note=>{ if(seq.melGrid[note][seq.step]) hitVoice(seq.voice||'pad', note, ctx, dests); });
+          melNotesOf(seq.melGrid).forEach(note=>{ if(seq.melGrid[note][seq.step]) hitVoice(seq.voice||'pad', note, ctx, dests); });
         } else if(seq.kind==='chop'){
           CHOP_SLOTS.forEach((chopId,idx)=>{ if(seq.chopGrid[chopId][seq.step]) hitChop(vid, idx, ctx, dests); });
         } else {
@@ -6667,54 +7056,61 @@
       const isDrum = seq.kind === 'drum';
       const isChop = seq.kind === 'chop';
       const grid = isChop ? seq.chopGrid : (isDrum ? seq.drumGrid : seq.melGrid);
-      const keys = isChop ? CHOP_SLOTS : (isDrum ? SEQ_ROWS : KEYBOARD_NOTES);
+      const keys = isChop ? CHOP_SLOTS : (isDrum ? SEQ_ROWS : melNotesOf(grid));
       const hasHits = keys.some(k=>grid[k].some(Boolean));
       if(!hasHits){ if(!silent) toast('Tap some cells first — nothing to save yet.'); return; }
       if(isChop && !v.studio.pollyChops){ if(!silent) toast('Load a sample first.'); return; }
       if(!silent){ stopSequencePlayback(vid); toast(seq.editingLoopId ? 'Saving your changes…' : 'Saving your loop…'); }
+      // Snapshot everything up front — the render + upload below are async, and the armed
+      // track (and the sequencer contents with it) can change before they finish.
+      const lane = ensureMyLane(v, vid);
+      const gridSnap = JSON.parse(JSON.stringify(grid));
+      const barsSnap = seq.bars, bpmSnap = seq.bpm, voiceSnap = seq.voice||'pad', editingSnap = seq.editingLoopId, revSnap = seq.rev||0;
       try {
         const buf = isChop
-          ? await renderChopPatternBuffer(vid, seq.chopGrid, seq.bars, seq.bpm)
+          ? await renderChopPatternBuffer(vid, gridSnap, barsSnap, bpmSnap)
           : isDrum
-          ? await renderGridPatternBuffer(seq.drumGrid, seq.bars, seq.bpm, v.studio.padKits, v.studio.customSamples)
-          : await renderMelodicPatternBuffer(seq.melGrid, seq.bars, seq.bpm, seq.voice||'pad');
+          ? await renderGridPatternBuffer(gridSnap, barsSnap, bpmSnap, v.studio.padKits, v.studio.customSamples)
+          : await renderMelodicPatternBuffer(gridSnap, barsSnap, bpmSnap, voiceSnap);
         const blob = audioBufferToWavBlob(buf);
         const file = new File([blob], `${isChop?'chops':(isDrum?'beat':'melody')}-${Date.now()}.wav`, { type:'audio/wav' });
         const media = window.SB ? await SB.uploadMedia(file) : null;
         if(!media) return;
-        const lane = ensureMyLane(v, vid);
         const pattern = {
-          kind: isDrum ? 'drum' : 'melodic',
-          grid: JSON.parse(JSON.stringify(grid)),
-          bpm: seq.bpm, bars: seq.bars,
+          kind: isChop ? 'chop' : (isDrum ? 'drum' : 'melodic'),
+          grid: gridSnap,
+          bpm: bpmSnap, bars: barsSnap,
           padKits: isDrum ? { ...v.studio.padKits } : undefined,
-          voice: isDrum ? undefined : (seq.voice||'pad'),
+          voice: isDrum ? undefined : voiceSnap,
         };
-        const label = isDrum ? `${seq.bars}-bar beat` : `${seq.bars}-bar melody`;
+        const label = isDrum ? `${barsSnap}-bar beat` : `${barsSnap}-bar melody`;
+        const stillThisLane = studioActiveLane[vid] ? studioActiveLane[vid]===lane.id : true;
         // one patterned loop per track — re-saving always updates that same loop (and its one
         // clip, which spans the whole song and repeats via the audio element's native loop),
         // instead of piling up separate loops every time you tap Save.
         lane.loops = lane.loops || [];
-        let loop = (seq.editingLoopId && lane.loops.find(l=>l.id===seq.editingLoopId)) || lane.loops.find(l=>l.pattern);
+        let loop = (editingSnap && lane.loops.find(l=>l.id===editingSnap)) || lane.loops.find(l=>l.pattern);
         let newClipStart = 0;
         if(loop){
-          loop.url = media.url; loop.bars = seq.bars; loop.pattern = pattern; loop.name = label;
-          seq.editingLoopId = loop.id;
+          loop.url = media.url; loop.bars = barsSnap; loop.pattern = pattern; loop.name = label;
+          if(stillThisLane) seq.editingLoopId = loop.id;
           const existingClip = lane.clips.find(c=>c.loopId===loop.id);
           if(existingClip){
             newClipStart = existingClip.startBar;
-            existingClip.lengthBars = Math.max(seq.bars, v.studio.bars - existingClip.startBar);
+            existingClip.lengthBars = Math.max(barsSnap, v.studio.bars - existingClip.startBar);
           } else {
             lane.clips.push({ id: uid('clip'), loopId: loop.id, startBar: 0, lengthBars: v.studio.bars });
           }
         } else {
-          loop = { id: uid('loop'), name: label, url: media.url, kind:'audio', bars: seq.bars, pattern };
+          loop = { id: uid('loop'), name: label, url: media.url, kind:'audio', bars: barsSnap, pattern };
           lane.loops.push(loop);
-          seq.editingLoopId = loop.id;
+          if(stillThisLane) seq.editingLoopId = loop.id;
           lane.clips.push({ id: uid('clip'), loopId: loop.id, startBar: 0, lengthBars: v.studio.bars });
         }
         persistStudio(v);
-        seqSyncStatus[vid] = 'synced';
+        // only "synced" if nothing was edited while this save was in flight — otherwise the
+        // live sequencer still holds newer notes than the saved clip and must keep playing them.
+        if(stillThisLane && (seq.rev||0)===revSnap) seqSyncStatus[vid] = 'synced';
         if(!silent){
           studioTab[vid] = null;
           if(studioZoom[vid]==='compact') studioZoom[vid] = 'normal';
@@ -7086,12 +7482,19 @@
       if(!canControl) { toast('This track is locked to you — ask the Captain for access.'); return; }
       if(!studioArmedLanes[vid]) studioArmedLanes[vid] = new Set();
       const set = studioArmedLanes[vid];
-      if(set.has(laneId)){
-        set.delete(laneId);
-        if(studioActiveLane[vid]===laneId) studioActiveLane[vid] = set.size ? Array.from(set).pop() : null;
-      } else {
-        set.add(laneId);
-        studioActiveLane[vid] = laneId;
+      const prevActive = studioActiveLane[vid];
+      const disarming = set.has(laneId);
+      const nextActive = disarming
+        ? (prevActive===laneId ? (set.size>1 ? Array.from(set).filter(id=>id!==laneId).pop() : null) : prevActive)
+        : laneId;
+      if(studioRecorders[vid] && nextActive !== prevActive){ toast('Stop Rec first — then arm the next track.'); return; }
+      if(disarming) set.delete(laneId); else set.add(laneId);
+      if(nextActive !== prevActive){
+        // the sequencer is the armed track's clip — save any unsaved notes to the track they
+        // belong to (bounce snapshots the current track synchronously), then load the new one
+        if(seqAutoSyncTimer[vid]){ clearTimeout(seqAutoSyncTimer[vid]); delete seqAutoSyncTimer[vid]; app.bounceSequence(vid, { silent:true }); }
+        studioActiveLane[vid] = nextActive;
+        if(nextActive) loadLaneIntoSeq(vid, nextActive);
       }
       renderVoyageDetail();
     },
@@ -7249,21 +7652,32 @@
         if(!p) return;
         const songBar = bar + Math.min(1, (performance.now() - barStartedAt) / barMs);
         const patternPos = ((songBar - loopStart) % seq.bars + seq.bars) % seq.bars;
-        const stepIdx = Math.min(seqTotalSteps-1, Math.floor(patternPos * SEQ_STEPS_PER_BAR));
+        const totalNow = seq.bars*SEQ_STEPS_PER_BAR;
+        const patternPosNow = ((songBar - loopStart) % seq.bars + seq.bars) % seq.bars;
+        seq.pos = patternPosNow * SEQ_STEPS_PER_BAR;
+        const stepIdx = Math.min(totalNow-1, Math.floor(seq.pos));
         if(stepIdx !== seq.step){
           seq.step = stepIdx;
-          const dests = [seqCtx.destination];
-          const recDest = studioRecordDest[vid];
-          if(recDest) dests.push(recDest);
-          if(seq.kind==='melodic'){
-            KEYBOARD_NOTES.forEach(note=>{ if(seq.melGrid[note][stepIdx]) hitVoice(seq.voice||'pad', note, seqCtx, dests); });
-          } else if(seq.kind==='chop'){
-            CHOP_SLOTS.forEach((chopId,idx)=>{ if(seq.chopGrid[chopId][stepIdx]) hitChop(vid, idx, seqCtx, dests); });
-          } else {
-            SEQ_ROWS.forEach(pad=>{ if(seq.drumGrid[pad][stepIdx]) hitDrumSampleUrl(drumSampleUrl(v, pad), seqCtx, dests); });
+          // Exactly one source per note: once the pattern is saved to the track's clip, the
+          // clip plays it (at its arrangement position); while there are unsaved notes, the
+          // live sequencer plays it and that clip is held silent (see tick below).
+          const seqLane = (v.studio.lanes||[]).find(l=>l.id===studioActiveLane[vid]);
+          const anySoloS = (v.studio.lanes||[]).some(l=>l.solo);
+          const laneAudible = !seqLane || (!seqLane.muted && (!anySoloS || seqLane.solo));
+          const seqAuthoritative = !seq.editingLoopId || seqSyncStatus[vid] !== 'synced';
+          const skip = seq.skip || {};
+          const on = (row) => { if(skip[row+'@'+stepIdx]){ delete skip[row+'@'+stepIdx]; return false; } return true; };
+          if(seqAuthoritative && laneAudible){
+            const dests = [seqCtx.destination, liveAnalyserFor(vid, seqCtx).input];
+            if(seq.kind==='melodic'){
+              melNotesOf(seq.melGrid).forEach(note=>{ if(seq.melGrid[note][stepIdx] && on(note)) hitVoice(seq.voice||'pad', note, seqCtx, dests); });
+            } else if(seq.kind==='chop'){
+              CHOP_SLOTS.forEach((chopId,idx)=>{ if(seq.chopGrid[chopId][stepIdx] && on(chopId)) hitChop(vid, idx, seqCtx, dests); });
+            } else {
+              SEQ_ROWS.forEach(pad=>{ if(seq.drumGrid[pad][stepIdx] && on(pad)) hitDrumSampleUrl(drumSampleUrl(v, pad), seqCtx, dests); });
+            }
           }
           updateSeqPlayheadDom(vid, stepIdx);
-          if(STUDIO3D[vid]) pulseStudio3DLane(vid, studioActiveLane[vid]);
         }
         p.seqRaf = requestAnimationFrame(seqTick);
       };
@@ -7277,13 +7691,19 @@
           const clip = (l.clips||[]).find(c=>bar>=c.startBar && bar<c.startBar+c.lengthBars);
           const loop = clip && (l.loops||[]).find(lo=>lo.id===clip.loopId);
           const audible = !l.muted && (!anySolo || l.solo);
-          if(loop && audible){
-            if(el.dataset.loopId !== loop.id || el.paused){
-              el.src = loop.url; el.dataset.loopId = loop.id; el.loop = !!loop.pattern; el.currentTime = 0;
+          const heldForSeq = loop && loop.id === seq.editingLoopId && seqSyncStatus[vid] !== 'synced';
+          if(loop && audible && !heldForSeq){
+            if(el.dataset.loopId !== loop.id || el.dataset.url !== loop.url || el.paused){
+              el.src = loop.url; el.dataset.loopId = loop.id; el.dataset.url = loop.url; el.loop = !!loop.pattern;
+              // a pattern clip joined mid-way (re-saved, or unmuted) starts where the song is
+              // inside its loop, not from its first beat, so it stays on the grid
+              el.currentTime = loop.pattern ? (((bar - clip.startBar) % (loop.bars||1)) * (60/bpm)*4) : 0;
               el.play().catch(err=>console.error('Playback blocked for lane', l.id, err));
-              if(STUDIO3D[vid]) pulseStudio3DLane(vid, l.id);
             }
-            if(l.fx && l.fx.some(f=>!f.bypassed)) ensureLaneAudioGraph(vid, l.id, el);
+            if((l.fx && l.fx.some(f=>!f.bypassed)) || STUDIO3D[vid]){
+              const graph = ensureLaneAudioGraph(vid, l.id, el);
+              if(STUDIO3D[vid]) ensureLaneAnalyser(graph);
+            }
             el.volume = Math.max(0, Math.min(1, (l.volume==null?0.8:l.volume) * vol));
             const clipEl = document.getElementById('clip-'+clip.id);
             if(clipEl) clipEl.classList.add('now-playing');
@@ -8118,13 +8538,25 @@
       document.getElementById('feed-schedule-step1').hidden = n !== 1;
       document.getElementById('feed-schedule-step2').hidden = n !== 2;
       document.getElementById('feed-schedule-step3').hidden = n !== 3;
+      // The visuals preview (iframe + silhouette overlay) is shared by steps
+      // 1 and 2 — step 2 dances on top of the same live design, not a blank
+      // stage — and only goes away for step 3 (lyrics, no preview needed there).
+      document.getElementById('feed-schedule-preview-wrap').hidden = n === 3;
       const labels = ['Design the visuals', 'Dance silhouette', 'Lyrics'];
       document.getElementById('feed-schedule-head-label').textContent = `Step ${n} of 3 — ${labels[n-1]}`;
       document.getElementById('feed-schedule-back-btn').textContent = n === 1 ? 'Cancel' : '← Back';
       document.getElementById('feed-schedule-back-btn').onclick = () => app.scheduleGoStep(n-1);
       document.getElementById('feed-schedule-next-btn').textContent = n === 3 ? 'Post →' : 'Next →';
       document.getElementById('feed-schedule-next-btn').onclick = () => app.scheduleGoStep(n+1);
-      if(n === 2 && document.getElementById('feed-silhouette-enable').checked) app.toggleSilhouette(true);
+      if(n === 2){
+        // Dancing needs the song (and its visuals) running from the top, not
+        // wherever step 1 happened to leave the playhead.
+        scheduleCurrentTime = 0;
+        scheduleFiredIdx = -1;
+        scheduleBroadcast({ type: 'seek', time: 0 });
+        if(!schedulePlaying) app.toggleSchedulePreview();
+        if(document.getElementById('feed-silhouette-enable').checked) app.toggleSilhouette(true);
+      }
     },
     saveScheduleEditor(){
       const n = scheduleDraft.markers.length;
@@ -8162,10 +8594,13 @@
         await video.play();
         const canvas = document.getElementById('feed-silhouette-canvas');
         canvas.width = video.videoWidth || 640; canvas.height = video.videoHeight || 360;
+        canvas.style.display = 'block';
         const ctx = canvas.getContext('2d');
+        let gotFirstResult = false;
         const seg = new window.SelfieSegmentation({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${f}` });
         seg.setOptions({ modelSelection: 1 });
         seg.onResults((res) => {
+          gotFirstResult = true;
           // Draws the mask as a bright cyan silhouette on solid black — this
           // is what sphere.html composites in with 'screen' blend mode, same
           // trick as every other layer there, so the black just vanishes and
@@ -8183,10 +8618,29 @@
         scheduleSilhouetteSegmenter = seg;
         const loop = async () => {
           if(!scheduleSilhouetteSegmenter) return;
-          await seg.send({ image: video });
+          try { await seg.send({ image: video }); }
+          catch(e){ console.warn('[silhouette] segmentation send failed:', e?.message || e); }
           scheduleSilhouetteRAF = requestAnimationFrame(loop);
         };
         loop();
+        // The old MediaPipe cutout model can silently fail to ever call
+        // onResults (broken WASM load, missing crossOriginIsolated, etc.) —
+        // instead of sitting on a blank canvas forever (the "blank" bug),
+        // fall back to the plain camera feed so there's always something.
+        setTimeout(() => {
+          if (gotFirstResult || !scheduleSilhouetteSegmenter) return;
+          console.warn('[silhouette] segmentation model produced no result in time — falling back to plain camera feed');
+          scheduleSilhouetteSegmenter = null;
+          if (scheduleSilhouetteRAF) cancelAnimationFrame(scheduleSilhouetteRAF);
+          statusEl.textContent = "Couldn't load background removal — showing your plain camera feed instead.";
+          const rawLoop = () => {
+            if (!scheduleSilhouetteStream) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            scheduleSilhouetteRAF = requestAnimationFrame(rawLoop);
+          };
+          rawLoop();
+        }, 5000);
         statusEl.textContent = 'Stand in frame, then press record and dance — recording runs alongside the song.';
       } catch(e){
         console.error('toggleSilhouette failed:', e);
@@ -8202,6 +8656,8 @@
       scheduleSilhouetteSegmenter = null;
       scheduleSilhouetteStream?.getTracks().forEach(t => t.stop());
       scheduleSilhouetteStream = null;
+      const canvas = document.getElementById('feed-silhouette-canvas');
+      if(canvas) canvas.style.display = 'none';
     },
     async toggleSilhouetteRecording(){
       const btn = document.getElementById('feed-silhouette-record-btn');
