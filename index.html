@@ -1244,6 +1244,19 @@
           </label>
           <div id="feed-silhouette-body" hidden>
             <div class="pad-hint" id="feed-silhouette-status" style="margin:8px 0;">Stand in front of a plain wall, in frame, for the best cutout.</div>
+            <div style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:6px 8px;margin-bottom:10px;font-size:12px;">
+              <span>Brightness</span><input type="range" id="feed-silhouette-brightness" min="50" max="200" value="100" oninput="app.updateSilhouetteLook()"><span id="feed-silhouette-brightness-val">100%</span>
+              <span>Contrast</span><input type="range" id="feed-silhouette-contrast" min="50" max="300" value="100" oninput="app.updateSilhouetteLook()"><span id="feed-silhouette-contrast-val">100%</span>
+              <span>Sensitivity</span><input type="range" id="feed-silhouette-threshold" min="0" max="255" value="40" oninput="app.updateSilhouetteLook()"><span id="feed-silhouette-threshold-val">40</span>
+              <span>Blend</span>
+              <select id="feed-silhouette-blend" onchange="app.updateSilhouetteLook()" style="grid-column:2/4;">
+                <option value="screen" selected>Screen (glow, recommended)</option>
+                <option value="lighten">Lighten</option>
+                <option value="difference">Difference (edges pop)</option>
+                <option value="exclusion">Exclusion</option>
+                <option value="normal">Normal (no blend)</option>
+              </select>
+            </div>
             <div style="display:flex;gap:8px;">
               <button class="btn btn-primary btn-sm" id="feed-silhouette-record-btn" style="flex:1" onclick="app.toggleSilhouetteRecording()">● Record while the song plays</button>
             </div>
@@ -2274,6 +2287,7 @@
   let scheduleSilhouetteMedia = null; // uploaded silhouette video, once recorded
   let scheduleSilhouetteStream = null; // raw webcam MediaStream
   let scheduleSilhouetteRAF = null;
+  let scheduleSilhouetteBrightness = 100, scheduleSilhouetteContrast = 100; // % — live-tunable, read by the raw camera loop
   let scheduleSilhouetteRecorder = null;
   let scheduleSilhouetteChunks = [];
   let scheduleSilhouetteRecording = false;
@@ -8500,23 +8514,6 @@
       await app.submitFeedPost();
     },
     // ---- Step 2: dance silhouette ----
-    // Loaded lazily (only once the user actually opens this step) so every
-    // page load doesn't pay for a segmentation model nobody may ever use.
-    async ensureBodyPix(){
-      if(window.bodyPix) return;
-      const load = (src) => new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = src; s.onload = resolve; s.onerror = () => reject(new Error('failed to load ' + src));
-        document.head.appendChild(s);
-      });
-      // TensorFlow.js + BodyPix: a mature, WebGL-based person-segmentation
-      // model — unlike the old @mediapipe/selfie_segmentation (which loaded
-      // its own WASM assets and turned out to silently return a broken,
-      // static mask), this is plain JS+WebGL with no extra asset fetches,
-      // so there's much less to go wrong once the two scripts load.
-      if(!window.tf) await load('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4/dist/tf.min.js');
-      if(!window.bodyPix) await load('https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.0/dist/body-pix.min.js');
-    },
     async toggleSilhouette(enabled){
       document.getElementById('feed-silhouette-body').hidden = !enabled;
       if(!enabled){ app.stopSilhouetteCamera(); return; }
@@ -8548,58 +8545,46 @@
         }
         const rawLoop = () => {
           if (!scheduleSilhouetteStream) return;
+          // Brightness/contrast are applied to the actual pushed pixels (not
+          // just a CSS overlay), since the point cloud's threshold decision
+          // in sphere.html reads those same pixel values — so cranking
+          // contrast here really does separate you from the background.
+          ctx.filter = `brightness(${scheduleSilhouetteBrightness}%) contrast(${scheduleSilhouetteContrast}%)`;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           pushLiveFrame();
           scheduleSilhouetteRAF = requestAnimationFrame(rawLoop);
         };
-        // The old @mediapipe/selfie_segmentation background-removal model
-        // (deprecated by Google, unmaintained) turned out to actively call
-        // onResults with a broken, static mask instead of either working or
-        // failing cleanly — Barak 2026-09-29: "nothing I do in front of the
-        // camera changes, it's just white dots in the form of a carpet."
-        // Swapped it for BodyPix (TF.js + WebGL, no extra asset fetches) —
-        // cuts the person out in solid bright cyan on solid black so the
-        // point-cloud's brightness threshold only ever picks up the dancer,
-        // never the room behind them. Starts the raw feed immediately so
-        // there's always something live on screen, then swaps to the real
-        // cutout once (if) BodyPix loads — never leaves a blank/frozen frame.
+        // Automatic background removal (first MediaPipe, then BodyPix) never
+        // held up in real use — Barak 2026-09-29: "looks exactly the same."
+        // Simpler and actually reliable: push the real, raw camera feed, and
+        // let the point cloud's own brightness cutoff (in sphere.html) do the
+        // "background removal" — with live brightness/contrast/sensitivity/
+        // blend controls here so the user can dial it in themselves for
+        // their own lighting and background, instead of a fixed guess.
         rawLoop();
-        statusEl.textContent = 'Stand in frame, then press record and dance — recording runs alongside the song.';
-        (async () => {
-          try {
-            await app.ensureBodyPix();
-            const net = await window.bodyPix.load({ architecture: 'MobileNetV1', outputStride: 16, multiplier: 0.75, quantBytes: 2 });
-            if (!scheduleSilhouetteStream) return; // stopped while loading
-            if (scheduleSilhouetteRAF) cancelAnimationFrame(scheduleSilhouetteRAF);
-            const w = canvas.width, h = canvas.height;
-            const out = ctx.createImageData(w, h);
-            const cutoutLoop = async () => {
-              if (!scheduleSilhouetteStream) return;
-              try {
-                const seg = await net.segmentPerson(video, { internalResolution: 'medium', segmentationThreshold: 0.7 });
-                const mask = seg.data, px = out.data;
-                for (let i = 0; i < mask.length; i++) {
-                  const o = i * 4;
-                  if (mask[i]) { px[o] = 127; px[o+1] = 242; px[o+2] = 255; px[o+3] = 255; }
-                  else { px[o] = 0; px[o+1] = 0; px[o+2] = 0; px[o+3] = 255; }
-                }
-                ctx.putImageData(out, 0, 0);
-                pushLiveFrame();
-              } catch(e){ console.warn('[silhouette] bodypix frame failed:', e?.message || e); }
-              scheduleSilhouetteRAF = requestAnimationFrame(cutoutLoop);
-            };
-            cutoutLoop();
-          } catch(e){
-            console.warn('[silhouette] BodyPix unavailable, staying on plain camera feed:', e?.message || e);
-          }
-        })();
+        app.updateSilhouetteLook();
+        statusEl.textContent = 'Stand in frame, then press record and dance — recording runs alongside the song. Use the sliders below to fine-tune what counts as "you" vs. background.';
       } catch(e){
         console.error('toggleSilhouette failed:', e);
         statusEl.textContent = 'Could not start the camera: ' + (e?.message || 'unknown error');
         document.getElementById('feed-silhouette-enable').checked = false;
         document.getElementById('feed-silhouette-body').hidden = true;
       }
+    },
+    // Reads the 4 sliders/select and applies them: brightness/contrast are
+    // picked up by the raw camera loop itself next frame; sensitivity and
+    // blend mode are pushed live into sphere.html's point-cloud layer.
+    updateSilhouetteLook(){
+      scheduleSilhouetteBrightness = +document.getElementById('feed-silhouette-brightness').value;
+      scheduleSilhouetteContrast = +document.getElementById('feed-silhouette-contrast').value;
+      const threshold = +document.getElementById('feed-silhouette-threshold').value;
+      const blend = document.getElementById('feed-silhouette-blend').value;
+      document.getElementById('feed-silhouette-brightness-val').textContent = scheduleSilhouetteBrightness + '%';
+      document.getElementById('feed-silhouette-contrast-val').textContent = scheduleSilhouetteContrast + '%';
+      document.getElementById('feed-silhouette-threshold-val').textContent = threshold;
+      scheduleFrame()?.contentWindow?.postMessage({ type: 'silhouetteThreshold', value: threshold }, '*');
+      scheduleFrame()?.contentWindow?.postMessage({ type: 'silhouetteBlend', value: blend }, '*');
     },
     stopSilhouetteCamera(){
       if(scheduleSilhouetteRecording) app.toggleSilhouetteRecording();

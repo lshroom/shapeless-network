@@ -1383,7 +1383,7 @@ if (driven) {
     });
     group.add(new THREE.Points(geometry, material));
 
-    let enabled = true, scale = 0.9, offsetX = 0, offsetY = 0, glow = 0, sampleTick = 0;
+    let enabled = true, scale = 0.9, offsetX = 0, offsetY = 0, glow = 0, sampleTick = 0, brightThreshold = 40;
     function resize(){ canvas.width = innerWidth; canvas.height = innerHeight; renderer.setSize(innerWidth, innerHeight, false); }
     addEventListener('resize', resize); resize();
 
@@ -1402,7 +1402,7 @@ if (driven) {
         for (let x = 0; x < SAMPLE_W; x++) {
           const i = (y * SAMPLE_W + x) * 4;
           const bright = (data[i] + data[i+1] + data[i+2]) / 3;
-          if (bright < 40) continue; // black background from the segmentation cutout — skip
+          if (bright < brightThreshold) continue; // below the "you" cutoff — treated as background
           positions[n*3]   = (x / SAMPLE_W - 0.5) * spanW;
           positions[n*3+1] = -(y / SAMPLE_H - 0.5) * spanH;
           // Real depth, not a flat card — subtle, so a head-on view still
@@ -1440,6 +1440,8 @@ if (driven) {
       get offsetY(){ return offsetY; }, set offsetY(v){ offsetY = v; },
       setEnabled(v){ enabled = v; canvas.style.display = v ? 'block' : 'none'; },
       setLiveFrame(bitmap){ liveFrame?.close?.(); liveFrame = bitmap; },
+      setThreshold(v){ brightThreshold = v; },
+      set blendMode(v){ canvas.style.mixBlendMode = v; },
       setAutoBeat(){}, setInterval(){},
       step, precompile(){ return video ? video.play().catch(()=>{}) : Promise.resolve(); },
     };
@@ -1451,13 +1453,28 @@ if (driven) {
   // on the finished post also shows while dancing — not only afterward
   // (Barak 2026-09-29: "why just on finished post? I need it in preview of
   // step 2").
+  // The brightness/contrast/sensitivity/blend controls in step 2 can be
+  // touched before the first camera frame arrives (or while the layer is
+  // momentarily absent), so pending values are held here and re-applied
+  // whenever a silhouette layer gets (re)created.
+  let pendingSilhouetteThreshold = null, pendingSilhouetteBlend = null;
   function setLiveSilhouette(bitmap){
     if (!silhouetteLayer) {
       silhouetteLayer = createSilhouetteLayer(null);
       layers.push(silhouetteLayer);
+      if (pendingSilhouetteThreshold != null) silhouetteLayer.setThreshold(pendingSilhouetteThreshold);
+      if (pendingSilhouetteBlend != null) silhouetteLayer.blendMode = pendingSilhouetteBlend;
       renderBlendPanel?.();
     }
     silhouetteLayer.setLiveFrame(bitmap);
+  }
+  function setLiveSilhouetteThreshold(v){
+    pendingSilhouetteThreshold = v;
+    silhouetteLayer?.setThreshold(v);
+  }
+  function setLiveSilhouetteBlend(v){
+    pendingSilhouetteBlend = v;
+    if (silhouetteLayer) silhouetteLayer.blendMode = v;
   }
 
   // Optional 5th visible layer: synced lyric captions, one line at a time,
@@ -1620,6 +1637,12 @@ if (driven) {
     }
     if (e.data?.type === 'silhouetteFrame' && e.data.bitmap) {
       setLiveSilhouette(e.data.bitmap);
+    }
+    if (e.data?.type === 'silhouetteThreshold' && isFinite(e.data.value)) {
+      setLiveSilhouetteThreshold(e.data.value);
+    }
+    if (e.data?.type === 'silhouetteBlend' && typeof e.data.value === 'string') {
+      setLiveSilhouetteBlend(e.data.value);
     }
     if (e.data?.type === 'setUiVisible') {
       // The wizard shares one persistent iframe across all 3 steps so
