@@ -1337,18 +1337,75 @@ if (driven) {
   // Not a raymarched shape (a <video> element, drawn to a plain 2D canvas
   // each frame), so it doesn't get an arrangement dropdown — only the same
   // size/position controls every layer gets, plus a small beat-synced glow.
+  // A real 3D point cloud (THREE.Points, rendered with the page's own shared
+  // `camera` — same one the OrbitControls drag/orbit gesture drives, so it
+  // moves through space with everything else) instead of a flat 2D overlay.
+  // From straight on it reads as a clean silhouette; orbiting reveals it has
+  // depth, via a small per-point z-jitter (Barak 2026-09-29: "from one angle
+  // it will be perfectly 2D, but when we're moving in the same 3D space...
+  // make it point cloud").
   function createSilhouetteLayer(url){
     const video = document.createElement('video');
     video.src = url; video.crossOrigin = 'anonymous'; video.loop = true; video.muted = true; video.playsInline = true;
+
+    // Low-res readback grid — reading the video's pixels back every single
+    // frame (getImageData) is CPU-heavy for no visible gain on a human
+    // dancer, so the point cloud is rebuilt a few times a second, not 60.
+    const SAMPLE_W = 96, SAMPLE_H = 54;
+    const sampleCanvas = document.createElement('canvas');
+    sampleCanvas.width = SAMPLE_W; sampleCanvas.height = SAMPLE_H;
+    const sctx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+
     const canvas = document.createElement('canvas');
     canvas.className = 'layerCanvas';
     canvas.style.zIndex = '4';
-    canvas.style.mixBlendMode = 'screen';
     layersEl.appendChild(canvas);
-    const ctx = canvas.getContext('2d');
-    let enabled = true, scale = 0.9, offsetX = 0, offsetY = 0, glow = 0;
-    function resize(){ canvas.width = innerWidth; canvas.height = innerHeight; }
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+
+    const scene = new THREE.Scene();
+    const group = new THREE.Group();
+    scene.add(group);
+
+    const MAX_POINTS = SAMPLE_W * SAMPLE_H;
+    const positions = new Float32Array(MAX_POINTS * 3);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setDrawRange(0, 0);
+    const material = new THREE.PointsMaterial({
+      color: 0x7ff2ff, size: 0.045, sizeAttenuation: true,
+      transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    group.add(new THREE.Points(geometry, material));
+
+    let enabled = true, scale = 0.9, offsetX = 0, offsetY = 0, glow = 0, sampleTick = 0;
+    function resize(){ canvas.width = innerWidth; canvas.height = innerHeight; renderer.setSize(innerWidth, innerHeight, false); }
     addEventListener('resize', resize); resize();
+
+    function rebuildPoints(){
+      if (!video.videoWidth) return;
+      sctx.drawImage(video, 0, 0, SAMPLE_W, SAMPLE_H);
+      const data = sctx.getImageData(0, 0, SAMPLE_W, SAMPLE_H).data;
+      const vAspect = video.videoWidth / video.videoHeight;
+      const spanW = 2.6, spanH = spanW / vAspect;
+      let n = 0;
+      for (let y = 0; y < SAMPLE_H; y++) {
+        for (let x = 0; x < SAMPLE_W; x++) {
+          const i = (y * SAMPLE_W + x) * 4;
+          const bright = (data[i] + data[i+1] + data[i+2]) / 3;
+          if (bright < 40) continue; // black background from the segmentation cutout — skip
+          positions[n*3]   = (x / SAMPLE_W - 0.5) * spanW;
+          positions[n*3+1] = -(y / SAMPLE_H - 0.5) * spanH;
+          // Real depth, not a flat card — subtle, so a head-on view still
+          // reads as a clean 2D silhouette, but orbiting shows it's a cloud.
+          positions[n*3+2] = (Math.random() - 0.5) * 0.4;
+          n++;
+        }
+      }
+      geometry.setDrawRange(0, n);
+      geometry.attributes.position.needsUpdate = true;
+    }
+
     function step(){
       if (!enabled || video.readyState < 2) return;
       // Keeps the silhouette in sync with the song rather than its own
@@ -1357,14 +1414,12 @@ if (driven) {
       if (audioEl && !audioEl.paused && video.paused) video.play().catch(()=>{});
       if (audioEl && audioEl.paused && !video.paused) video.pause();
       glow = Math.max(glow * 0.9, audio.hit ? 1 : 0);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const vw = video.videoWidth || 16, vh = video.videoHeight || 9;
-      const fit = Math.min(canvas.width / vw, canvas.height / vh) * scale;
-      const dw = vw * fit, dh = vh * fit;
-      const dx = (canvas.width - dw) / 2 + (offsetX / 100) * canvas.width;
-      const dy = (canvas.height - dh) / 2 + (offsetY / 100) * canvas.height;
-      ctx.globalAlpha = 0.85 + glow * 0.15;
-      ctx.drawImage(video, dx, dy, dw, dh);
+      if (++sampleTick % 3 === 0) rebuildPoints();
+      group.position.set((offsetX / 100) * 4, -(offsetY / 100) * 4, 0);
+      group.scale.setScalar(scale);
+      material.opacity = 0.7 + glow * 0.3;
+      material.size = 0.045 * (1 + glow * 0.3);
+      renderer.render(scene, camera);
     }
     return {
       canvas, isSilhouette: true, label: 'Dance silhouette', blend: 'screen',
