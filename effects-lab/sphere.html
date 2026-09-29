@@ -282,11 +282,12 @@ SHAPE_FN[4] = { fn:'deSdfMorph', src:`float deSdfMorph(vec3 p){
   return d;
 }` };
 // The originals were a finite EXTENT=7 plane; a raw heightfield SDF (p.y-h)
-// is an infinite tilted sheet, so each needs SOME bound. These used to be
-// intersected with a spherical bound (length(p)-2.1), which is what turned
-// them into round domes/balls instead of the flat carpets they actually
-// are — a wide, thin BOX bound keeps the same "fits in ~2 units" envelope
-// for the morph crossfade, but reads as an actual flat field again.
+// is an infinite tilted sheet, so each needs SOME bound. Which bound it gets
+// now follows the layer's own arrangement pick (see uArrange/deArranged
+// below): arrangement 1 ("flat field") clips it into a wide, thin BOX so it
+// genuinely reads as a carpet; every other arrangement keeps the original
+// spherical bound, so these can still show up round/ball-shaped exactly like
+// before — flat is now one more option, not a replacement.
 SHAPE_FN[5] = { fn:'deWaveField', src:`float deWaveField(vec3 p){
   float v=0.0;
   for(int s=0;s<3;s++){
@@ -297,7 +298,8 @@ SHAPE_FN[5] = { fn:'deWaveField', src:`float deWaveField(vec3 p){
   }
   float h = v*1.0*(0.5+uBass)*0.4;
   float box = max(abs(p.x)-2.3, max(abs(p.z)-2.3, abs(p.y)-0.9));
-  return max(p.y - h, box);
+  float bound = (uArrange==1) ? box : (length(p)-2.1);
+  return max(p.y - h, bound);
 }` };
 SHAPE_FN[6] = { fn:'deChladniField', src:`float deChladniField(vec3 p){
   float ext=2.6;
@@ -305,7 +307,8 @@ SHAPE_FN[6] = { fn:'deChladniField', src:`float deChladniField(vec3 p){
   float u=p.x/ext+0.5, v=p.z/ext+0.5;
   float h=(sin(m*3.14159265*u)*sin(n*3.14159265*v)-sin(n*3.14159265*u)*sin(m*3.14159265*v))*0.7*(0.5+uBass);
   float box = max(abs(p.x)-2.3, max(abs(p.z)-2.3, abs(p.y)-0.9));
-  return max(p.y - h, box);
+  float bound = (uArrange==1) ? box : (length(p)-2.1);
+  return max(p.y - h, bound);
 }` };
 SHAPE_FN[7] = { fn:'deWebField', src:`float deWebField(vec3 p){
   float rad=length(p.xz), ang=atan(p.z,p.x);
@@ -313,7 +316,8 @@ SHAPE_FN[7] = { fn:'deWebField', src:`float deWebField(vec3 p){
   float ring=pow(abs(cos(rad*3.6-uTime*0.6)),10.0);
   float h=(max(spoke,ring)*0.6-0.12)*(0.4+uRms*2.0);
   float box = max(abs(p.x)-2.3, max(abs(p.z)-2.3, abs(p.y)-0.9));
-  return max(p.y - h, box);
+  float bound = (uArrange==1) ? box : (length(p)-2.1);
+  return max(p.y - h, bound);
 }` };
 // ---- second batch: 13 more shapes, contributed for more variety so the
 // morph never feels repetitive over a long song. Same house rules as above —
