@@ -8532,16 +8532,16 @@
         if(document.getElementById('feed-silhouette-enable').checked) app.toggleSilhouette(true);
       }
     },
-    saveScheduleEditor(){
-      const n = scheduleDraft.markers.length;
-      const bits = [];
-      if(n > 1) bits.push(n + ' switch' + (n===2?'':'es'));
-      if(scheduleSilhouetteMedia) bits.push('dance silhouette');
-      if(scheduleLyricsEnabled) bits.push('lyrics (' + scheduleLyricsMode + (scheduleLyricsSegments?.length ? ', ' + scheduleLyricsSegments.length + ' lines' : ', not transcribed yet') + ')');
-      document.getElementById('feed-post-schedule-status').textContent = bits.join(', ');
+    // Step 3's "Post →" button used to just close the wizard and stash the
+    // draft on the composer's status line — you then had to notice and press
+    // the OUTER composer's own separate "Post →" button too, or nothing ever
+    // actually went out (Barak 2026-09-29: "I pressed post but I don't see
+    // it in the feed"). It now really posts, right from the wizard.
+    async saveScheduleEditor(){
       scheduleDraft.silhouetteUrl = scheduleSilhouetteMedia?.url || null;
       scheduleDraft.lyrics = scheduleLyricsEnabled ? { enabled: true, mode: scheduleLyricsMode, segments: scheduleLyricsSegments || [] } : null;
       app.closeScheduleEditor();
+      await app.submitFeedPost();
     },
     // ---- Step 2: dance silhouette ----
     // Loaded lazily (only once the user actually opens this step) so every
@@ -8718,13 +8718,22 @@
             reader.onerror = reject;
             reader.readAsDataURL(audioBlob);
           });
-          const res = await fetch('https://hermes.shapeless.love/ghost/whisper/transcribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ audio_b64: b64, ext: 'mp3' }),
-          });
+          // Ghost only ever runs on your own machine (see CLAUDE.md — its
+          // whisper route lives on the local server at :5555), never on the
+          // public site's own domain — so this only works when you're
+          // testing from the same device Ghost is running on.
+          let res;
+          try {
+            res = await fetch('http://localhost:5555/ghost/whisper/transcribe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ audio_b64: b64, ext: 'mp3' }),
+            });
+          } catch(networkErr){
+            throw new Error("Couldn't reach Ghost at localhost:5555 — is it running on this device? Otherwise switch to your own cloud key above.");
+          }
           const json = await res.json().catch(() => null);
-          if(!json || !json.ok) throw new Error('Ghost is not reachable right now — start Ghost locally, or switch to your own cloud key above.');
+          if(!json || json.ok === false) throw new Error('Ghost responded but the transcription failed — check its logs.');
           segments = (json.segments || []).map(s => ({ start: s.start, end: s.end, text: (s.text||'').trim() }));
         }
         segments = segments.filter(s => s.text);
