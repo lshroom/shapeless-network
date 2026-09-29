@@ -2286,29 +2286,44 @@
   let scheduleLyricsCloudKey = '';
   let scheduleLyricsSegments = null; // [{start,end,text}] once transcribed, editable before posting
   let scheduleLyricsTranscribing = false;
+  let scheduleLocalPreviewUrl = null; // blob: URL for the instant local preview, revoked once a real upload replaces it
   function scheduleFrame(){ return document.getElementById('feed-schedule-frame-sphere'); }
   // Uploads the chosen song once (for preview) and reuses that same upload
   // for the real post if one follows, instead of uploading twice.
+  // Used to be a real network upload to Supabase Storage before "Design the
+  // visuals" could even open — for anything but a tiny file that's tens of
+  // seconds of dead waiting just to see the timeline (Barak 2026-09-29:
+  // "before... uploading a song didn't take so long"). The preview iframe
+  // only ever needs to play the file back in THIS browser, so a local blob:
+  // URL does that instantly — same-origin iframes can load it fine. The real
+  // upload to storage (the only part that actually needs the network) is
+  // deferred to submitFeedPost, same as a plain song post with no editing
+  // ever did.
   async function ensureScheduleSongUploaded(){
     const file = document.getElementById('feed-post-song').files[0];
     if(!file){ toast('Choose a song first.'); return null; }
     if(scheduleUploadedForFile === file && scheduleUploadedMedia) return scheduleUploadedMedia;
-    try {
-      const uploadFile = await prepareForUpload(file);
-      setProgress(0, 'Uploading song for preview… 0%');
-      scheduleUploadedMedia = await SB.uploadMedia(uploadFile, (frac) => {
-        const pct = Math.round(Math.max(0, Math.min(1, frac)) * 100);
-        setProgress(pct, `Uploading song for preview… ${pct}%`);
-      });
-      scheduleUploadedForFile = file;
-      hideProgress();
-      return scheduleUploadedMedia;
-    } catch(e){
-      console.error('ensureScheduleSongUploaded failed:', e);
-      hideProgress();
-      toast('Could not upload for preview: ' + (e?.message || e?.error_description || 'unknown error'));
-      return null;
-    }
+    if(scheduleLocalPreviewUrl) URL.revokeObjectURL(scheduleLocalPreviewUrl);
+    scheduleLocalPreviewUrl = URL.createObjectURL(file);
+    scheduleUploadedMedia = { url: scheduleLocalPreviewUrl, kind: 'audio', name: file.name, _local: true };
+    scheduleUploadedForFile = file;
+    return scheduleUploadedMedia;
+  }
+  // Turns the local-preview draft into a real, publicly-fetchable upload —
+  // called once, right before the post actually goes out.
+  async function ensureScheduleSongReallyUploaded(){
+    const file = document.getElementById('feed-post-song').files[0];
+    if(scheduleUploadedForFile === file && scheduleUploadedMedia && !scheduleUploadedMedia._local) return scheduleUploadedMedia;
+    if(!file) return null;
+    const uploadFile = await prepareForUpload(file);
+    setProgress(0, 'Uploading song… 0%');
+    const real = await SB.uploadMedia(uploadFile, (frac) => {
+      const pct = Math.round(Math.max(0, Math.min(1, frac)) * 100);
+      setProgress(pct, `Uploading song… ${pct}%`);
+    });
+    if(scheduleUploadedForFile === file) scheduleUploadedMedia = real;
+    hideProgress();
+    return real;
   }
   // Design the visuals now always opens straight into the full blended
   // experience (all 3 banks + background layer composited together) — the
@@ -4948,119 +4963,33 @@
     return sp;
   }
 
-  // Waveform Sculptor — ported verbatim from the drum room (world/s2-overnight/
-  // F21_waveformSculptor.js): FBM noise + the live time-domain waveform baked into a
-  // 256×1 texture, sampled by each vertex's normal, with bass/mid/high/rms bands.
-  const SCULPT_VERT = `
-precision highp float;
-attribute vec3 position;
-attribute vec3 normal;
-attribute vec2 uv;
-uniform mat4 modelViewMatrix;
-uniform mat4 projectionMatrix;
-uniform mat4 normalMatrix_u;
-uniform sampler2D uWaveform;
-uniform float uTime;
-uniform float uBass;
-uniform float uMid;
-uniform float uHigh;
-uniform float uRms;
-uniform vec3  uColor;
-varying vec3 vNormal;
-varying vec3 vPos;
-varying float vDisplace;
-varying vec3  vColor;
-vec3 hash3f(vec3 p) {
-  p = fract(p * vec3(443.8975, 397.2973, 491.1871));
-  p += dot(p, p.yxz + 19.19);
-  return fract((p.xxy + p.yxx) * p.zyx);
-}
-float valueNoise(vec3 p) {
-  vec3 i = floor(p), f = fract(p);
-  f = f*f*(3.0-2.0*f);
-  return mix(
-    mix(mix(hash3f(i).x,   hash3f(i+vec3(1,0,0)).x, f.x),
-        mix(hash3f(i+vec3(0,1,0)).x, hash3f(i+vec3(1,1,0)).x, f.x), f.y),
-    mix(mix(hash3f(i+vec3(0,0,1)).x, hash3f(i+vec3(1,0,1)).x, f.x),
-        mix(hash3f(i+vec3(0,1,1)).x, hash3f(i+vec3(1,1,1)).x, f.x), f.y),
-    f.z
-  );
-}
-float fbm(vec3 p) {
-  float v = 0.0, amp = 0.5, freq = 1.0;
-  for (int i = 0; i < 5; i++) {
-    v += amp * valueNoise(p * freq);
-    freq *= 2.1; amp *= 0.5;
+  // Liquid blob — the deformation from the 3D Studio prototype (ambient wobble scaled by
+  // the track's live level, plus a travelling ripple on every note-on, glossy metal
+  // material, normals recomputed each frame), with the drum room Sculptor's waveform
+  // term added: each vertex also pushes out by the live time-domain sample picked by its
+  // normal's x (world/s2-overnight/F21_waveformSculptor.js), so the surface carries the
+  // actual waveform shape, not just its loudness.
+  const BLOB_SEGS = (window.matchMedia && matchMedia('(pointer:coarse)').matches) ? [32, 20] : [48, 32];
+  function buildLiquidBlob(colorHex){
+    const geo = new THREE.SphereGeometry(1, BLOB_SEGS[0], BLOB_SEGS[1]);
+    const mat = new THREE.MeshStandardMaterial({ color:colorHex, emissive:colorHex, emissiveIntensity:.25, metalness:.35, roughness:.18 });
+    const mesh = new THREE.Mesh(geo, mat);
+    return { mesh, mat, geo, base:geo.attributes.position.array.slice(), waveData:new Uint8Array(256).fill(128), amp:0, k:0, dir:new THREE.Vector3(1,0,0), lastStep:-1 };
   }
-  return v;
-}
-void main() {
-  float wSample = (normal.x * 0.5 + 0.5);
-  float wVal = texture2D(uWaveform, vec2(wSample, 0.5)).r * 2.0 - 1.0;
-  vec3 noisePos = position * (2.0 + uMid * 3.0) + uTime * 0.3;
-  float fbmVal = fbm(noisePos) - 0.5;
-  float waveDisp  = wVal * uRms * 0.35;
-  float noiseDisp = fbmVal * (0.05 + uMid * 0.15);
-  float bassDisp  = uBass * 0.25;
-  float totalDisp = waveDisp + noiseDisp + bassDisp;
-  vDisplace = totalDisp;
-  float spikes = fbm(position * (8.0 + uHigh * 6.0) + uTime * 0.7) * uHigh * 0.15;
-  totalDisp += spikes;
-  vec3 newPos = position + normal * totalDisp;
-  vNormal = normalize(normalMatrix_u * vec4(normal, 0.0)).xyz;
-  vPos    = newPos;
-  vColor = uColor + vec3(totalDisp * 0.3, totalDisp * 0.1, -totalDisp * 0.2);
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
-}
-`;
-  const SCULPT_FRAG = `
-precision highp float;
-varying vec3 vNormal;
-varying vec3 vPos;
-varying float vDisplace;
-varying vec3  vColor;
-uniform float uRms;
-uniform float uBass;
-uniform float uTime;
-void main() {
-  vec3 N = normalize(vNormal);
-  vec3 L = normalize(vec3(1.0, 1.5, 2.0));
-  vec3 col = vColor;
-  float diff = max(0.0, dot(N, L));
-  float rim  = pow(1.0 - max(0.0, dot(N, vec3(0,0,1))), 2.5);
-  col = col * (0.3 + diff * 0.7) + col * rim * 0.4 * (1.0 + uBass);
-  col *= 0.8 + uRms * 0.5;
-  col += max(0.0, vDisplace) * vec3(0.3, 0.5, 1.0) * uRms;
-  gl_FragColor = vec4(col, 1.0);
-}
-`;
-  function buildSculptorBlob(colorHex){
-    const waveData = new Uint8Array(256).fill(128);
-    // LuminanceFormat (not RedFormat) so it also works on a WebGL1 fallback; .r reads it the same
-    const waveTex = new THREE.DataTexture(waveData, 256, 1, THREE.LuminanceFormat, THREE.UnsignedByteType);
-    waveTex.magFilter = THREE.LinearFilter;
-    waveTex.needsUpdate = true;
-    const c = new THREE.Color(colorHex);
-    const mat = new THREE.RawShaderMaterial({
-      vertexShader: SCULPT_VERT, fragmentShader: SCULPT_FRAG,
-      uniforms: {
-        uWaveform:{ value:waveTex }, uTime:{ value:0 }, uBass:{ value:0 }, uMid:{ value:0 }, uHigh:{ value:0 }, uRms:{ value:0 },
-        uColor:{ value:new THREE.Vector3(c.r, c.g, c.b) }, normalMatrix_u:{ value:new THREE.Matrix4() },
-      },
-      side: THREE.FrontSide,
-    });
-    const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1.5, 5), mat);
-    return { mesh, mat, waveData, waveTex, freqData:new Uint8Array(128), bands:{ bass:0, mid:0, high:0, rms:0 } };
-  }
-  // bass/mid/high/rms off an analyser (fftSize 256 → 128 bins of ~172Hz), smoothed with a
-  // fast attack / slower release so hits snap out and settle back like the drum room
-  function sculptorBandsFrom(analyser, blob){
+  function blobLevelFrom(analyser, blob){
     analyser.getByteTimeDomainData(blob.waveData);
-    analyser.getByteFrequencyData(blob.freqData);
-    let sum = 0;
-    for(let i=0;i<256;i++){ const x = (blob.waveData[i]-128)/128; sum += x*x; }
-    const avg = (a,b)=>{ let s=0; for(let i=a;i<b;i++) s += blob.freqData[i]; return s/((b-a)*255); };
-    return { rms: Math.min(1, Math.sqrt(sum/256)*3), bass: avg(0,3), mid: avg(3,30), high: avg(30,90) };
+    let s = 0;
+    for(let i=0;i<256;i++){ const x = (blob.waveData[i]-128)/128; s += x*x; }
+    return Math.sqrt(s/256);
+  }
+  function rippleBlob(blob){
+    blob.k = 1;
+    blob.dir.set(Math.random()-.5, Math.random()-.5, Math.random()-.5).normalize();
+  }
+  function ripple3D(vid, laneId){
+    const st = STUDIO3D[vid];
+    const b = st && laneId && st.blobs.get(laneId);
+    if(b) rippleBlob(b);
   }
   function laneAnalyserFor(vid, laneId){
     const g = laneAudioGraphs[laneFxKey(vid, laneId)];
@@ -8444,6 +8373,7 @@ void main() {
       // A newly-picked song invalidates any in-progress timeline draft — it
       // was built against a different file's uploaded URL.
       if(input.id === 'feed-post-song'){
+        if(scheduleLocalPreviewUrl){ URL.revokeObjectURL(scheduleLocalPreviewUrl); scheduleLocalPreviewUrl = null; }
         scheduleDraft = null; scheduleUploadedMedia = null; scheduleUploadedForFile = null;
         scheduleSilhouetteMedia = null; scheduleLyricsEnabled = false; scheduleLyricsMode = 'local';
         scheduleLyricsSegments = null; scheduleLyricsCloudKey = '';
@@ -8458,10 +8388,14 @@ void main() {
       try {
         let media = null;
         if(file){
-          // The timeline editor already uploaded this exact file to get a
-          // real URL for its own preview — reuse that instead of uploading twice.
-          if(scheduleUploadedForFile === file && scheduleUploadedMedia){
+          // The timeline editor's own preview uses a local blob: URL (see
+          // ensureScheduleSongUploaded) — only real once it's actually been
+          // pushed to storage. If a real upload already finished (e.g. a
+          // second post of the same file), reuse it instead of uploading twice.
+          if(scheduleUploadedForFile === file && scheduleUploadedMedia && !scheduleUploadedMedia._local){
             media = scheduleUploadedMedia;
+          } else if(scheduleUploadedForFile === file && scheduleUploadedMedia && scheduleUploadedMedia._local){
+            media = await ensureScheduleSongReallyUploaded();
           } else {
             const uploadFile = await prepareForUpload(file);
             if(uploadFile.size > UPLOAD_CAP){ setProgress(0, 'Still too large after compression — try a shorter clip.', true); return; }
@@ -8490,6 +8424,7 @@ void main() {
         document.getElementById('feed-post-media-name').textContent = '';
         document.getElementById('feed-post-effect-row').hidden = true;
         document.getElementById('feed-post-schedule-status').textContent = '';
+        if(scheduleLocalPreviewUrl){ URL.revokeObjectURL(scheduleLocalPreviewUrl); scheduleLocalPreviewUrl = null; }
         scheduleDraft = null; scheduleUploadedMedia = null; scheduleUploadedForFile = null;
         scheduleSilhouetteMedia = null; scheduleLyricsEnabled = false; scheduleLyricsMode = 'local';
         scheduleLyricsSegments = null; scheduleLyricsCloudKey = '';
