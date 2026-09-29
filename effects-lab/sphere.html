@@ -865,6 +865,11 @@ function createLayer({ canvas, bankIdx, alpha, onLabel, intervalMult=1, camera, 
       uniforms.uArrangeSeed.value = seed;
       if (hue !== undefined) uniforms.uHueOffset.value = hue;
     },
+    // Lets the Layers panel show/edit the current pick without the UI having
+    // to track its own separate copy of the arrangement state.
+    getArrange(){
+      return { mode: uniforms.uArrange.value, seed: uniforms.uArrangeSeed.value, hue: uniforms.uHueOffset.value };
+    },
     // A synchronized, waveform-triggered switch (see SHARED CAMERA/switch
     // points below) — always lands on a genuinely different shape, same as
     // the layer's own auto-switching, just called from outside on demand.
@@ -901,7 +906,7 @@ function createBackgroundLayer({ canvas }){
     uGlitchType: { value: 0 },
     uHarmony: { value: 0 },
   });
-  const BG_STYLE_NAMES = ['Plasma drift', 'Flowing waves', 'Pulse rings', 'Starfield'];
+  const BG_STYLE_NAMES = ['Plasma drift', 'Flowing waves', 'Pulse rings', 'Starfield', 'Mirror tunnel'];
   const mat = new THREE.ShaderMaterial({
     glslVersion: THREE.GLSL3,
     uniforms,
@@ -940,7 +945,7 @@ function createBackgroundLayer({ canvas }){
           float pulse = smoothstep(0.0, 1.0, 0.5+0.5*ring);
           float hue = fract(r*0.3 - uTime*0.025 + uMid*0.15);
           return spectral(hue) * (0.17 + 0.22*pulse + uBeat*0.2 + uBass*0.11);
-        } else {
+        } else if (style == 3) {
           // Starfield — sparse twinkling points drifting past, denser/brighter on highs.
           vec2 gv = q*6.0;
           vec2 cell = floor(gv), f = fract(gv)-0.5;
@@ -958,6 +963,22 @@ function createBackgroundLayer({ canvas }){
           float hue = fract(uTime*0.02 + uHigh*0.2);
           vec3 base = vec3(0.02, 0.025, 0.05) * (0.6 + 0.4*sin(uTime*0.1));
           return base + spectral(hue) * star * (0.7 + uHigh*0.6 + uBeat*0.3);
+        } else {
+          // Mirror tunnel — the "VJ mirror" effect: the screen folded into
+          // mirrored wedges (same angular-fold trick as the arrangement
+          // system's kaleidoscope shape mode, applied here to the whole
+          // frame) with rings racing inward to read as travel through a
+          // tunnel, snapping faster on the bass.
+          float ang = atan(q.y, q.x);
+          float seg = 6.2831853 / 8.0;
+          float fa = abs(mod(ang, seg) - seg*0.5);
+          float r = length(q) + 0.001;
+          float tunnel = fract(1.0/r*0.6 - uTime*0.5 - uBass*0.5);
+          float rings = smoothstep(0.0,0.09,tunnel) * smoothstep(0.24,0.09,tunnel);
+          float spoke = smoothstep(0.5, 0.44, fa);
+          float hue = fract(fa*1.3 + uTime*0.05 + uMid*0.2);
+          vec3 base = vec3(0.015, 0.02, 0.04);
+          return base + spectral(hue) * (rings*0.55 + spoke*0.1) * (0.6 + uHigh*0.7 + uBeat*0.4);
         }
       }
       void main(){
@@ -1276,9 +1297,9 @@ if (driven) {
   // different songs -> a genuinely different combination, not just a
   // different shape from the same fixed layout. Arrangement 0 (single) is
   // deliberately in the pool too, so not every song is maximally weird.
-  const ARRANGE_COUNT = 8;
-  onSongSeed = (url) => {
-    const rand = mulberry32(hashStr(url));
+  const ARRANGE_NAMES = ['Single','Flat field','Kaleidoscope','Fractal tile','Cluster','Scatter','Twist','Crystal cage'];
+  const ARRANGE_COUNT = ARRANGE_NAMES.length;
+  function rollVisualDna(rand) {
     shapeLayers.forEach(l => {
       const mode = Math.floor(rand() * ARRANGE_COUNT);
       const seed = rand();
@@ -1289,7 +1310,13 @@ if (driven) {
     // createBackgroundLayer) — just bias its very first pick per song
     // instead of always starting on Starfield.
     bgLayer.setStyle(Math.floor(rand() * bgLayer.styleNames.length));
-  };
+    renderBlendPanel?.();
+  }
+  onSongSeed = (url) => rollVisualDna(mulberry32(hashStr(url)));
+  // Manual reroll — a fresh, not-tied-to-the-song combination, for anyone
+  // who wants to keep trying combos instead of only getting the one their
+  // song's URL happens to land on.
+  window._sphereShuffleVisuals = () => rollVisualDna(mulberry32((Math.random()*4294967296)|0));
 
   // Waveform-detected "big switch" moments, sent from the post composer's
   // timeline editor (or the feed player, for an already-published post) —
@@ -1372,6 +1399,14 @@ if (driven) {
       layers.forEach(l => l.setInterval(+e.target.value));
     });
     body.appendChild(ctlRow);
+    // Re-rolls the whole per-song "visual DNA" combination — the automatic
+    // pick from the song's own URL is still what a fresh post loads with,
+    // this just lets anyone keep trying new combinations on top of it.
+    const shuffleBtn = document.createElement('button');
+    shuffleBtn.textContent = '🎲 Shuffle visuals';
+    shuffleBtn.style.cssText = 'background:rgba(139,155,255,.18);color:#cdd4ff;border:1px solid #8b9bff;border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer;';
+    shuffleBtn.addEventListener('click', () => window._sphereShuffleVisuals?.());
+    body.appendChild(shuffleBtn);
     layers.forEach((layer, i) => {
       const row = document.createElement('div');
       row.className = 'layerRow';
@@ -1397,20 +1432,29 @@ if (driven) {
         return;
       }
       const modeOpts = BLEND_MODES.map(m => `<option value="${m}"${m===layer.blend?' selected':''}>${m}</option>`).join('');
+      const curArrange = layer.getArrange ? layer.getArrange().mode : 0;
+      const arrangeOpts = ARRANGE_NAMES.map((n,idx) => `<option value="${idx}"${idx===curArrange?' selected':''}>${n}</option>`).join('');
       row.innerHTML = `
         <div class="lr-head">
           <input type="checkbox" checked>
           <span>${layer.label}</span>
         </div>
-        <select>${modeOpts}</select>
+        <select class="lr-blend">${modeOpts}</select>
+        <select class="lr-arrange">${arrangeOpts}</select>
         <div class="lr-size"><span>size</span><input type="range" min="0.3" max="1.8" step="0.05" value="${layer.scale}"></div>
       `;
       row.querySelector('input[type=checkbox]').addEventListener('change', e=>{
         layer.setEnabled(e.target.checked);
       });
-      row.querySelector('select').addEventListener('change', e=>{
+      row.querySelector('.lr-blend').addEventListener('change', e=>{
         layer.blend = e.target.value;
         layer.canvas.style.mixBlendMode = e.target.value;
+      });
+      row.querySelector('.lr-arrange').addEventListener('change', e=>{
+        // Keep this layer's existing seed/hue — only the placement style
+        // changes, so picking "Kaleidoscope" doesn't also reroll the color.
+        const cur = layer.getArrange();
+        layer.setArrange(+e.target.value, cur.seed, cur.hue);
       });
       row.querySelector('input[type=range]').addEventListener('input', e=>{
         layer.scale = +e.target.value;
