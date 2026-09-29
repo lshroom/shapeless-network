@@ -1290,17 +1290,24 @@ if (driven) {
     { bank:1, blend:'screen',     scale:0.8,  z:2, mult:1.0,  reaction:{ type:'jump',    band:'drums',  phase:2.1 } },
     { bank:2, blend:'difference', scale:0.6,  z:3, mult:1.3,  reaction:{ type:'breathe', band:'vocals', phase:4.4 } },
   ];
+  // Combines this layer's size + X/Y position into one transform — kept in
+  // one place so the size slider and the two position sliders never
+  // clobber each other's half of the same style string.
+  function applyLayerTransform(layer){
+    layer.canvas.style.transform = `translate(${layer.offsetX}%, ${layer.offsetY}%) scale(${layer.scale})`;
+  }
   const shapeLayers = LAYER_DEFS.map(def => {
     const canvas = document.createElement('canvas');
     canvas.className = 'layerCanvas';
     canvas.style.zIndex = String(def.z);
     canvas.style.mixBlendMode = def.blend;
-    canvas.style.transform = `scale(${def.scale})`;
     layersEl.appendChild(canvas);
     const layer = createLayer({ canvas, bankIdx: def.bank, alpha: true, intervalMult: def.mult, camera, reaction: def.reaction });
     layer.blend = def.blend;
     layer.scale = def.scale;
+    layer.offsetX = 0; layer.offsetY = 0;
     layer.label = BANKS[def.bank].label;
+    applyLayerTransform(layer);
     return layer;
   });
   layers = [bgLayer, ...shapeLayers];
@@ -1457,7 +1464,9 @@ if (driven) {
         </div>
         <select class="lr-blend">${modeOpts}</select>
         <select class="lr-arrange">${arrangeOpts}</select>
-        <div class="lr-size"><span>size</span><input type="range" min="0.3" max="1.8" step="0.05" value="${layer.scale}"></div>
+        <div class="lr-size"><span>size</span><input class="lr-scale" type="range" min="0.3" max="1.8" step="0.05" value="${layer.scale}"></div>
+        <div class="lr-size"><span>x</span><input class="lr-offx" type="range" min="-50" max="50" step="1" value="${layer.offsetX}"></div>
+        <div class="lr-size"><span>y</span><input class="lr-offy" type="range" min="-50" max="50" step="1" value="${layer.offsetY}"></div>
       `;
       row.querySelector('input[type=checkbox]').addEventListener('change', e=>{
         layer.setEnabled(e.target.checked);
@@ -1472,9 +1481,17 @@ if (driven) {
         const cur = layer.getArrange();
         layer.setArrange(+e.target.value, cur.seed, cur.hue);
       });
-      row.querySelector('input[type=range]').addEventListener('input', e=>{
+      row.querySelector('.lr-scale').addEventListener('input', e=>{
         layer.scale = +e.target.value;
-        layer.canvas.style.transform = `scale(${layer.scale})`;
+        applyLayerTransform(layer);
+      });
+      row.querySelector('.lr-offx').addEventListener('input', e=>{
+        layer.offsetX = +e.target.value;
+        applyLayerTransform(layer);
+      });
+      row.querySelector('.lr-offy').addEventListener('input', e=>{
+        layer.offsetY = +e.target.value;
+        applyLayerTransform(layer);
       });
       body.appendChild(row);
     });
