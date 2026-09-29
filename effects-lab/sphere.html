@@ -1330,159 +1330,12 @@ if (driven) {
     applyLayerTransform(layer);
     return layer;
   });
-  // Optional 4th visible layer: a recorded dance silhouette (see
-  // index.html's "Design the visuals" step 2), played back in sync with the
-  // song and composited the same way everything else here is — bright shape
-  // on solid black, 'screen' blend mode, so the black just disappears.
-  // Not a raymarched shape (a <video> element, drawn to a plain 2D canvas
-  // each frame), so it doesn't get an arrangement dropdown — only the same
-  // size/position controls every layer gets, plus a small beat-synced glow.
-  // A real 3D point cloud (THREE.Points, rendered with the page's own shared
-  // `camera` — same one the OrbitControls drag/orbit gesture drives, so it
-  // moves through space with everything else) instead of a flat 2D overlay.
-  // From straight on it reads as a clean silhouette; orbiting reveals it has
-  // depth, via a small per-point z-jitter (Barak 2026-09-29: "from one angle
-  // it will be perfectly 2D, but when we're moving in the same 3D space...
-  // make it point cloud").
-  function createSilhouetteLayer(url){
-    // url is null for the LIVE case — step 2's own camera segmentation feeds
-    // frames straight in via setLiveFrame (postMessage from index.html), so
-    // there's no recorded clip to play yet, just whatever this instant's
-    // camera frame is.
-    const video = url ? document.createElement('video') : null;
-    if (video) { video.src = url; video.crossOrigin = 'anonymous'; video.loop = true; video.muted = true; video.playsInline = true; }
-    let liveFrame = null;
-
-    // Low-res readback grid — reading the video's pixels back every single
-    // frame (getImageData) is CPU-heavy for no visible gain on a human
-    // dancer, so the point cloud is rebuilt a few times a second, not 60.
-    const SAMPLE_W = 96, SAMPLE_H = 54;
-    const sampleCanvas = document.createElement('canvas');
-    sampleCanvas.width = SAMPLE_W; sampleCanvas.height = SAMPLE_H;
-    const sctx = sampleCanvas.getContext('2d', { willReadFrequently: true });
-
-    const canvas = document.createElement('canvas');
-    canvas.className = 'layerCanvas';
-    canvas.style.zIndex = '4';
-    layersEl.appendChild(canvas);
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-
-    const scene = new THREE.Scene();
-    const group = new THREE.Group();
-    scene.add(group);
-
-    const MAX_POINTS = SAMPLE_W * SAMPLE_H;
-    const positions = new Float32Array(MAX_POINTS * 3);
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setDrawRange(0, 0);
-    const material = new THREE.PointsMaterial({
-      color: 0x7ff2ff, size: 0.045, sizeAttenuation: true,
-      transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false,
-    });
-    group.add(new THREE.Points(geometry, material));
-
-    let enabled = true, scale = 0.9, offsetX = 0, offsetY = 0, glow = 0, sampleTick = 0, brightThreshold = 40;
-    function resize(){ canvas.width = innerWidth; canvas.height = innerHeight; renderer.setSize(innerWidth, innerHeight, false); }
-    addEventListener('resize', resize); resize();
-
-    function rebuildPoints(){
-      const source = liveFrame || video;
-      if (!source) return;
-      const sw = liveFrame ? liveFrame.width : video.videoWidth;
-      const sh = liveFrame ? liveFrame.height : video.videoHeight;
-      if (!sw) return;
-      sctx.drawImage(source, 0, 0, SAMPLE_W, SAMPLE_H);
-      const data = sctx.getImageData(0, 0, SAMPLE_W, SAMPLE_H).data;
-      const vAspect = sw / sh;
-      const spanW = 2.6, spanH = spanW / vAspect;
-      let n = 0;
-      for (let y = 0; y < SAMPLE_H; y++) {
-        for (let x = 0; x < SAMPLE_W; x++) {
-          const i = (y * SAMPLE_W + x) * 4;
-          const bright = (data[i] + data[i+1] + data[i+2]) / 3;
-          if (bright < brightThreshold) continue; // below the "you" cutoff — treated as background
-          positions[n*3]   = (x / SAMPLE_W - 0.5) * spanW;
-          positions[n*3+1] = -(y / SAMPLE_H - 0.5) * spanH;
-          // Real depth, not a flat card — subtle, so a head-on view still
-          // reads as a clean 2D silhouette, but orbiting shows it's a cloud.
-          positions[n*3+2] = (Math.random() - 0.5) * 0.4;
-          n++;
-        }
-      }
-      geometry.setDrawRange(0, n);
-      geometry.attributes.position.needsUpdate = true;
-    }
-
-    function step(){
-      if (!enabled) return;
-      if (video) {
-        if (video.readyState < 2) return;
-        // Keeps the silhouette in sync with the song rather than its own
-        // independent clock — if the song seeks/loops, this follows.
-        if (audioEl && Math.abs(video.currentTime - audioEl.currentTime) > 0.5) video.currentTime = audioEl.currentTime;
-        if (audioEl && !audioEl.paused && video.paused) video.play().catch(()=>{});
-        if (audioEl && audioEl.paused && !video.paused) video.pause();
-      }
-      glow = Math.max(glow * 0.9, audio.hit ? 1 : 0);
-      if (liveFrame || (video && ++sampleTick % 3 === 0)) rebuildPoints();
-      group.position.set((offsetX / 100) * 4, -(offsetY / 100) * 4, 0);
-      group.scale.setScalar(scale);
-      material.opacity = 0.7 + glow * 0.3;
-      material.size = 0.045 * (1 + glow * 0.3);
-      renderer.render(scene, camera);
-    }
-    return {
-      canvas, isSilhouette: true, label: 'Dance silhouette', blend: 'screen',
-      get scale(){ return scale; }, set scale(v){ scale = v; },
-      get offsetX(){ return offsetX; }, set offsetX(v){ offsetX = v; },
-      get offsetY(){ return offsetY; }, set offsetY(v){ offsetY = v; },
-      setEnabled(v){ enabled = v; canvas.style.display = v ? 'block' : 'none'; },
-      setLiveFrame(bitmap){ liveFrame?.close?.(); liveFrame = bitmap; },
-      setThreshold(v){ brightThreshold = v; },
-      set blendMode(v){ canvas.style.mixBlendMode = v; },
-      setAutoBeat(){}, setInterval(){},
-      step, precompile(){ return video ? video.play().catch(()=>{}) : Promise.resolve(); },
-    };
-  }
-  const silhouetteUrl = urlParams.get('silhouette');
-  let silhouetteLayer = silhouetteUrl ? createSilhouetteLayer(decodeURIComponent(silhouetteUrl)) : null;
-  // Step 2 of the wizard streams live camera-cutout frames in (postMessage)
-  // while you're still recording, so the SAME real 3D point cloud that shows
-  // on the finished post also shows while dancing — not only afterward
-  // (Barak 2026-09-29: "why just on finished post? I need it in preview of
-  // step 2").
-  // The brightness/contrast/sensitivity/blend controls in step 2 can be
-  // touched before the first camera frame arrives (or while the layer is
-  // momentarily absent), so pending values are held here and re-applied
-  // whenever a silhouette layer gets (re)created.
-  let pendingSilhouetteThreshold = null, pendingSilhouetteBlend = null;
-  function setLiveSilhouette(bitmap){
-    if (!silhouetteLayer) {
-      silhouetteLayer = createSilhouetteLayer(null);
-      layers.push(silhouetteLayer);
-      if (pendingSilhouetteThreshold != null) silhouetteLayer.setThreshold(pendingSilhouetteThreshold);
-      if (pendingSilhouetteBlend != null) silhouetteLayer.blendMode = pendingSilhouetteBlend;
-      renderBlendPanel?.();
-    }
-    silhouetteLayer.setLiveFrame(bitmap);
-  }
-  function setLiveSilhouetteThreshold(v){
-    pendingSilhouetteThreshold = v;
-    silhouetteLayer?.setThreshold(v);
-  }
-  function setLiveSilhouetteBlend(v){
-    pendingSilhouetteBlend = v;
-    if (silhouetteLayer) silhouetteLayer.blendMode = v;
-  }
-
-  // Optional 5th visible layer: synced lyric captions, one line at a time,
+  // Optional 4th visible layer: synced lyric captions, one line at a time,
   // timed off Whisper's own start/end seconds for that line (see index.html's
-  // "Design the visuals" step 3 -> app.runLyricsTranscription). Drawn to a
-  // plain 2D canvas like the silhouette layer, with a stacked-shadow trick to
-  // fake depth ("3D-ish") since this pipeline is raymarched GLSL, not a mesh
-  // scene that could hold real 3D text geometry.
+  // "Design the visuals" step 2 -> app.runLyricsTranscription). Drawn to a
+  // plain 2D canvas with a stacked-shadow trick to fake depth ("3D-ish")
+  // since this pipeline is raymarched GLSL, not a mesh scene that could
+  // hold real 3D text geometry.
   function createLyricsLayer(initialSegments){
     const canvas = document.createElement('canvas');
     canvas.className = 'layerCanvas';
@@ -1555,8 +1408,8 @@ if (driven) {
   }
   let lyricsLayer = (lyricsSegments && lyricsSegments.length) ? createLyricsLayer(lyricsSegments) : null;
 
-  layers = [bgLayer, ...shapeLayers, silhouetteLayer, lyricsLayer].filter(Boolean);
-  // The Design-the-visuals wizard (step 3) transcribes AFTER this page has
+  layers = [bgLayer, ...shapeLayers, lyricsLayer].filter(Boolean);
+  // The Design-the-visuals wizard (step 2) transcribes AFTER this page has
   // already loaded, so the lyrics layer can't only come from a URL param at
   // boot — it also has to be creatable/updatable live, mid-session, as soon
   // as a transcript exists, so you see the 3D captions while still editing
@@ -1635,20 +1488,11 @@ if (driven) {
     if (e.data?.type === 'lyrics' && Array.isArray(e.data.segments)) {
       setLiveLyrics(e.data.segments);
     }
-    if (e.data?.type === 'silhouetteFrame' && e.data.bitmap) {
-      setLiveSilhouette(e.data.bitmap);
-    }
-    if (e.data?.type === 'silhouetteThreshold' && isFinite(e.data.value)) {
-      setLiveSilhouetteThreshold(e.data.value);
-    }
-    if (e.data?.type === 'silhouetteBlend' && typeof e.data.value === 'string') {
-      setLiveSilhouetteBlend(e.data.value);
-    }
     if (e.data?.type === 'setUiVisible') {
-      // The wizard shares one persistent iframe across all 3 steps so
-      // playback and the live silhouette/lyrics layers survive step
-      // changes — this lets index.html hide the uploader's own layer-mix
-      // bar/panel once they've moved past step 1, without reloading it.
+      // The wizard shares one persistent iframe across both steps so
+      // playback and the live lyrics layer survive step changes — this
+      // lets index.html hide the uploader's own layer-mix bar/panel once
+      // they've moved past step 1, without reloading it.
       const show = !!e.data.visible;
       const bar = document.getElementById('bar'); if (bar) bar.style.display = show ? '' : 'none';
       const bp = document.getElementById('blendPanel'); if (bp) bp.style.display = show ? '' : 'none';
@@ -1732,28 +1576,9 @@ if (driven) {
         body.appendChild(row);
         return;
       }
-      if (layer.isSilhouette) {
-        // No blend-mode or arrangement pick — it's a video, not a raymarched
-        // shape — just enable + the same size/X/Y every other layer gets.
-        row.innerHTML = `
-          <div class="lr-head">
-            <input type="checkbox" checked>
-            <span>${layer.label}</span>
-          </div>
-          <div class="lr-size"><span>size</span><input class="lr-scale" type="range" min="0.3" max="1.8" step="0.05" value="${layer.scale}"></div>
-          <div class="lr-size"><span>x</span><input class="lr-offx" type="range" min="-50" max="50" step="1" value="${layer.offsetX}"></div>
-          <div class="lr-size"><span>y</span><input class="lr-offy" type="range" min="-50" max="50" step="1" value="${layer.offsetY}"></div>
-        `;
-        row.querySelector('input[type=checkbox]').addEventListener('change', e=>{ layer.setEnabled(e.target.checked); });
-        row.querySelector('.lr-scale').addEventListener('input', e=>{ layer.scale = +e.target.value; });
-        row.querySelector('.lr-offx').addEventListener('input', e=>{ layer.offsetX = +e.target.value; });
-        row.querySelector('.lr-offy').addEventListener('input', e=>{ layer.offsetY = +e.target.value; });
-        body.appendChild(row);
-        return;
-      }
       if (layer.isLyrics) {
-        // Same as the silhouette row — no blend/arrangement pick, just
-        // enable + size/X/Y, since it's a plain 2D text overlay too.
+        // No blend-mode or arrangement pick — just enable + size/X/Y,
+        // since it's a plain 2D text overlay.
         row.innerHTML = `
           <div class="lr-head">
             <input type="checkbox" checked>

@@ -1209,14 +1209,12 @@
     <div class="feed-schedule-modal" id="feed-schedule-modal" hidden>
       <div class="feed-schedule-panel">
         <div class="feed-schedule-head">
-          <span id="feed-schedule-head-label">Step 1 of 3 — Design the visuals</span>
+          <span id="feed-schedule-head-label">Step 1 of 2 — Design the visuals</span>
           <button class="feed-schedule-close" onclick="app.closeScheduleEditor()">✕</button>
         </div>
 
         <div class="feed-schedule-preview" id="feed-schedule-preview-wrap" style="position:relative;">
           <iframe id="feed-schedule-frame-sphere" class="feed-schedule-frame" data-active="true" allow="autoplay"></iframe>
-          <video id="feed-silhouette-cam" autoplay muted playsinline style="position:absolute;width:2px;height:2px;opacity:0;pointer-events:none;"></video>
-          <canvas id="feed-silhouette-canvas" style="position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;mix-blend-mode:screen;"></canvas>
         </div>
 
         <div id="feed-schedule-step1">
@@ -1238,32 +1236,6 @@
         </div>
 
         <div id="feed-schedule-step2" hidden style="padding:14px;">
-          <label class="feed-schedule-toggle-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-            <input type="checkbox" id="feed-silhouette-enable" onchange="app.toggleSilhouette(this.checked)">
-            <span>Add a dance silhouette — the visuals above keep playing from the top, dance in front of a plain wall and we'll cut you out on top of them.</span>
-          </label>
-          <div id="feed-silhouette-body" hidden>
-            <div class="pad-hint" id="feed-silhouette-status" style="margin:8px 0;">Stand in front of a plain wall, in frame, for the best cutout.</div>
-            <div style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:6px 8px;margin-bottom:10px;font-size:12px;">
-              <span>Brightness</span><input type="range" id="feed-silhouette-brightness" min="50" max="200" value="100" oninput="app.updateSilhouetteLook()"><span id="feed-silhouette-brightness-val">100%</span>
-              <span>Contrast</span><input type="range" id="feed-silhouette-contrast" min="50" max="300" value="100" oninput="app.updateSilhouetteLook()"><span id="feed-silhouette-contrast-val">100%</span>
-              <span>Sensitivity</span><input type="range" id="feed-silhouette-threshold" min="0" max="255" value="40" oninput="app.updateSilhouetteLook()"><span id="feed-silhouette-threshold-val">40</span>
-              <span>Blend</span>
-              <select id="feed-silhouette-blend" onchange="app.updateSilhouetteLook()" style="grid-column:2/4;">
-                <option value="screen" selected>Screen (glow, recommended)</option>
-                <option value="lighten">Lighten</option>
-                <option value="difference">Difference (edges pop)</option>
-                <option value="exclusion">Exclusion</option>
-                <option value="normal">Normal (no blend)</option>
-              </select>
-            </div>
-            <div style="display:flex;gap:8px;">
-              <button class="btn btn-primary btn-sm" id="feed-silhouette-record-btn" style="flex:1" onclick="app.toggleSilhouetteRecording()">● Record while the song plays</button>
-            </div>
-          </div>
-        </div>
-
-        <div id="feed-schedule-step3" hidden style="padding:14px;">
           <label class="feed-schedule-toggle-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <input type="checkbox" id="feed-lyrics-enable" onchange="app.toggleLyricsChoice(this.checked)">
             <span>Add synced lyrics — words appear in 3D as you sing them.</span>
@@ -2021,7 +1993,6 @@
     </div>`;
   }
   let feedPlayerSongUrl = null;
-  let feedPlayerSilhouetteUrl = null;
   let feedPlayerLyricsSegments = null;
   // Modern black/white stroke icons, matching the rest of the site's icon style — no emoji.
   const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
@@ -2046,7 +2017,6 @@
     // The small inline preview just opens on the uploader's first chosen shape
     // — the full scheduled switching plays out once the viewer goes fullscreen.
     if(sched) src += '&driven=1&shape=' + sched[0].shape;
-    if(isBlended && p.media.effectSilhouette) src += '&silhouette=' + encodeURIComponent(p.media.effectSilhouette);
     if(isBlended && p.media.effectLyrics?.segments?.length) src += '&lyrics=' + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(p.media.effectLyrics.segments)))));
     return `<div class="feed-inline-player">
       <iframe class="feed-inline-frame" id="feed-inline-frame-${p.id}" src="${src}" allow="autoplay" loading="lazy"></iframe>
@@ -2280,17 +2250,10 @@
   let schedulePlaying = false;
   let scheduleDragMarker = null;
   let scheduleFiredIdx = -1;
-  // Step 2/3 state — the dance-silhouette recording and the lyrics choice,
-  // both carried on scheduleDraft so submitFeedPost can attach them to the
-  // post's media the same way it already does with switch-point markers.
+  // Step 2 state — the lyrics choice, carried on scheduleDraft so
+  // submitFeedPost can attach it to the post's media the same way it
+  // already does with switch-point markers.
   let scheduleStep = 1;
-  let scheduleSilhouetteMedia = null; // uploaded silhouette video, once recorded
-  let scheduleSilhouetteStream = null; // raw webcam MediaStream
-  let scheduleSilhouetteRAF = null;
-  let scheduleSilhouetteBrightness = 100, scheduleSilhouetteContrast = 100; // % — live-tunable, read by the raw camera loop
-  let scheduleSilhouetteRecorder = null;
-  let scheduleSilhouetteChunks = [];
-  let scheduleSilhouetteRecording = false;
   let scheduleLyricsEnabled = false;
   let scheduleLyricsMode = 'local';
   let scheduleLyricsCloudKey = '';
@@ -2526,7 +2489,6 @@
         // (loadScheduleFrame) should ever show those.
         src += '&viewer=1';
       }
-      if(effect === 'sphere' && feedPlayerSilhouetteUrl) src += '&silhouette=' + encodeURIComponent(feedPlayerSilhouetteUrl);
       if(effect === 'sphere' && feedPlayerLyricsSegments && feedPlayerLyricsSegments.length) src += '&lyrics=' + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(feedPlayerLyricsSegments)))));
       const frame = feedPlayerFrame(effect);
       frame.src = src;
@@ -8379,7 +8341,7 @@
       if(input.id === 'feed-post-song'){
         if(scheduleLocalPreviewUrl){ URL.revokeObjectURL(scheduleLocalPreviewUrl); scheduleLocalPreviewUrl = null; }
         scheduleDraft = null; scheduleUploadedMedia = null; scheduleUploadedForFile = null;
-        scheduleSilhouetteMedia = null; scheduleLyricsEnabled = false; scheduleLyricsMode = 'local';
+        scheduleLyricsEnabled = false; scheduleLyricsMode = 'local';
         scheduleLyricsSegments = null; scheduleLyricsCloudKey = '';
         document.getElementById('feed-post-schedule-status').textContent = 'defaults to Sphere';
       }
@@ -8413,7 +8375,6 @@
             const draft = (scheduleDraft && scheduleUploadedForFile === file) ? scheduleDraft : { markers: [] };
             media.effect = 'sphere-blended';
             if(draft.markers.length) media.effectSwitchPoints = draft.markers.map(m => m.t);
-            if(draft.silhouetteUrl) media.effectSilhouette = draft.silhouetteUrl;
             if(draft.lyrics) media.effectLyrics = draft.lyrics;
           }
           if(media.kind === 'video'){ media.effect = 'cube'; }
@@ -8430,7 +8391,7 @@
         document.getElementById('feed-post-schedule-status').textContent = '';
         if(scheduleLocalPreviewUrl){ URL.revokeObjectURL(scheduleLocalPreviewUrl); scheduleLocalPreviewUrl = null; }
         scheduleDraft = null; scheduleUploadedMedia = null; scheduleUploadedForFile = null;
-        scheduleSilhouetteMedia = null; scheduleLyricsEnabled = false; scheduleLyricsMode = 'local';
+        scheduleLyricsEnabled = false; scheduleLyricsMode = 'local';
         scheduleLyricsSegments = null; scheduleLyricsCloudKey = '';
         hideProgress();
         renderFeed();
@@ -8463,175 +8424,46 @@
       scheduleBroadcast({ type: 'pause' });
       scheduleFrame().src = 'about:blank';
       schedulePlaying = false;
-      app.stopSilhouetteCamera();
     },
     scheduleStepNow(){ return scheduleStep; },
-    // Steps: 1 = visuals (existing timeline editor), 2 = dance silhouette,
-    // 3 = lyrics choice. Step 0 from step 1's "Cancel" just closes; step 4
-    // from step 3's "Post" saves everything and closes.
+    // Steps: 1 = visuals (existing timeline editor), 2 = lyrics choice.
+    // Step 0 from step 1's "Cancel" just closes; step 3 from step 2's
+    // "Post" saves everything and closes. (The dance-silhouette step that
+    // used to sit between these never worked reliably with a real camera
+    // and was removed — Barak 2026-09-29: "not working well, remove it.")
     scheduleGoStep(n){
       if(n < 1){ app.closeScheduleEditor(); return; }
-      if(n > 3){ app.saveScheduleEditor(); return; }
-      if(scheduleStep === 2 && n !== 2) app.stopSilhouetteCamera();
+      if(n > 2){ app.saveScheduleEditor(); return; }
       scheduleStep = n;
       document.getElementById('feed-schedule-step1').hidden = n !== 1;
       document.getElementById('feed-schedule-step2').hidden = n !== 2;
-      document.getElementById('feed-schedule-step3').hidden = n !== 3;
-      // The visuals preview (iframe + silhouette overlay, and now the live
-      // 3D lyrics too) is shared by all 3 steps — step 3 needs it visible so
-      // transcribed captions actually show up in the space as you fix their
-      // timing, not just after the post goes out.
+      // The visuals preview (iframe + the live 3D lyrics) is shared by both
+      // steps — step 2 needs it visible so transcribed captions actually
+      // show up in the space as you fix their timing, not just after the
+      // post goes out.
       document.getElementById('feed-schedule-preview-wrap').hidden = false;
       // sphere.html's own layer-mix bar/panel is only wanted while actively
-      // designing in step 1 — steps 2/3 just want the plain preview.
+      // designing in step 1 — step 2 just wants the plain preview.
       scheduleFrame()?.contentWindow?.postMessage({ type: 'setUiVisible', visible: n === 1 }, '*');
-      if(n === 3) app.pushLiveLyricsPreview();
-      const labels = ['Design the visuals', 'Dance silhouette', 'Lyrics'];
-      document.getElementById('feed-schedule-head-label').textContent = `Step ${n} of 3 — ${labels[n-1]}`;
+      if(n === 2) app.pushLiveLyricsPreview();
+      const labels = ['Design the visuals', 'Lyrics'];
+      document.getElementById('feed-schedule-head-label').textContent = `Step ${n} of 2 — ${labels[n-1]}`;
       document.getElementById('feed-schedule-back-btn').textContent = n === 1 ? 'Cancel' : '← Back';
       document.getElementById('feed-schedule-back-btn').onclick = () => app.scheduleGoStep(n-1);
-      document.getElementById('feed-schedule-next-btn').textContent = n === 3 ? 'Post →' : 'Next →';
+      document.getElementById('feed-schedule-next-btn').textContent = n === 2 ? 'Post →' : 'Next →';
       document.getElementById('feed-schedule-next-btn').onclick = () => app.scheduleGoStep(n+1);
-      if(n === 2){
-        // Dancing needs the song (and its visuals) running from the top, not
-        // wherever step 1 happened to leave the playhead.
-        scheduleCurrentTime = 0;
-        scheduleFiredIdx = -1;
-        scheduleBroadcast({ type: 'seek', time: 0 });
-        if(!schedulePlaying) app.toggleSchedulePreview();
-        if(document.getElementById('feed-silhouette-enable').checked) app.toggleSilhouette(true);
-      }
     },
-    // Step 3's "Post →" button used to just close the wizard and stash the
+    // Step 2's "Post →" button used to just close the wizard and stash the
     // draft on the composer's status line — you then had to notice and press
     // the OUTER composer's own separate "Post →" button too, or nothing ever
     // actually went out (Barak 2026-09-29: "I pressed post but I don't see
     // it in the feed"). It now really posts, right from the wizard.
     async saveScheduleEditor(){
-      scheduleDraft.silhouetteUrl = scheduleSilhouetteMedia?.url || null;
       scheduleDraft.lyrics = scheduleLyricsEnabled ? { enabled: true, mode: scheduleLyricsMode, segments: scheduleLyricsSegments || [] } : null;
       app.closeScheduleEditor();
       await app.submitFeedPost();
     },
-    // ---- Step 2: dance silhouette ----
-    async toggleSilhouette(enabled){
-      document.getElementById('feed-silhouette-body').hidden = !enabled;
-      if(!enabled){ app.stopSilhouetteCamera(); return; }
-      const statusEl = document.getElementById('feed-silhouette-status');
-      try {
-        statusEl.textContent = 'Loading…';
-        scheduleSilhouetteStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-        const video = document.getElementById('feed-silhouette-cam');
-        video.srcObject = scheduleSilhouetteStream;
-        await video.play();
-        const canvas = document.getElementById('feed-silhouette-canvas');
-        canvas.width = video.videoWidth || 640; canvas.height = video.videoHeight || 360;
-        // No longer shown as a flat CSS overlay — it's now just a scratch
-        // buffer whose frames get pushed into the SAME preview iframe as a
-        // live-updating real 3D point cloud (the same one the finished post
-        // uses), instead of a separate flat 2D copy sitting on top of it.
-        canvas.style.display = 'none';
-        const ctx = canvas.getContext('2d');
-        let liveFrameTick = 0;
-        // Throttled so a real-time cutout doesn't spam createImageBitmap/
-        // postMessage at 60fps — a few pushes a second reads as smooth for a
-        // dancing silhouette.
-        async function pushLiveFrame(){
-          if(++liveFrameTick % 3 !== 0) return;
-          try {
-            const bmp = await createImageBitmap(canvas);
-            scheduleFrame()?.contentWindow?.postMessage({ type: 'silhouetteFrame', bitmap: bmp }, '*', [bmp]);
-          } catch(e){ /* iframe not ready yet, or bitmap failed — just skip this frame */ }
-        }
-        const rawLoop = () => {
-          if (!scheduleSilhouetteStream) return;
-          // Brightness/contrast are applied to the actual pushed pixels (not
-          // just a CSS overlay), since the point cloud's threshold decision
-          // in sphere.html reads those same pixel values — so cranking
-          // contrast here really does separate you from the background.
-          ctx.filter = `brightness(${scheduleSilhouetteBrightness}%) contrast(${scheduleSilhouetteContrast}%)`;
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          pushLiveFrame();
-          scheduleSilhouetteRAF = requestAnimationFrame(rawLoop);
-        };
-        // Automatic background removal (first MediaPipe, then BodyPix) never
-        // held up in real use — Barak 2026-09-29: "looks exactly the same."
-        // Simpler and actually reliable: push the real, raw camera feed, and
-        // let the point cloud's own brightness cutoff (in sphere.html) do the
-        // "background removal" — with live brightness/contrast/sensitivity/
-        // blend controls here so the user can dial it in themselves for
-        // their own lighting and background, instead of a fixed guess.
-        rawLoop();
-        app.updateSilhouetteLook();
-        statusEl.textContent = 'Stand in frame, then press record and dance — recording runs alongside the song. Use the sliders below to fine-tune what counts as "you" vs. background.';
-      } catch(e){
-        console.error('toggleSilhouette failed:', e);
-        statusEl.textContent = 'Could not start the camera: ' + (e?.message || 'unknown error');
-        document.getElementById('feed-silhouette-enable').checked = false;
-        document.getElementById('feed-silhouette-body').hidden = true;
-      }
-    },
-    // Reads the 4 sliders/select and applies them: brightness/contrast are
-    // picked up by the raw camera loop itself next frame; sensitivity and
-    // blend mode are pushed live into sphere.html's point-cloud layer.
-    updateSilhouetteLook(){
-      scheduleSilhouetteBrightness = +document.getElementById('feed-silhouette-brightness').value;
-      scheduleSilhouetteContrast = +document.getElementById('feed-silhouette-contrast').value;
-      const threshold = +document.getElementById('feed-silhouette-threshold').value;
-      const blend = document.getElementById('feed-silhouette-blend').value;
-      document.getElementById('feed-silhouette-brightness-val').textContent = scheduleSilhouetteBrightness + '%';
-      document.getElementById('feed-silhouette-contrast-val').textContent = scheduleSilhouetteContrast + '%';
-      document.getElementById('feed-silhouette-threshold-val').textContent = threshold;
-      scheduleFrame()?.contentWindow?.postMessage({ type: 'silhouetteThreshold', value: threshold }, '*');
-      scheduleFrame()?.contentWindow?.postMessage({ type: 'silhouetteBlend', value: blend }, '*');
-    },
-    stopSilhouetteCamera(){
-      if(scheduleSilhouetteRecording) app.toggleSilhouetteRecording();
-      if(scheduleSilhouetteRAF) cancelAnimationFrame(scheduleSilhouetteRAF);
-      scheduleSilhouetteRAF = null;
-      scheduleSilhouetteStream?.getTracks().forEach(t => t.stop());
-      scheduleSilhouetteStream = null;
-      const canvas = document.getElementById('feed-silhouette-canvas');
-      if(canvas) canvas.style.display = 'none';
-    },
-    async toggleSilhouetteRecording(){
-      const btn = document.getElementById('feed-silhouette-record-btn');
-      const statusEl = document.getElementById('feed-silhouette-status');
-      if(!scheduleSilhouetteRecording){
-        const canvas = document.getElementById('feed-silhouette-canvas');
-        const stream = canvas.captureStream(30);
-        scheduleSilhouetteChunks = [];
-        scheduleSilhouetteRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
-        scheduleSilhouetteRecorder.ondataavailable = (e) => { if(e.data.size) scheduleSilhouetteChunks.push(e.data); };
-        scheduleSilhouetteRecorder.onstop = async () => {
-          statusEl.textContent = 'Uploading your recording…';
-          try {
-            const blob = new Blob(scheduleSilhouetteChunks, { type: 'video/webm' });
-            const file = new File([blob], 'silhouette-' + Date.now() + '.webm', { type: 'video/webm' });
-            scheduleSilhouetteMedia = await SB.uploadMedia(file);
-            statusEl.textContent = 'Saved — this silhouette will play with the visuals.';
-          } catch(e){
-            console.error('silhouette upload failed:', e);
-            statusEl.textContent = 'Could not save the recording: ' + (e?.message || 'unknown error');
-          }
-        };
-        scheduleSilhouetteRecorder.start();
-        scheduleSilhouetteRecording = true;
-        btn.textContent = '■ Stop recording';
-        statusEl.textContent = 'Recording — dance!';
-        // Plays the actual song alongside the recording so the dancing lines
-        // up with it — same transport the visuals step already has.
-        scheduleBroadcast({ type: 'seek', time: 0 });
-        if(!schedulePlaying) app.toggleSchedulePreview();
-      } else {
-        scheduleSilhouetteRecorder?.stop();
-        scheduleSilhouetteRecording = false;
-        btn.textContent = '● Record while the song plays';
-        if(schedulePlaying) app.toggleSchedulePreview();
-      }
-    },
-    // ---- Step 3: lyrics choice + transcription ----
+    // ---- Step 2: lyrics choice + transcription ----
     toggleLyricsChoice(enabled){
       scheduleLyricsEnabled = enabled;
       document.getElementById('feed-lyrics-body').hidden = !enabled;
@@ -8639,16 +8471,31 @@
     async setLyricsMode(mode){
       scheduleLyricsMode = mode;
       const input = document.getElementById('feed-lyrics-cloud-key');
+      const statusEl = document.getElementById('feed-lyrics-transcribe-status');
       input.hidden = mode !== 'cloud';
       // Pull the key from THIS account (private row, only you can read it —
       // see shapeless_private_settings) instead of asking for it again —
       // works the same whether you're on your phone or your PC, since it's
-      // tied to your login, not the browser.
+      // tied to your login, not the browser. This used to fail silently
+      // (console.warn only) on a slow connection or if auth hadn't finished
+      // resolving yet — Barak 2026-09-29: "the cloud still asks for the key
+      // in my account" — so any failure now shows on-screen, and a missing
+      // user gets one short retry instead of giving up immediately.
       if(mode === 'cloud' && !scheduleLyricsCloudKey){
+        statusEl.textContent = 'Loading your saved key…';
         try {
+          if(!SB.getUser()) await new Promise(r => setTimeout(r, 1200));
+          if(!SB.getUser()){
+            statusEl.textContent = "Couldn't load your saved key — you don't look signed in yet. Sign in, then reopen this step.";
+            return;
+          }
           const saved = await SB.getLyricsCloudKey();
-          if(saved){ scheduleLyricsCloudKey = saved; input.value = saved; }
-        } catch(e){ console.warn('[lyrics] could not load saved key:', e?.message || e); }
+          if(saved){ scheduleLyricsCloudKey = saved; input.value = saved; statusEl.textContent = 'Loaded your saved key.'; }
+          else statusEl.textContent = 'No key saved yet — paste one below and it\'ll be remembered on your account.';
+        } catch(e){
+          console.warn('[lyrics] could not load saved key:', e?.message || e);
+          statusEl.textContent = "Couldn't load your saved key (" + (e?.message || 'unknown error') + ") — paste it below for now.";
+        }
       }
     },
     setLyricsCloudKey(v){ scheduleLyricsCloudKey = v; },
@@ -8991,7 +8838,6 @@
         if(playBtn){ playBtn.innerHTML = ICON_PLAY; playBtn.title = 'Play'; }
       }
       feedPlayerSongUrl = p.media.url;
-      feedPlayerSilhouetteUrl = p.media.effectSilhouette || null;
       feedPlayerLyricsSegments = p.media.effectLyrics?.segments || null;
       const isBlended = p.media.effect === 'sphere-blended';
       const sched = !isBlended && Array.isArray(p.media.effectSchedule) && p.media.effectSchedule.length ? p.media.effectSchedule.slice().sort((a,b)=>a.t-b.t) : null;
