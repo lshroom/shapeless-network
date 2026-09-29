@@ -281,13 +281,12 @@ SHAPE_FN[4] = { fn:'deSdfMorph', src:`float deSdfMorph(vec3 p){
   }
   return d;
 }` };
-// The originals were a finite EXTENT=7 plane; a raw heightfield SDF (p.y-h)
-// is an infinite tilted sheet, so each needs SOME bound. Which bound it gets
-// now follows the layer's own arrangement pick (see uArrange/deArranged
-// below): arrangement 1 ("flat field") clips it into a wide, thin BOX so it
-// genuinely reads as a carpet; every other arrangement keeps the original
-// spherical bound, so these can still show up round/ball-shaped exactly like
-// before — flat is now one more option, not a replacement.
+// A raw heightfield SDF (p.y-h) is already an infinite tilted sheet — that's
+// the actual field/carpet look. Arrangement 1 ("flat field") leaves it fully
+// unbounded (no clip of any kind — the raymarch's own travel distance is the
+// only limit, so there's never an edge to zoom into). Every other
+// arrangement clips it into a sphere so it can show up round/ball-shaped
+// instead, and so morph-crossfade has a comparably-sized shape to blend with.
 SHAPE_FN[5] = { fn:'deWaveField', src:`float deWaveField(vec3 p){
   float v=0.0;
   for(int s=0;s<3;s++){
@@ -297,27 +296,36 @@ SHAPE_FN[5] = { fn:'deWaveField', src:`float deWaveField(vec3 p){
     v += sin(d*6.5*(1.0+uMid*0.5)-uTime*4.0)/(1.0+d*0.5);
   }
   float h = v*1.0*(0.5+uBass)*0.4;
-  float box = max(abs(p.x)-2.3, max(abs(p.z)-2.3, abs(p.y)-0.9));
-  float bound = (uArrange==1) ? box : (length(p)-2.1);
-  return max(p.y - h, bound);
+  // arrangement 1 ("flat field") gets NO clip at all — a true open,
+  // unbounded sheet, only limited by how far the raymarch itself travels.
+  // Every other arrangement still needs a bound so morph-crossfade and the
+  // other domain warps have a comparably-sized shape to work with.
+  if (uArrange==1) return p.y - h;
+  return max(p.y - h, length(p)-2.1);
 }` };
 SHAPE_FN[6] = { fn:'deChladniField', src:`float deChladniField(vec3 p){
   float ext=2.6;
   float m=4.0+uMid*3.0, n=3.0+uHigh*2.0;
   float u=p.x/ext+0.5, v=p.z/ext+0.5;
   float h=(sin(m*3.14159265*u)*sin(n*3.14159265*v)-sin(n*3.14159265*u)*sin(m*3.14159265*v))*0.7*(0.5+uBass);
-  float box = max(abs(p.x)-2.3, max(abs(p.z)-2.3, abs(p.y)-0.9));
-  float bound = (uArrange==1) ? box : (length(p)-2.1);
-  return max(p.y - h, bound);
+  // arrangement 1 ("flat field") gets NO clip at all — a true open,
+  // unbounded sheet, only limited by how far the raymarch itself travels.
+  // Every other arrangement still needs a bound so morph-crossfade and the
+  // other domain warps have a comparably-sized shape to work with.
+  if (uArrange==1) return p.y - h;
+  return max(p.y - h, length(p)-2.1);
 }` };
 SHAPE_FN[7] = { fn:'deWebField', src:`float deWebField(vec3 p){
   float rad=length(p.xz), ang=atan(p.z,p.x);
   float spoke=pow(abs(cos(ang*7.0)),10.0);
   float ring=pow(abs(cos(rad*3.6-uTime*0.6)),10.0);
   float h=(max(spoke,ring)*0.6-0.12)*(0.4+uRms*2.0);
-  float box = max(abs(p.x)-2.3, max(abs(p.z)-2.3, abs(p.y)-0.9));
-  float bound = (uArrange==1) ? box : (length(p)-2.1);
-  return max(p.y - h, bound);
+  // arrangement 1 ("flat field") gets NO clip at all — a true open,
+  // unbounded sheet, only limited by how far the raymarch itself travels.
+  // Every other arrangement still needs a bound so morph-crossfade and the
+  // other domain warps have a comparably-sized shape to work with.
+  if (uArrange==1) return p.y - h;
+  return max(p.y - h, length(p)-2.1);
 }` };
 // ---- second batch: 13 more shapes, contributed for more variety so the
 // morph never feels repetitive over a long song. Same house rules as above —
